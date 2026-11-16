@@ -282,6 +282,31 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
   .metric-row.compact-series .metric-reading{font-size:8px;}
   .entry-sheet{width:min(94vw,550px);}
 }
+
+/* v0.1.014 refinements */
+.screen{gap:clamp(1px,.35vh,5px)!important;}
+.topbar{margin-bottom:0!important;min-height:clamp(32px,5.2vh,46px)!important;}
+.main-area{gap:0!important;grid-template-columns:minmax(0,1fr) clamp(126px,18vw,235px)!important;}
+.chart-shell{overflow:hidden;}
+.metric-row .metric{padding:0 1px!important;}
+.metric-row .metric-topline{top:-31px!important;left:2px!important;right:0!important;display:flex!important;align-items:flex-end!important;gap:6px!important;justify-content:flex-start!important;white-space:nowrap;}
+.metric-row .metric-percent{order:0;font-size:clamp(24px,3.9vw,56px)!important;line-height:.82!important;font-weight:900!important;color:var(--line)!important;letter-spacing:-.05em;}
+.metric-row .metric-head{order:1;display:inline-flex!important;align-items:flex-end!important;gap:4px!important;font-size:clamp(11px,1.35vw,22px)!important;font-weight:900!important;color:var(--ink)!important;line-height:1!important;}
+.metric-row .metric-icon{font-size:clamp(12px,1.45vw,22px)!important;}
+.metric-row .metric-reading{top:9px!important;left:2px!important;right:20px!important;font-size:clamp(10px,1.15vw,19px)!important;font-weight:800!important;color:var(--sub)!important;white-space:nowrap;}
+.metric-row .metric{border-top-width:2.5px!important;background:linear-gradient(to bottom,var(--wash) 0%, rgba(255,255,255,0) 88%)!important;}
+.hidden-metrics-toggle{bottom:2px!important;right:2px!important;}
+@media (orientation:portrait){
+  .screen{gap:2px!important;padding:max(6px,env(safe-area-inset-top)) max(3px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(3px,env(safe-area-inset-left))!important;}
+  .topbar{min-height:34px!important;}
+  .main-area{grid-template-columns:minmax(0,1fr) clamp(112px,32vw,160px)!important;}
+  .metric-row .metric-topline{top:-26px!important;gap:5px!important;}
+  .metric-row .metric-percent{font-size:clamp(18px,8.8vw,42px)!important;}
+  .metric-row .metric-head{font-size:clamp(9px,4.2vw,18px)!important;}
+  .metric-row .metric-icon{font-size:clamp(10px,4.4vw,18px)!important;}
+  .metric-row .metric-reading{font-size:clamp(8px,3.7vw,14px)!important;top:7px!important;right:18px!important;}
+}
+
 </style>
   
   
@@ -402,7 +427,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
   }
   // No fabricated missing weights. All nutrient-to-calorie checks are consistent by construction.
   return records;
-})();</script><script>/* PieChart v0.1.012 — visual prototype, deliberately no external services. */
+})();</script><script>/* PieChart v0.1.014 — visual prototype, deliberately no external services. */
 (() => {
   'use strict';
   let DATA = window.DEMO_DATA || [];
@@ -411,9 +436,9 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
   const tooltip=document.getElementById('tooltip');
   
     const NS='http://www.w3.org/2000/svg';
-  const defaultKeys=['steps','water','weight','calories','protein','fibre','carbs','fats'];
+  const defaultKeys=['weight','steps','water','calories','fibre','protein','fats','carbs'];
   const loadOrder=()=>{
-    try {const k=JSON.parse(localStorage.getItem('pieChartMetricOrder'));return Array.isArray(k)&&k.length===8&&defaultKeys.every(x=>k.includes(x))?k:defaultKeys.slice();}
+    try {const k=JSON.parse(localStorage.getItem('pieChartMetricOrderV014'));return Array.isArray(k)&&k.length===8&&defaultKeys.every(x=>k.includes(x))?k:defaultKeys.slice();}
     catch{return defaultKeys.slice();}
   };
   let keys=loadOrder();
@@ -424,10 +449,10 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
   const labels={weight:'Weight',calories:'Calories',protein:'Protein',carbs:'Carbs',fats:'Fats',fibre:'Fibre',steps:'Steps',water:'Water'};
   const units={weight:'kg',calories:'kcal',protein:'g',carbs:'g',fats:'g',fibre:'g',steps:'steps',water:'L'};
   const goals={steps:'stepsGoal',water:'waterGoal',protein:'proteinGoal',fibre:'fibreGoal'};
-  const active=Object.fromEntries(keys.map(k=>[k,!optionalKeys.has(k)]));
+  const active=Object.fromEntries(keys.map(k=>[k,true]));
   const shown=k=>active[k];
   let current=[], scales={},geometry=null, hovered=-1, focusedAxis='calories';
-  let daysVisible=30;
+  let daysVisible=100;
   const MIN_DAYS=7;
   const portraitView=window.matchMedia('(orientation:portrait)');
   let chartRoot=svg;
@@ -493,28 +518,22 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
     const n=visible.length;
     const output={};
     if(!n) return output;
-    // Arrange the selected series from top to bottom, allowing a small amount
-    // of data-driven overlap; with just one selected its centre is exactly 50%.
-    const span=n===1?0:n===2?.54:n===3?.64:n===4?.64:Math.min(.75,.68+.01*(n-4));
-    const spacing=n>1?span/(n-1):0;
+    const topCentre=n===1?0.54:0.94;
+    const bottomCentre=n===1?0.54:0.11;
+    const spacing=n>1?(topCentre-bottomCentre)/(n-1):0;
     visible.forEach((k,index)=>{
-      const centre=n===1?.5:(.5+span/2-index*spacing);
-      const amplitude=n===1?.31:Math.min(.27,spacing*.43,centre-.105,.90-centre);
+      const centre=n===1?0.54:(topCentre-index*spacing);
+      const amplitude=n===1?0.40:Math.min(0.15,spacing*0.50,centre-bottomCentre+spacing*0.2,topCentre-centre+spacing*0.2);
       let values=rows.filter(d=>!d.partial).map(d=>valueFor(k,d)).filter(Number.isFinite);
       if(k==='steps'||k==='water'||k==='protein'||k==='fibre')values=values.concat(rows.map(d=>goalFor(k,d)).filter(Number.isFinite));
       if(k==='calories')values=values.concat(rows.flatMap(d=>[d.budgetLow,d.budgetHigh]).filter(Number.isFinite));
-      if(k==='weight'){
-        // Include measured rolling high/low values (without inventing missing weighs).
-        values=values.concat(extremaForWeight(rows).flatMap(d=>[d.lo,d.hi]).filter(Number.isFinite));
-      }
+      if(k==='weight') values=values.concat(extremaForWeight(rows).flatMap(d=>[d.lo,d.hi]).filter(Number.isFinite));
       if(!values.length){output[k]={centre,offset:0,scale:0,amplitude};return;}
-      let lo=quantile(values,.03),hi=quantile(values,.97);
-      // Current day is incomplete. It is rendered at yesterday's level with
-      // an explicit progress mark, and cannot distort the historical scale.
+      const lo=quantile(values,.03),hi=quantile(values,.97);
       const mid=(lo+hi)/2;
       const minHalf={weight:.20,water:.20,calories:90,steps:1100,protein:8,fibre:3,carbs:12,fats:8}[k]||1;
       const half=Math.max((hi-lo)/2,minHalf);
-      output[k]={centre,offset:mid,scale:amplitude/(half*1.22),amplitude};
+      output[k]={centre,offset:mid,scale:amplitude/(half*1.18),amplitude};
     });
     return output;
   }
@@ -588,41 +607,58 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
     }
     return path;
   }
+  function compressTurningPoints(points,key){
+    const clean=points.filter(p=>Number.isFinite(p[key]));
+    if(clean.length<=2)return clean;
+    const out=[clean[0]];
+    for(let i=1;i<clean.length-1;i++){
+      const prev=clean[i-1][key], curr=clean[i][key], next=clean[i+1][key];
+      const d1=curr-prev, d2=next-curr;
+      if((d1===0&&d2===0))continue;
+      if(d1===0||d2===0||Math.sign(d1)!==Math.sign(d2)) out.push(clean[i]);
+    }
+    out.push(clean.at(-1));
+    if(out.length<4){
+      const step=Math.max(1,Math.floor(clean.length/4));
+      for(let i=step;i<clean.length-1;i+=step){
+        if(!out.includes(clean[i])) out.splice(out.length-1,0,clean[i]);
+      }
+      out.sort((a,b)=>a.x-b.x);
+    }
+    return out;
+  }
   function weightEnvelope(rows, edges, widths, y){
     if(rows.length<2)return null;
     const centres=rows.map((_,i)=>edges[i]+widths[i]/2);
-    const points=[];
-    // Use the full measured history when building each rolling high/low window.
-    // Start outside the clipped viewport: the visible left boundary is OPEN.
+    const raw=[];
     if(!rows[0].summary){
       for(let n=4;n>=1;n--){
         const date=new Date(Date.parse(rows[0].date+'T00:00:00Z')-n*MS_DAY).toISOString().slice(0,10);
         const v=windowWeight(date);
-        if(Number.isFinite(v.lo))points.push({x:centres[0]-n*widths[0],...v});
+        if(Number.isFinite(v.lo)||Number.isFinite(v.hi)) raw.push({x:centres[0]-n*widths[0],...v});
       }
     }
     rows.forEach((d,i)=>{
       const v=d.summary?{lo:d.weightLo,hi:d.weightHi}:windowWeight(d.date);
-      if(Number.isFinite(v.lo))points.push({x:centres[i],...v});
+      if(Number.isFinite(v.lo)||Number.isFinite(v.hi)) raw.push({x:centres[i],...v});
     });
     if(!rows.at(-1).summary){
       for(let n=1;n<=2;n++){
         const date=new Date(Date.parse(rows.at(-1).date+'T00:00:00Z')+n*MS_DAY).toISOString().slice(0,10);
         const v=windowWeight(date);
-        if(Number.isFinite(v.lo))points.push({x:centres.at(-1)+n*widths.at(-1),...v});
+        if(Number.isFinite(v.lo)||Number.isFinite(v.hi)) raw.push({x:centres.at(-1)+n*widths.at(-1),...v});
       }
     }
-    if(points.length<2)return null;
-    const upper=points.map(p=>[p.x,y(pos('weight',p.hi))]);
-    const lower=points.map(p=>[p.x,y(pos('weight',p.lo))]);
-    const upperPath=smoothBound(upper),lowerPath=smoothBound(lower);
-    // The return curve starts from the upper end, passes down to the lower
-    // end and returns across the same *horizontal* locations. Never use
-    // an independently closed ribbon from two unrelated series.
-    const reverseLower=smoothBound(lower.slice().reverse());
-    const startLow=lower.at(-1);
-    const shape=upperPath+` L ${startLow[0].toFixed(2)} ${startLow[1].toFixed(2)}`+
-      reverseLower.replace(/^M\s+[-\d.]+\s+[-\d.]+/,'')+' Z';
+    if(raw.length<2)return null;
+    const upperPts=compressTurningPoints(raw,'hi');
+    const lowerPts=compressTurningPoints(raw,'lo');
+    if(upperPts.length<2||lowerPts.length<2)return null;
+    const upper=upperPts.map(p=>[p.x,y(pos('weight',p.hi))]);
+    const lower=lowerPts.map(p=>[p.x,y(pos('weight',p.lo))]);
+    const upperPath=smoothBound(upper), lowerPath=smoothBound(lower);
+    // Build a ribbon that stays open at the left edge and smoothly returns along the lower boundary.
+    const shape=upperPath+' L '+lower.at(-1)[0].toFixed(2)+' '+lower.at(-1)[1].toFixed(2)+
+      lower.slice().reverse().map((p,i)=> (i? ' L ':' ')+p[0].toFixed(2)+' '+p[1].toFixed(2)).join('')+' Z';
     return {top:upperPath,bottom:lowerPath,shape};
   }
   function gradientDefs(){
@@ -693,9 +729,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
     on.forEach(k=>{
       const b=buttons.find(n=>n.dataset.key===k);
       const reference=recentReference(k,current);
-      const lastValue=reference?valueFor(k,reference):null;
-      const f=Number.isFinite(lastValue)?pos(k,lastValue):scales[k]?.centre;
-      const anchorY=geometry.y(Number.isFinite(f)?f:scales[k]?.centre||.5);
+      const anchorY=geometry.y(scales[k]?.centre||.5);
       if(isPortrait){
         const x=w-anchorY;
         b.style.setProperty('--label-w',labelW+'px');
@@ -703,7 +737,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
         b.style.top='39px'; b.style.height='44px';
       }else{
         b.style.left='0';
-        b.style.top=clamp(anchorY,15,h-labelH)+'px';
+        b.style.top=clamp(anchorY-labelH/2,15,h-labelH)+'px';
         b.style.height=labelH+'px';
       }
       b.dataset.anchorDate=reference?.date||'';
@@ -716,7 +750,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
     const physicalWidth=Math.max(240,Math.round(r.width)),physicalHeight=Math.max(200,Math.round(r.height));
     const width=physicalWidth;
     const height=physicalHeight;
-    const ml=clamp(width*.025,12,30),mr=0,mt=clamp(height*.046,12,25),mb=clamp(height*.085,22,34);
+    const ml=clamp(width*.02,10,24),mr=0,mt=clamp(height*.008,2,8),mb=clamp(height*.085,22,34);
     const pw=width-ml-mr,ph=height-mt-mb;
     const typical=current.find(d=>!d.partial)?.daysCount||1;
     const visualWidths=current.map(d=>d.partial?Math.max(2.4,typical*2.25):(d.daysCount||1));
@@ -765,7 +799,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
     }
     // Daily readings are width-of-a-day horizontal dashes, never joined lines.
     const marks=el('g',{'aria-label':'Daily horizontal measurement marks','clip-path':'url(#plot-clip)'});
-    const order=['water','fibre','fats','carbs','calories','protein','weight','steps'];
+    const order=['weight','steps','water','calories','fibre','protein','fats','carbs'];
     for(const k of order)dayMarks(marks,k,current,x,y,pw,ph,optionalKeys.has(k)?.76:1);
     el('rect',{x:ml,y:mt,width:pw,height:ph,fill:'transparent','pointer-events':'all'},chartRoot).classList.add('interaction-area');
     updateMetrics(DATA.at(-1));
@@ -800,7 +834,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
     put('water-percent',pct(d.water,d.waterGoal));
     put('water-reading',one(d.water/1000)+' of '+one(d.waterGoal/1000)+' litres');
     put('weight-percent','');
-    put('weight-reading',(d.weight==null?(lastWeight?lastWeight.weight.toFixed(2):'—'):d.weight.toFixed(2))+' kg · target '+one(d.targetWeight));
+    put('weight-reading',(d.weight==null?(lastWeight?lastWeight.weight.toFixed(2):'—'):d.weight.toFixed(2))+' kg · target '+one(d.targetWeight)+' kg');
     const middle=(d.budgetLow+d.budgetHigh)/2;
     put('calories-percent',pct(d.calories,middle));
     put('calories-reading',fmt(d.calories)+' of '+fmt(d.budgetLow)+'–'+fmt(d.budgetHigh));
@@ -887,7 +921,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
         const insertBefore=plotted[rank];
         const index=insertBefore?others.indexOf(insertBefore):plotted.length?others.indexOf(plotted.at(-1))+1:0;
         keys=others.slice();keys.splice(index,0,k);
-        try{localStorage.setItem('pieChartMetricOrder',JSON.stringify(keys));}catch{}
+        try{localStorage.setItem('pieChartMetricOrderV014',JSON.stringify(keys));}catch{}
         syncOrder();
       }
     }
