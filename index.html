@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#fffaf2">
-  <title>Joules Burn's Pie Chart — v0.1.010</title>
+  <title>Joules Burn's Pie Chart — v0.1.013</title>
   <link rel="manifest" href="manifest.webmanifest">
   <style>:root {
   color-scheme: light;
@@ -34,7 +34,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
   padding:calc(env(safe-area-inset-top) + clamp(6px,1.5vh,19px)) calc(env(safe-area-inset-right) + clamp(8px,2vw,33px)) calc(env(safe-area-inset-bottom) + clamp(8px,1.7vh,20px)) calc(env(safe-area-inset-left) + clamp(8px,2vw,33px));
   background:linear-gradient(160deg,#fffdf9 0%,#fffaf2 56%,#fffefa 100%);
 }
-.topbar { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(42px,1fr); align-items:center; gap:8px; min-height:clamp(34px,7.6vh,65px); }
+.topbar { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px; min-height:clamp(34px,7.6vh,65px); }
 .brand {display:flex; gap:clamp(4px,.7vw,12px); align-items:center; min-width:0; white-space:nowrap;}
 .brand-mark {font-size:clamp(20px,3.5vw,42px); line-height:1; filter:drop-shadow(0 1px 1px #e7cec9);}
 .brand-name {font-size:clamp(16px,1.92vw,32px); font-weight:900; color:#4c607f; letter-spacing:-.045em; overflow:hidden; text-overflow:ellipsis;}
@@ -195,6 +195,93 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
 .hidden-metrics-popup button{border:1px solid #dce4ef;background:#f8fbff;padding:7px 8px;border-radius:8px;color:#344868;font-weight:800;text-align:left;font-size:12px;}
 
 .metric-row.compact-series .metric-sub{display:none;}
+
+/* v0.1.012: right-edge readouts are direct continuations of the plotted marks.
+   The top border, not the middle of a floating card, is the measurement line. */
+.metric-row .metric{border:0!important;border-top:2px solid var(--line)!important;border-radius:0!important;box-shadow:none!important;
+  background:linear-gradient(to bottom,var(--wash) 0%,transparent 92%)!important;
+  overflow:visible!important;display:block!important;padding:0 3px!important;transition:opacity .12s;}
+.metric-row .metric-head{position:absolute;top:-18px;left:3px;font-size:clamp(10px,1.2vw,13px);line-height:1;display:flex;align-items:center;gap:2px;}
+.metric-row .metric-icon{font-size:clamp(10px,1.2vw,13px);min-width:0;}
+.metric-row .metric-main{position:absolute;right:3px;top:-18px;font-size:clamp(10px,1.22vw,14px);line-height:1.08;text-align:right;}
+.metric-row .metric-sub{position:absolute;top:5px;left:3px;right:4px;font-size:clamp(9px,1.11vw,12px);color:var(--sub);line-height:1.1;text-align:left;white-space:nowrap;}
+.visibility-btn{right:0;top:12px;opacity:.45;width:21px;height:19px;font-size:12px;}
+.metric-row .metric:not(:hover) .visibility-btn{opacity:.33;}
+.metric-row .metric .metric-progress{position:absolute;top:0;left:0;height:3px;background:var(--line);pointer-events:none;}
+.metric-row.compact-series .metric-sub{display:block!important;font-size:clamp(8px,.95vw,10px)}
+@media(max-height:500px) and (orientation:landscape){
+.metric-row .metric-head{top:-15px;font-size:clamp(9px,1.12vw,11px)}
+.metric-row .metric-main{top:-15px;font-size:clamp(9px,1.16vw,12px)}
+.metric-row .metric-sub{top:3px;font-size:clamp(8px,1.05vw,10px)}
+}
+/* Horizontal scale: one continuous ruler at 0.01kg resolution, faster flicks accelerate. */
+.weight-ruler-frame{width:min(94%,640px);margin:auto;position:relative;border-radius:13px;
+  border:1px solid #c9d6e8;background:linear-gradient(#eaf2fc,#fff 25%,#fff 70%,#e7eff9);
+  box-shadow:inset 0 1px 6px #8facc128;touch-action:none;user-select:none;}
+.weight-ruler{width:100%;height:102px;display:block;touch-action:none;cursor:grab;}
+.weight-ruler:active{cursor:grabbing;}
+.weight-wheel-wrap{display:block;}
+.weight-reading{font-size:clamp(26px,4vw,40px);background:#e5f4e6;border-radius:9px;padding:5px 24px;margin:auto;min-width:160px;
+  width:max-content;border:1px solid #aac7ac;font-family:ui-monospace,Consolas,monospace;}
+.weight-wheel-hint{font-size:12px!important;}
+
+/* v0.1.012: compact metric labels are a continuation of the plotted level.
+   One line of title + percentage, top rule, one line of value vs goal. */
+.main-area{grid-template-columns:minmax(0,1fr) clamp(116px,12vw,168px);gap:0;}
+.metric-row .metric{height:39px!important;border-top:2px solid var(--line)!important;
+  background:linear-gradient(to bottom,var(--wash) 0%,transparent 90%)!important;
+  overflow:visible!important;padding:0 2px!important;}
+.metric-row .metric-topline{position:absolute;left:3px;right:2px;top:-17px;
+  display:flex;align-items:baseline;justify-content:flex-start;gap:5px;white-space:nowrap;
+  font-weight:900;font-size:clamp(9px,1.05vw,13px);line-height:1;}
+.metric-row .metric-head{position:static;display:inline-flex;align-items:baseline;gap:2px;
+  font-size:inherit;line-height:inherit;letter-spacing:-.02em;color:var(--ink);}
+.metric-row .metric-icon{font-size:clamp(9px,1vw,13px);min-width:0;}
+.metric-row .metric-percent{font-size:inherit;color:var(--sub);font-variant-numeric:tabular-nums;}
+.metric-row .metric-reading{position:absolute;top:4px;left:3px;right:19px;
+  font-size:clamp(9px,.98vw,12px);line-height:1.12;color:var(--sub);
+  font-weight:800;white-space:nowrap;letter-spacing:-.02em;}
+.metric-row .visibility-btn{top:6px;right:0;width:17px;height:16px;font-size:11px;opacity:.42;}
+.metric-row.compact-series .metric-reading{font-size:clamp(8px,.88vw,11px);}
+@media(max-height:500px) and (orientation:landscape){
+  .main-area{grid-template-columns:minmax(0,1fr) clamp(110px,14vw,148px);}
+  .metric-row .metric-topline{top:-15px;font-size:clamp(9px,1.15vw,11px)}
+  .metric-row .metric-reading{font-size:clamp(8.5px,1vw,11px)}
+}
+/* Portrait uses exactly the same upright graph and left-to-right timeline as landscape.
+   Only the available width changes; no rotation, no special 7-day view. */
+@media (orientation:portrait){
+  .screen{display:grid;grid-template-rows:auto minmax(0,1fr);gap:5px;
+    padding:max(7px,env(safe-area-inset-top)) max(3px,env(safe-area-inset-right)) max(7px,env(safe-area-inset-bottom)) max(3px,env(safe-area-inset-left));}
+  .topbar{min-height:37px;max-height:49px;}
+  .brand{gap:5px;}
+  .brand-name{font-size:clamp(14px,3.7vw,19px);}
+  .brand-mark{font-size:19px;}
+  .settings-button{height:30px;width:30px;}
+  .main-area{display:grid;grid-template-columns:minmax(0,1fr) clamp(99px,31vw,133px);gap:0;min-height:0;}
+  .metric-row{display:block;position:relative;min-height:0;overflow:visible;}
+  .chart-shell{position:relative;min-height:0;overflow:hidden;touch-action:none;}
+  .metric-row .metric{position:absolute;left:0!important;right:0!important;
+    width:100%!important;height:34px!important;min-height:0;
+    border:0!important;border-top:2px solid var(--line)!important;border-radius:0!important;
+    background:linear-gradient(to bottom,var(--wash),transparent 90%)!important;
+    padding:0 2px!important;overflow:visible!important;text-align:left;}
+  .metric-row .metric::after{content:none!important;}
+  .metric-row .metric-topline{position:absolute;left:2px;right:1px;top:-15px;
+    display:flex;align-items:baseline;gap:2px;justify-content:flex-start;
+    font-size:clamp(8px,2.22vw,11px);line-height:1.05;white-space:nowrap;}
+  .metric-row .metric-head{position:static;display:inline-flex;font-size:inherit;line-height:inherit;gap:1px;}
+  .metric-row .metric-icon{font-size:10px;}
+  .metric-row .metric-percent{font-size:inherit;}
+  .metric-row .metric-reading{position:absolute;top:4px;left:2px;right:16px;
+    font-size:clamp(8px,2.05vw,10px);line-height:1.15;text-align:left;white-space:nowrap;}
+  .metric-row .visibility-btn{top:5px;right:0;width:16px;height:16px;opacity:.42;}
+  .hidden-metrics-toggle{right:1px;bottom:1px;top:auto;font-size:9px;padding:4px;}
+  .hidden-metrics-popup{right:0;bottom:23px;top:auto;}
+  .metric-row .metric[aria-pressed='false']{display:none!important;}
+  .metric-row.compact-series .metric-reading{font-size:8px;}
+  .entry-sheet{width:min(94vw,550px);}
+}
 </style>
   
   
@@ -203,9 +290,8 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
   <main class="screen" aria-label="Joules Burn's Pie Chart home screen">
     <header class="topbar">
       <div class="brand" aria-label="Joules Burn's Pie Chart"><span class="brand-mark" aria-hidden="true">🍎</span><span class="brand-name">Joules Burn's Pie Chart</span></div>
-      <div class="range-readout" id="range-readout" aria-live="polite">Last 30 days</div>
       <div class="top-actions">
-        <button class="settings-button" type="button" title="Settings — future development" aria-label="Settings (not implemented)">
+        <button class="settings-button" type="button" title="Load edited dummy data" aria-label="Load edited dummy data CSV">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.7 2.9 10.2 1h3.6l.5 1.9a9.3 9.3 0 0 1 2 .9l1.8-1 2.5 2.6-.9 1.8a9.3 9.3 0 0 1 .8 2l2 .5v3.6l-2 .5a9.3 9.3 0 0 1-.8 2l.9 1.8-2.5 2.5-1.8-1a9.3 9.3 0 0 1-2 .9l-.5 2h-3.6l-.5-2a9.3 9.3 0 0 1-2-.9l-1.8 1-2.5-2.5 1-1.8a9.3 9.3 0 0 1-.9-2l-2-.5V9.7l2-.5a9.3 9.3 0 0 1 .9-2l-1-1.8 2.5-2.6 1.8 1a9.3 9.3 0 0 1 2-.9Z"/><circle cx="12" cy="11.5" r="3.6"/></svg>
         </button>
       </div>
@@ -219,45 +305,37 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
 
       <section class="metric-row" aria-label="Current values and chart series visibility">
       <div class="metric metric-steps" role="button" tabindex="0" type="button" data-key="steps" aria-pressed="true" title="Double-tap to record · hold to drag · eye to toggle">
-        <span class="metric-head"><span class="metric-icon" aria-hidden="true">👟</span><span>Steps</span></span>
-        <span class="metric-main" id="steps-value">—</span>
-        <span class="metric-sub" id="steps-goal">—</span>
-      <button class="visibility-btn" type="button" aria-label="Hide steps" title="Hide or show steps" aria-pressed="true">◉</button></div>
+        <div class="metric-topline"><span class="metric-head"><span class="metric-icon" aria-hidden="true">👟</span><span>Steps</span></span><span class="metric-percent" id="steps-percent"></span></div>
+        <div class="metric-reading" id="steps-reading">—</div>
+        <button class="visibility-btn" type="button" aria-label="Hide steps" title="Hide or show steps" aria-pressed="true">◉</button></div>
       <div class="metric metric-water" role="button" tabindex="0" type="button" data-key="water" aria-pressed="true" title="Double-tap to record · hold to drag · eye to toggle">
-        <span class="metric-head"><span class="metric-icon" aria-hidden="true">💧</span><span>Water</span></span>
-        <span class="metric-main" id="water-value">—</span>
-        <span class="metric-sub" id="water-goal">—</span>
-      <button class="visibility-btn" type="button" aria-label="Hide water" title="Hide or show water" aria-pressed="true">◉</button></div>
+        <div class="metric-topline"><span class="metric-head"><span class="metric-icon" aria-hidden="true">💧</span><span>Water</span></span><span class="metric-percent" id="water-percent"></span></div>
+        <div class="metric-reading" id="water-reading">—</div>
+        <button class="visibility-btn" type="button" aria-label="Hide water" title="Hide or show water" aria-pressed="true">◉</button></div>
       <div class="metric metric-weight" role="button" tabindex="0" type="button" data-key="weight" aria-pressed="true" title="Double-tap to record · hold to drag · eye to toggle">
-        <span class="metric-head"><span class="metric-icon" aria-hidden="true">⚖</span><span>Weight</span></span>
-        <span class="metric-main" id="weight-value">—</span>
-        <span class="metric-sub" id="weight-goal">Target —</span>
-      <button class="visibility-btn" type="button" aria-label="Hide weight" title="Hide or show weight" aria-pressed="true">◉</button></div>
+        <div class="metric-topline"><span class="metric-head"><span class="metric-icon" aria-hidden="true">⚖</span><span>Weight</span></span><span class="metric-percent" id="weight-percent"></span></div>
+        <div class="metric-reading" id="weight-reading">—</div>
+        <button class="visibility-btn" type="button" aria-label="Hide weight" title="Hide or show weight" aria-pressed="true">◉</button></div>
       <div class="metric metric-calories" role="button" tabindex="0" type="button" data-key="calories" aria-pressed="true" title="Double-tap to record · hold to drag · eye to toggle">
-        <span class="metric-head"><span class="metric-icon" aria-hidden="true">🔥</span><span>Calories</span></span>
-        <span class="metric-main" id="calories-value">—</span>
-        <span class="metric-sub" id="calories-goal">—</span>
-      <button class="visibility-btn" type="button" aria-label="Hide calories" title="Hide or show calories" aria-pressed="true">◉</button></div>
+        <div class="metric-topline"><span class="metric-head"><span class="metric-icon" aria-hidden="true">🔥</span><span>Calories</span></span><span class="metric-percent" id="calories-percent"></span></div>
+        <div class="metric-reading" id="calories-reading">—</div>
+        <button class="visibility-btn" type="button" aria-label="Hide calories" title="Hide or show calories" aria-pressed="true">◉</button></div>
       <div class="metric metric-protein" role="button" tabindex="0" type="button" data-key="protein" aria-pressed="true" title="Double-tap to record · hold to drag · eye to toggle">
-        <span class="metric-head"><span class="metric-icon" aria-hidden="true">💪</span><span>Protein</span></span>
-        <span class="metric-main" id="protein-value">—</span>
-        <span class="metric-sub" id="protein-goal">—</span>
-      <button class="visibility-btn" type="button" aria-label="Hide protein" title="Hide or show protein" aria-pressed="true">◉</button></div>
+        <div class="metric-topline"><span class="metric-head"><span class="metric-icon" aria-hidden="true">💪</span><span>Protein</span></span><span class="metric-percent" id="protein-percent"></span></div>
+        <div class="metric-reading" id="protein-reading">—</div>
+        <button class="visibility-btn" type="button" aria-label="Hide protein" title="Hide or show protein" aria-pressed="true">◉</button></div>
       <div class="metric metric-fibre" role="button" tabindex="0" type="button" data-key="fibre" aria-pressed="false" title="Double-tap to record · hold to drag · eye to toggle">
-        <span class="metric-head"><span class="metric-icon" aria-hidden="true">🌿</span><span>Fibre</span></span>
-        <span class="metric-main" id="fibre-value">—</span>
-        <span class="metric-sub" id="fibre-goal">Optional</span>
-      <button class="visibility-btn" type="button" aria-label="Hide fibre" title="Hide or show fibre" aria-pressed="true">◉</button></div>
+        <div class="metric-topline"><span class="metric-head"><span class="metric-icon" aria-hidden="true">🌿</span><span>Fibre</span></span><span class="metric-percent" id="fibre-percent"></span></div>
+        <div class="metric-reading" id="fibre-reading">—</div>
+        <button class="visibility-btn" type="button" aria-label="Hide fibre" title="Hide or show fibre" aria-pressed="true">◉</button></div>
       <div class="metric metric-carbs" role="button" tabindex="0" type="button" data-key="carbs" aria-pressed="true" title="Double-tap to record · hold to drag · eye to toggle">
-        <span class="metric-head"><span class="metric-icon" aria-hidden="true">🌾</span><span>Carbs</span></span>
-        <span class="metric-main" id="carbs-value">—</span>
-        <span class="metric-sub" id="carbs-goal">—</span>
-      <button class="visibility-btn" type="button" aria-label="Hide carbs" title="Hide or show carbs" aria-pressed="true">◉</button></div>
+        <div class="metric-topline"><span class="metric-head"><span class="metric-icon" aria-hidden="true">🌾</span><span>Carbs</span></span><span class="metric-percent" id="carbs-percent"></span></div>
+        <div class="metric-reading" id="carbs-reading">—</div>
+        <button class="visibility-btn" type="button" aria-label="Hide carbs" title="Hide or show carbs" aria-pressed="true">◉</button></div>
       <div class="metric metric-fats" role="button" tabindex="0" type="button" data-key="fats" aria-pressed="true" title="Double-tap to record · hold to drag · eye to toggle">
-        <span class="metric-head"><span class="metric-icon" aria-hidden="true">💧</span><span>Fats</span></span>
-        <span class="metric-main" id="fats-value">—</span>
-        <span class="metric-sub" id="fats-goal">—</span>
-      <button class="visibility-btn" type="button" aria-label="Hide fats" title="Hide or show fats" aria-pressed="true">◉</button></div>
+        <div class="metric-topline"><span class="metric-head"><span class="metric-icon" aria-hidden="true">💧</span><span>Fats</span></span><span class="metric-percent" id="fats-percent"></span></div>
+        <div class="metric-reading" id="fats-reading">—</div>
+        <button class="visibility-btn" type="button" aria-label="Hide fats" title="Hide or show fats" aria-pressed="true">◉</button></div>
         <button type="button" id="hidden-metrics-toggle" class="hidden-metrics-toggle" aria-expanded="false" aria-controls="hidden-metrics-popup" hidden>+ Metrics</button>
         <div class="hidden-metrics-popup" id="hidden-metrics-popup" hidden></div>
     </section>
@@ -324,14 +402,14 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
   }
   // No fabricated missing weights. All nutrient-to-calorie checks are consistent by construction.
   return records;
-})();</script><script>/* PieChart v0.1.010 — visual prototype, deliberately no external services. */
+})();</script><script>/* PieChart v0.1.012 — visual prototype, deliberately no external services. */
 (() => {
   'use strict';
-  const DATA = window.DEMO_DATA || [];
+  let DATA = window.DEMO_DATA || [];
   const svg=document.getElementById('chart');
   const host=document.querySelector('.chart-shell');
   const tooltip=document.getElementById('tooltip');
-  const rangeReadout=document.getElementById('range-readout');
+  
     const NS='http://www.w3.org/2000/svg';
   const defaultKeys=['steps','water','weight','calories','protein','fibre','carbs','fats'];
   const loadOrder=()=>{
@@ -351,6 +429,14 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
   let current=[], scales={},geometry=null, hovered=-1, focusedAxis='calories';
   let daysVisible=30;
   const MIN_DAYS=7;
+  const portraitView=window.matchMedia('(orientation:portrait)');
+  let chartRoot=svg;
+  function pointerLogical(e){
+    const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;
+    try{return p.matrixTransform(chartRoot.getScreenCTM().inverse());}
+    catch{const r=host.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
+  }
+
 
   const fmt=v=>Math.round(v).toLocaleString('en-NZ');
   const one=v=>Number(v).toFixed(1);
@@ -359,7 +445,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
   const longDate=d=>new Date(d+'T12:00:00').toLocaleDateString('en-NZ',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
   const valueFor=(k,d)=>d[k]==null?null:(k==='water'?d[k]/1000:d[k]);
   const goalFor=(k,d)=>k==='water'?d.waterGoal/1000:d[goals[k]];
-  function el(tag,attrs={},parent=svg){
+  function el(tag,attrs={},parent=chartRoot){
     const node=document.createElementNS(NS,tag);
     Object.entries(attrs).forEach(([k,v])=>node.setAttribute(k,String(v)));
     if(parent)parent.appendChild(node);
@@ -372,13 +458,13 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
     return a[l]*(h-n)+a[h]*(n-l);
   }
   function rangeData(){
-    const daily=DATA.slice(-Math.max(MIN_DAYS,Math.min(DATA.length,Math.round(daysVisible))));
-    rangeReadout.textContent='Last '+daily.length+' days';
+    const completed=DATA.filter(d=>!d.partial);
+    const daily=completed.slice(-Math.max(MIN_DAYS,Math.min(completed.length,Math.round(daysVisible))));
     // Daily observations remain literal daily slots through 90 days.
     // Long time windows use true group averages, marked clearly on inspection.
     if(daily.length<=90) return daily;
     const bucketSize=daily.length<=210?3:daily.length<=400?7:daily.length<=800?14:28;
-    const completed=daily.filter(d=>!d.partial), pending=daily.filter(d=>d.partial);
+    const pending=[];
     const grouped=[];
     // Chunk from the right to keep equally sized recent historical periods.
     for(let finish=completed.length;finish>0;finish-=bucketSize){
@@ -400,7 +486,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
         partial:false,summary:true,weightMeasurements:weights.length
       });
     }
-    return grouped.concat(pending); // today's individual partial record is never averaged into completed days
+    return grouped; // live today is shown only in the attached readouts
   }
   function metricScales(rows){
     const visible=keys.filter(shown);
@@ -414,7 +500,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
     visible.forEach((k,index)=>{
       const centre=n===1?.5:(.5+span/2-index*spacing);
       const amplitude=n===1?.31:Math.min(.27,spacing*.43,centre-.105,.90-centre);
-      let values=rows.map(d=>valueFor(k,d)).filter(Number.isFinite);
+      let values=rows.filter(d=>!d.partial).map(d=>valueFor(k,d)).filter(Number.isFinite);
       if(k==='steps'||k==='water'||k==='protein'||k==='fibre')values=values.concat(rows.map(d=>goalFor(k,d)).filter(Number.isFinite));
       if(k==='calories')values=values.concat(rows.flatMap(d=>[d.budgetLow,d.budgetHigh]).filter(Number.isFinite));
       if(k==='weight'){
@@ -423,12 +509,8 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
       }
       if(!values.length){output[k]={centre,offset:0,scale:0,amplitude};return;}
       let lo=quantile(values,.03),hi=quantile(values,.97);
-      // In-progress today's value must remain visible even if it is well
-      // below a completed day's typical total.
-      const today=rows.at(-1);
-      if(today?.partial&&Number.isFinite(valueFor(k,today))){
-        const now=valueFor(k,today);lo=Math.min(lo,now);hi=Math.max(hi,now);
-      }
+      // Current day is incomplete. It is rendered at yesterday's level with
+      // an explicit progress mark, and cannot distort the historical scale.
       const mid=(lo+hi)/2;
       const minHalf={weight:.20,water:.20,calories:90,steps:1100,protein:8,fibre:3,carbs:12,fats:8}[k]||1;
       const half=Math.max((hi-lo)/2,minHalf);
@@ -489,30 +571,59 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
   function extremaForWeight(rows){
     return rows.map(d=>d.summary?{lo:d.weightLo,hi:d.weightHi}:windowWeight(d.date));
   }
+  function smoothBound(points){
+    // Monotone cubic Hermite: runs through every measured rolling extreme
+    // without spline overshoots (which could miss an actual high or low).
+    if(!points.length)return '';
+    if(points.length===1)return `M ${points[0][0]} ${points[0][1]}`;
+    const d=[];
+    for(let i=0;i<points.length-1;i++)d.push((points[i+1][1]-points[i][1])/(points[i+1][0]-points[i][0]));
+    const m=points.map((_,i)=>i===0?d[0]:i===points.length-1?d.at(-1):d[i-1]*d[i]<=0?0:(2*d[i-1]*d[i])/(d[i-1]+d[i]));
+    let path=`M ${points[0][0].toFixed(2)} ${points[0][1].toFixed(2)}`;
+    for(let i=0;i<d.length;i++){
+      const [x0,y0]=points[i],[x1,y1]=points[i+1],h=(x1-x0);
+      if(Math.abs(h)<1e-6)continue;
+      const c1x=x0+h/3,c1y=y0+m[i]*h/3,c2x=x1-h/3,c2y=y1-m[i+1]*h/3;
+      path+=` C ${c1x.toFixed(2)} ${c1y.toFixed(2)} ${c2x.toFixed(2)} ${c2y.toFixed(2)} ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+    }
+    return path;
+  }
   function weightEnvelope(rows, edges, widths, y){
-    // Seven-calendar-day measured highs and lows from ALL historical readings,
-    // including dates outside the viewport. The envelope is clipped, but
-    // neither boundary is artificially closed at the left screen edge.
-    const coords=[];
-    const first=rows[0], last=rows.at(-1);
-    if(!first)return null;
-    const before=new Date(Date.parse((first.from||first.date)+'T00:00:00Z')-MS_DAY).toISOString().slice(0,10);
-    const after=new Date(Date.parse(last.date+'T00:00:00Z')+MS_DAY).toISOString().slice(0,10);
-    const extra=windowWeight(before);
-    if(Number.isFinite(extra.lo))coords.push({x:edges[0]-Math.max(12,widths[0]*2),...extra});
+    if(rows.length<2)return null;
+    const centres=rows.map((_,i)=>edges[i]+widths[i]/2);
+    const points=[];
+    // Use the full measured history when building each rolling high/low window.
+    // Start outside the clipped viewport: the visible left boundary is OPEN.
+    if(!rows[0].summary){
+      for(let n=4;n>=1;n--){
+        const date=new Date(Date.parse(rows[0].date+'T00:00:00Z')-n*MS_DAY).toISOString().slice(0,10);
+        const v=windowWeight(date);
+        if(Number.isFinite(v.lo))points.push({x:centres[0]-n*widths[0],...v});
+      }
+    }
     rows.forEach((d,i)=>{
       const v=d.summary?{lo:d.weightLo,hi:d.weightHi}:windowWeight(d.date);
-      if(!Number.isFinite(v.lo))return;
-      coords.push({x:edges[i],...v},{x:edges[i]+widths[i],...v});
+      if(Number.isFinite(v.lo))points.push({x:centres[i],...v});
     });
-    const tail=windowWeight(after);
-    if(Number.isFinite(tail.lo))coords.push({x:edges.at(-1)+widths.at(-1)+Math.max(12,widths.at(-1)),...tail});
-    if(coords.length<2)return null;
-    // Never fill across an unknown measurement period wider than a local window.
-    const pts=(key)=>coords.map(p=>[p.x,y(pos('weight',p[key]))]);
-    const upper=pts('hi'),lower=pts('lo');
-    const path=a=>a.map(([px,py],i)=>(i?'L':'M')+px.toFixed(2)+' '+py.toFixed(2)).join(' ');
-    return {shape:path(upper)+' '+path(lower.slice().reverse()).replace(/^M/,'L')+' Z',top:path(upper),bottom:path(lower)};
+    if(!rows.at(-1).summary){
+      for(let n=1;n<=2;n++){
+        const date=new Date(Date.parse(rows.at(-1).date+'T00:00:00Z')+n*MS_DAY).toISOString().slice(0,10);
+        const v=windowWeight(date);
+        if(Number.isFinite(v.lo))points.push({x:centres.at(-1)+n*widths.at(-1),...v});
+      }
+    }
+    if(points.length<2)return null;
+    const upper=points.map(p=>[p.x,y(pos('weight',p.hi))]);
+    const lower=points.map(p=>[p.x,y(pos('weight',p.lo))]);
+    const upperPath=smoothBound(upper),lowerPath=smoothBound(lower);
+    // The return curve starts from the upper end, passes down to the lower
+    // end and returns across the same *horizontal* locations. Never use
+    // an independently closed ribbon from two unrelated series.
+    const reverseLower=smoothBound(lower.slice().reverse());
+    const startLow=lower.at(-1);
+    const shape=upperPath+` L ${startLow[0].toFixed(2)} ${startLow[1].toFixed(2)}`+
+      reverseLower.replace(/^M\s+[-\d.]+\s+[-\d.]+/,'')+' Z';
+    return {top:upperPath,bottom:lowerPath,shape};
   }
   function gradientDefs(){
     const defs=el('defs');
@@ -522,59 +633,89 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
       el('stop',{offset:'100%','stop-color':colors[k],'stop-opacity':0},grad);
     }
   }
+  function recentReference(k,rows){
+    return [...rows].reverse().find(d=>!d.partial&&Number.isFinite(valueFor(k,d)))
+       || [...DATA].reverse().find(d=>!d.partial&&Number.isFinite(valueFor(k,d)));
+  }
   function dayMarks(group,k,rows,x,y,pw,ph,emphasis=1){
     if(!shown(k))return;
-    const fadeHeight=Math.max(2,ph*.036);
-    const c=colors[k];
+    const fadeHeight=Math.max(2,ph*.036),c=colors[k];
     rows.forEach((d,i)=>{
-      const v=pos(k,valueFor(k,d));
-      if(v===null)return;
-      const slot=geometry.slotWidths[i],barW=slot;
-      const px=geometry.edges[i],py=y(v);
       const inProgress=Boolean(d.partial);
-      const h=Math.max(0,Math.min(fadeHeight,y(0.018)-py));
-      if(h>0){
-        el('rect',{x:px,y:py,width:barW,height:h,fill:'url(#fade-'+k+')','pointer-events':'none',opacity:emphasis*(inProgress?.48:1)},group);
+      if(k==='weight'&&d.summary)return; // never portray a multi-day average as a weigh-in
+      const direct=valueFor(k,d);
+      if(!Number.isFinite(direct))return;
+      const reference=inProgress?recentReference(k,rows):null;
+      const level=inProgress&&reference?valueFor(k,reference):direct;
+      const v=pos(k,level);
+      if(v===null)return;
+      const slot=geometry.slotWidths[i],px=geometry.edges[i],py=y(v);
+      if(k==='weight'){
+        if(inProgress){
+          el('line',{x1:px,y1:py,x2:px+slot,y2:py,stroke:c,'stroke-opacity':.4,
+            'stroke-width':1.3,'stroke-dasharray':'4 3','pointer-events':'none'},group);
+        }else{
+          el('circle',{cx:px+slot/2,cy:py,r:clamp(slot*.28,2.8,6.4),fill:c,
+            'fill-opacity':emphasis,stroke:'#ffffff','stroke-width':1.3,'pointer-events':'none'},group);
+        }
+        return;
       }
-      const sw=Math.min(3.0,Math.max(.3,slot*.22));
-      const mark=el('line',{x1:px+sw/2,y1:py,x2:px+barW-sw/2,y2:py,stroke:c,'stroke-width':sw,'stroke-opacity':emphasis*(inProgress?.85:1),'stroke-linecap':'butt','pointer-events':'none'},group);
-      if(inProgress&&slot>=4)mark.setAttribute('stroke-dasharray','3 2');
+      const h=Math.max(0,Math.min(fadeHeight,y(.018)-py));
+      if(h>0)el('rect',{x:px,y:py,width:slot,height:h,fill:'url(#fade-'+k+')',
+        opacity:emphasis*(inProgress?.25:1),'pointer-events':'none'},group);
+      const sw=Math.min(2.5,Math.max(.35,slot*.18));
+      if(inProgress){
+        const goal=k==='calories'?(d.budgetLow+d.budgetHigh)/2:goalFor(k,d);
+        // If no specific target exists, show current activity but don't
+        // invent a progress percentage for carb/fat.
+        const p=Number.isFinite(goal)&&goal>0?clamp(direct/goal,0,1):.6;
+        el('line',{x1:px,y1:py,x2:px+slot,y2:py,stroke:c,'stroke-width':sw,
+          'stroke-opacity':.40,'stroke-dasharray':'3 3','pointer-events':'none'},group);
+        el('line',{x1:px,y1:py,x2:px+slot*p,y2:py,stroke:c,'stroke-width':Math.max(2,sw),
+          'stroke-opacity':emphasis,'pointer-events':'none'},group);
+      }else{
+        el('line',{x1:px+sw/2,y1:py,x2:px+slot-sw/2,y2:py,stroke:c,'stroke-width':sw,
+          'stroke-opacity':emphasis,'stroke-linecap':'butt','pointer-events':'none'},group);
+      }
     });
   }
   function positionMetricButtons(){
-    const panel=document.querySelector('.metric-row'),h=panel.clientHeight;
+    const panel=document.querySelector('.metric-row'),h=panel.clientHeight,w=panel.clientWidth;
     if(!h||!geometry)return;
-    const buttons=[...panel.querySelectorAll('.metric')];
-    const on=keys.filter(k=>active[k]),off=keys.filter(k=>!active[k]);
-    const more=document.getElementById('hidden-metrics-toggle');
+    const buttons=[...panel.querySelectorAll('.metric')],on=keys.filter(k=>active[k]);
+    const off=keys.filter(k=>!active[k]),more=document.getElementById('hidden-metrics-toggle');
     more.hidden=!off.length;more.textContent=`+ ${off.length} hidden`;
     for(const b of buttons)b.hidden=!active[b.dataset.key];
-    const gap=2, activeH=Math.min(Math.max(46,h*.080),Math.max(32,h/Math.max(on.length,1)-gap));
+    const isPortrait=false; // labels always attach to lines on the right
+    const labelH=on.length>=7?clamp(h/(on.length+1.6),24,32):clamp(h/(on.length+2),30,48);
     panel.classList.toggle('compact-series',on.length>=7);
-    const positions=on.map((k,index)=>{
+    const labelW=isPortrait?Math.min(96,Math.max(36,(w-12)/Math.max(1,on.length))):w;
+    on.forEach(k=>{
       const b=buttons.find(n=>n.dataset.key===k);
-      const d=[...current].reverse().find(row=>Number.isFinite(valueFor(k,row)));
-      const measured=k==='weight'?(d?.weight??weighed.at(-1)?.weight):(d?valueFor(k,d):null);
-      const f=Number.isFinite(measured)?pos(k,measured):scales[k]?.centre;
-      const desired=Number.isFinite(f)?geometry.y(f):((index+.5)*h/Math.max(1,on.length));
-      return {b,k,desired};
+      const reference=recentReference(k,current);
+      const lastValue=reference?valueFor(k,reference):null;
+      const f=Number.isFinite(lastValue)?pos(k,lastValue):scales[k]?.centre;
+      const anchorY=geometry.y(Number.isFinite(f)?f:scales[k]?.centre||.5);
+      if(isPortrait){
+        const x=w-anchorY;
+        b.style.setProperty('--label-w',labelW+'px');
+        b.style.left=clamp(x-labelW/2,1,w-labelW-1)+'px';
+        b.style.top='39px'; b.style.height='44px';
+      }else{
+        b.style.left='0';
+        b.style.top=clamp(anchorY,15,h-labelH)+'px';
+        b.style.height=labelH+'px';
+      }
+      b.dataset.anchorDate=reference?.date||'';
     });
-    // True anchors first; move a label only when it would collide with another.
-    const tops=positions.map(v=>clamp(v.desired,0,Math.max(0,h-activeH)));
-    for(let i=1;i<tops.length;i++)tops[i]=Math.max(tops[i],tops[i-1]+activeH+gap);
-    if(tops.length&&tops.at(-1)>h-activeH){
-      tops[tops.length-1]=h-activeH;
-      for(let i=tops.length-2;i>=0;i--)tops[i]=Math.min(tops[i],tops[i+1]-activeH-gap);
-    }
-    if(tops.length&&tops[0]<0){
-      tops[0]=0;for(let i=1;i<tops.length;i++)tops[i]=Math.max(tops[i],tops[i-1]+activeH+gap);
-    }
-    positions.forEach(({b},i)=>{b.style.height=activeH+'px';b.style.top=tops[i]+'px'});
   }
   function draw(){
     if(!DATA.length)return;
     current=rangeData();hovered=-1;tooltip.hidden=true;
-    const r=host.getBoundingClientRect(),width=Math.max(260,Math.round(r.width)),height=Math.max(140,Math.round(r.height));
+    const r=host.getBoundingClientRect(),isPortrait=false; // chart is always upright
+    const physicalWidth=Math.max(240,Math.round(r.width)),physicalHeight=Math.max(200,Math.round(r.height));
+    const width=physicalWidth;
+    const height=physicalHeight;
     const ml=clamp(width*.025,12,30),mr=0,mt=clamp(height*.046,12,25),mb=clamp(height*.085,22,34);
     const pw=width-ml-mr,ph=height-mt-mb;
     const typical=current.find(d=>!d.partial)?.daysCount||1;
@@ -588,25 +729,14 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
     geometry={ml,mr,mt,mb,pw,ph,x,y,edges,slotWidths,width,height};
     scales=metricScales(current);
     if(!shown(focusedAxis))focusedAxis=keys.find(shown)||null;
-    svg.setAttribute('viewBox',`0 0 ${width} ${height}`);svg.replaceChildren();gradientDefs();
+    svg.setAttribute('viewBox',`0 0 ${physicalWidth} ${physicalHeight}`);
+    svg.replaceChildren();chartRoot=svg;gradientDefs();
+
     const cp=el('clipPath',{id:'plot-clip'},svg.querySelector('defs'));
     el('rect',{x:ml,y:mt,width:pw,height:ph},cp);
     const grid=el('g',{'aria-hidden':'true'});
-    // Today's whole column is a faint, unruled in-progress region.
-    if(current.at(-1)?.partial){
-      const w=Math.max(2,slotWidths.at(-1));
-      el('rect',{x:ml+pw-w,y:mt,width:w,height:ph,fill:'#c3cede','fill-opacity':.26,'pointer-events':'none'},grid);
-      el('rect',{x:ml+pw-w+.5,y:mt+.5,width:w-1,height:ph-1,fill:'none',stroke:'#a1afc4','stroke-width':1,'stroke-dasharray':'3 4','stroke-opacity':.8,'pointer-events':'none'},grid);
-    }
-
-    const tickCount=current.length<=7?current.length:width<680?5:width<1100?7:11;
-    const indices=new Set();
-    for(let i=0;i<tickCount;i++)indices.add(Math.round((current.length-1)*i/(tickCount-1)));
-    for(const idx of indices){
-      const px=x(idx);
-      const t=el('text',{x:px,y:mt+ph+clamp(height*.048,16,25),'text-anchor':idx===0?'start':idx===current.length-1?'end':'middle',fill:'#283d5b','font-size':clamp(width*.012,10,16),'font-weight':800},grid);
-      t.textContent=current[idx].partial?'Today':current.length>180?new Date(current[idx].date+'T12:00:00').toLocaleDateString('en-NZ',{month:'short',year:'2-digit'}):niceDate(current[idx].date);
-    }
+    const dateAxis=el('g',{'id':'date-axis','aria-hidden':'true'});
+    appendTimelineDates(dateAxis, Math.min(daysVisible,DATA.length), geometry, mt+ph+clamp(height*.048,16,25));
     el('line',{x1:ml,y1:mt+ph,x2:ml+pw,y2:mt+ph,stroke:'#aeb8c7','stroke-width':1.2},grid);
     // Budget range, defined by its daily low/high, not a single target line.
     const background=el('g',{'aria-label':'Budget and weight ranges','clip-path':'url(#plot-clip)'});
@@ -621,7 +751,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
     if(shown('weight')){
       const envelope=weightEnvelope(current,edges,slotWidths,y);
       if(envelope){
-        el('path',{d:envelope.shape,fill:colors.weight,'fill-opacity':.18,stroke:'none'},background);
+        el('path',{d:envelope.shape,fill:colors.weight,'fill-opacity':.28,stroke:'none'},background);
         el('path',{d:envelope.top,fill:'none',stroke:colors.weight,'stroke-opacity':.56,'stroke-width':1.5},background);
         el('path',{d:envelope.bottom,fill:'none',stroke:colors.weight,'stroke-opacity':.56,'stroke-width':1.5},background);
       }
@@ -637,15 +767,18 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
     const marks=el('g',{'aria-label':'Daily horizontal measurement marks','clip-path':'url(#plot-clip)'});
     const order=['water','fibre','fats','carbs','calories','protein','weight','steps'];
     for(const k of order)dayMarks(marks,k,current,x,y,pw,ph,optionalKeys.has(k)?.76:1);
-    el('rect',{x:ml,y:mt,width:pw,height:ph,fill:'transparent','pointer-events':'all'},svg).classList.add('interaction-area');
-    updateMetrics(current.at(-1));
+    el('rect',{x:ml,y:mt,width:pw,height:ph,fill:'transparent','pointer-events':'all'},chartRoot).classList.add('interaction-area');
+    updateMetrics(DATA.at(-1));
     positionMetricButtons();
   }
   function safe(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
   function showTooltip(clientX,clientY){
     if(!geometry||!current.length)return;
     const rect=host.getBoundingClientRect(),g=geometry;
-    const lx=clientX-rect.left;const idx=clamp(g.edges.findIndex((v,i)=>lx>=v&&lx<v+g.slotWidths[i]),0,current.length-1);
+    const lx=pointerLogical({clientX,clientY}).x;
+    let idx=g.edges.findIndex((v,i)=>lx>=v&&lx<v+g.slotWidths[i]);
+    if(idx<0)idx=lx<g.ml?0:current.length-1;
+    idx=clamp(idx,0,current.length-1);
     if(idx===hovered)return;hovered=idx;
     const d=current[idx];
     const rows=keys.filter(shown).map(k=>`<div class="tooltip-row"><span><i class="tooltip-dot" style="background:${colors[k]}"></i>${labels[k]}</span><span>${textValue(k,valueFor(k,d))}</span></div>`);
@@ -654,24 +787,28 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
     tooltip.innerHTML=`<strong>${dateTitle}</strong>${rows.join('')}${d.summary?`<div style="font-size:11px;padding-top:4px;color:#62758d">Weight: ${d.weightMeasurements} actual weigh-ins; intake/activity: daily means.</div>`:''}`;
     tooltip.hidden=false;
     const tw=tooltip.offsetWidth,th=tooltip.offsetHeight;
-    tooltip.style.left=clamp(g.x(idx)+12,4,rect.width-tw-4)+'px';
+    tooltip.style.left=clamp(clientX-rect.left+8,4,rect.width-tw-4)+'px';
     tooltip.style.top=clamp(clientY-rect.top-th/2,4,rect.height-th-4)+'px';
   }
   function updateMetrics(d){
     if(!d)return;
-    const put=(id,text)=>{const n=document.getElementById(id);if(n)n.textContent=text;};
+    const put=(id,value)=>{const n=document.getElementById(id);if(n)n.textContent=value;};
+    const pct=(a,b)=>Number.isFinite(a)&&Number.isFinite(b)&&b>0?Math.round(a/b*100)+'%':'';
     const lastWeight=[...DATA].reverse().find(r=>Number.isFinite(r.weight));
-    put('weight-value',d.weight==null?(lastWeight?lastWeight.weight.toFixed(2)+' kg':'—'):d.weight.toFixed(2)+' kg');
-    put('weight-goal','Target '+one(d.targetWeight)+' kg');
-    put('calories-value',fmt(d.calories));
-    put('calories-goal',fmt(d.budgetLow)+'–'+fmt(d.budgetHigh));
-    for(const k of ['protein','carbs','fats','fibre']){
-      put(k+'-value',fmt(d[k])+' g');put(k+'-goal',k==='protein'||k==='fibre'?'Target '+fmt(d[k+'Goal'])+' g':'');
+    put('steps-percent',pct(d.steps,d.stepsGoal));
+    put('steps-reading',fmt(d.steps)+' of '+fmt(d.stepsGoal));
+    put('water-percent',pct(d.water,d.waterGoal));
+    put('water-reading',one(d.water/1000)+' of '+one(d.waterGoal/1000)+' litres');
+    put('weight-percent','');
+    put('weight-reading',(d.weight==null?(lastWeight?lastWeight.weight.toFixed(2):'—'):d.weight.toFixed(2))+' kg · target '+one(d.targetWeight));
+    const middle=(d.budgetLow+d.budgetHigh)/2;
+    put('calories-percent',pct(d.calories,middle));
+    put('calories-reading',fmt(d.calories)+' of '+fmt(d.budgetLow)+'–'+fmt(d.budgetHigh));
+    for(const k of ['protein','fibre','carbs','fats']){
+      const goal=(k==='protein'||k==='fibre')?d[k+'Goal']:null;
+      put(k+'-percent',goal?pct(d[k],goal):'');
+      put(k+'-reading',goal?fmt(d[k])+' of '+fmt(goal)+' g':fmt(d[k])+' g');
     }
-    put('steps-value',fmt(d.steps));
-    put('steps-goal','/ '+fmt(d.stepsGoal)+' ('+Math.round(100*d.steps/d.stepsGoal)+'%)');
-    put('water-value',one(d.water/1000)+' L');
-    put('water-goal','/ '+one(d.waterGoal/1000)+' L ('+Math.round(100*d.water/d.waterGoal)+'%)');
   }
   const metricPanel=document.querySelector('.metric-row');
   const metricButtons=[...metricPanel.querySelectorAll('.metric')];
@@ -746,7 +883,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
         // Hidden labels have zero-size rectangles. Only plotted labels can act
         // as visual drop targets; preserve hidden items' relative order.
         const plotted=others.filter(x=>active[x]);
-        const rank=plotted.filter(x=>targetY>byKey(x).getBoundingClientRect().top+byKey(x).getBoundingClientRect().height/2).length;
+        const rank=plotted.filter(x=>targetY>(byKey(x).getBoundingClientRect().top+byKey(x).getBoundingClientRect().height/2)).length;
         const insertBefore=plotted[rank];
         const index=insertBefore?others.indexOf(insertBefore):plotted.length?others.indexOf(plotted.at(-1))+1:0;
         keys=others.slice();keys.splice(index,0,k);
@@ -774,42 +911,73 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
     });
   });
   syncOrder();
-  // Drag dates from left to right to bring older history into view;
-  // right to left reduces the window towards today. Never redraw in the
-  // middle of a pointer capture (avoids gesture cancellation on Chrome).
+  // Swipe directly on the timeline: dates move immediately, plotted data
+  // reflows only when the finger lifts. No range selector or static readout.
   let gesture=null;
+  function appendTimelineDates(group,days,g,labelY){
+    // Every label represents a *fixed calendar date*, so as the visible span
+    // changes, its X position slides continuously under the finger.
+    const latestCompleted=[...DATA].reverse().find(d=>!d.partial)||DATA.at(-1);
+    const end=Date.parse(latestCompleted.date+'T00:00:00Z')/MS_DAY;
+    const start=end-days+1, maxLabels=clamp(Math.floor(g.width/85),4,12);
+    const intervals=[1,2,3,5,7,10,14,21,30,45,60,90,120,180,365,730];
+    const step=intervals.find(s=>days/s<=maxLabels-1)||730;
+    const font=clamp(g.width*.012,10,16);
+    for(let tick=Math.ceil(start/step)*step;tick<=end;tick+=step){
+      const frac=(tick-start)/Math.max(1,days-1);
+      const px=g.ml+frac*g.pw;
+      if(px<g.ml+24||px>g.ml+g.pw-40)continue;
+      const dt=new Date(tick*MS_DAY),iso=dt.toISOString().slice(0,10);
+      const text=days>400?dt.toLocaleDateString('en-NZ',{month:'short',year:'2-digit',timeZone:'UTC'}):
+        days>100?dt.toLocaleDateString('en-NZ',{day:'numeric',month:'short',timeZone:'UTC'}):niceDate(iso);
+      const t=el('text',{x:px,y:labelY,'text-anchor':'middle',fill:'#283d5b',
+          'font-size':font,'font-weight':800,
+},group);t.textContent=text;
+    }
+    const newest=el('text',{x:g.ml+g.pw,y:labelY,'text-anchor':'end',fill:'#283d5b',
+        'font-size':font,'font-weight':900,
+},group);
+    newest.textContent=niceDate(latestCompleted.date);
+  }
+  function previewTimeline(days){
+    if(!geometry)return;
+    svg.querySelector('#date-preview')?.remove();
+    const g=geometry;
+    const preview=el('g',{'id':'date-preview','aria-hidden':'true'});
+    const axisTop=g.mt+g.ph+1;
+    el('rect',{x:g.ml-2,y:axisTop,width:g.pw+4,height:g.height-axisTop,fill:'#fffaf2'},preview);
+    el('line',{x1:g.ml,y1:axisTop,x2:g.ml+g.pw,y2:axisTop,stroke:'#aeb8c7','stroke-width':1},preview);
+    appendTimelineDates(preview,days,g,axisTop+clamp(g.height*.05,16,25));
+  }
   host.addEventListener('pointerdown',e=>{
     if(e.pointerType==='mouse'&&e.button!==0)return;
     e.preventDefault();
-    gesture={id:e.pointerId,x:e.clientX,y:e.clientY,base:daysVisible,moving:false,dx:0};
+    gesture={id:e.pointerId,x:e.clientX,y:e.clientY,base:daysVisible,days:daysVisible,moving:false};
     try{host.setPointerCapture(e.pointerId)}catch{}
   });
   host.addEventListener('pointermove',e=>{
     if(!gesture||e.pointerId!==gesture.id)return;
-    const dx=e.clientX-gesture.x,dy=e.clientY-gesture.y;
-    if(Math.abs(dy)>Math.abs(dx)&&!gesture.moving&&Math.abs(dy)>24)return;
-    if(Math.abs(dx)<20&&!gesture.moving)return;
-    gesture.moving=true;gesture.dx=dx;
+    const physicalDx=e.clientX-gesture.x,physicalDy=e.clientY-gesture.y;
+    const dx=physicalDx;
+    const cross=physicalDy;
+    if(Math.abs(dx)<8&&!gesture.moving)return;
+    if(!gesture.moving&&Math.abs(cross)>Math.abs(dx)*1.5)return;
+    gesture.moving=true;
+    const plotWidth=geometry?.pw||host.clientWidth;
+    gesture.days=clamp(Math.round(gesture.base*Math.exp(2.45*dx/plotWidth)),MIN_DAYS,DATA.length);
+    previewTimeline(gesture.days);
     e.preventDefault();
   });
-  host.addEventListener('pointerup',e=>{
-    if(!gesture||e.pointerId!==gesture.id)return;
-    const dx=e.clientX-gesture.x;
-    const moved=gesture.moving;
-    const base=gesture.base;gesture=null;
-    if(moved){
-      daysVisible=clamp(Math.round(base*Math.exp((dx/Math.max(300,host.clientWidth))*1.6)),MIN_DAYS,DATA.length);
-      draw();tooltip.hidden=true;hovered=-1;return;
-    }
-    if(!tooltip.hidden){tooltip.hidden=true;hovered=-1}else showTooltip(e.clientX,e.clientY);
-  });
-  function finishInterruptedSwipe(){
-    if(!gesture)return;
-    const {dx,base,moving}=gesture;gesture=null;
-    if(moving&&Math.abs(dx)>20){daysVisible=clamp(Math.round(base*Math.exp((dx/Math.max(300,host.clientWidth))*1.6)),MIN_DAYS,DATA.length);draw();}
+  function endTimelineGesture(e,cancelled=false){
+    if(!gesture||gesture.id!==e.pointerId)return;
+    const g=gesture;gesture=null;
+    if(g.moving&&!cancelled){daysVisible=g.days;draw();return;}
+    svg.querySelector('#date-preview')?.remove();
+    if(!g.moving&&!cancelled)showTooltip(e.clientX,e.clientY);
   }
-  host.addEventListener('pointercancel',finishInterruptedSwipe);
-  host.addEventListener('lostpointercapture',e=>{if(gesture&&gesture.id===e.pointerId)finishInterruptedSwipe()});
+  host.addEventListener('pointerup',e=>endTimelineGesture(e));
+  host.addEventListener('pointercancel',e=>endTimelineGesture(e,true));
+  host.addEventListener('lostpointercapture',e=>{if(gesture&&gesture.id===e.pointerId)endTimelineGesture(e,true)});
   document.addEventListener('click',e=>{if(!host.contains(e.target)){tooltip.hidden=true;hovered=-1;}});
   const entryBackdrop=document.getElementById('entry-backdrop');
   const entryContent=document.getElementById('entry-content');
@@ -854,69 +1022,91 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
       const prev=lastMeasured?Number(lastMeasured.weight):80;
       const days=lastMeasured?Math.round((Date.parse(today.date)-Date.parse(lastMeasured.date))/MS_DAY):null;
       const startWeight=Math.round((today.weight??prev)*100)/100;
-      showEntry('Record weight',`<form class="entry-form" id="weight-form"><p>${new Date(today.date+'T12:00:00').toLocaleDateString('en-NZ',{weekday:'long',day:'numeric',month:'long'})} · Previous ${days==null?'—':days+' day'+(days===1?'':'s')+' ago'} · ${lastMeasured?prev.toFixed(2)+' kg':'no previous reading'}</p><div class="weight-reading" id="weight-reading">${startWeight.toFixed(2)} kg</div><div class="weight-wheel-wrap"><div class="weight-wheel-unit"><span>Whole kg</span><div class="weight-wheel" id="kg-wheel" tabindex="0" aria-label="Whole kilograms, scroll to adjust" role="spinbutton"></div></div><div class="weight-wheel-unit"><span>Hundredths</span><div class="weight-wheel" id="cent-wheel" tabindex="0" aria-label="Hundredths of a kilogram, scroll to adjust" role="spinbutton"></div></div></div><p class="weight-wheel-hint">Flick either wheel to spin it; a fast flick continues with momentum.</p><button class="entry-affirm">Record weight</button></form>`);
-      let kg=Math.floor(startWeight),cent=Math.round((startWeight-kg)*100);
-      const show=()=>{document.getElementById('weight-reading').textContent=(kg+cent/100).toFixed(2)+' kg'};
-      function attachWheel(id,min,max,initial,format,update,wrap=false){
-        const el=document.getElementById(id),row=32;
-        let p=initial,drag=null,vel=0,raf=0;
-        const total=max-min+1;
-        const safePos=n=>wrap?n:clamp(n,min,max);
-        function drawWheel(){
-          const selected=Math.round(p);
-          el.replaceChildren();const selectedMark=document.createElement('div');selectedMark.className='wheel-center';el.append(selectedMark);
-          for(let d=-3;d<=3;d++){
-            let val=selected+d;if(wrap)val=min+((val-min)%total+total)%total;
-            if(val<min||val>max)continue;
-            const item=document.createElement('div');item.className='wheel-row';item.textContent=format(val);
-            item.style.transform=`translateY(${((val===selected?0:d)-(p-selected))*row}px)`;
-            item.style.opacity=String(Math.max(.14,1-Math.abs(d-(p-selected))*.25));
-            if(Math.abs(d-(p-selected))<.7)item.style.fontSize='22px';
-            el.append(item);
-          }
-          const val=wrap?min+((selected-min)%total+total)%total:clamp(selected,min,max);
-          el.setAttribute('aria-valuenow',String(val));update(val);show();
+      showEntry('Record weight',`<form class="entry-form" id="weight-form">
+        <p>${new Date(today.date+'T12:00:00').toLocaleDateString('en-NZ',{weekday:'long',day:'numeric',month:'long'})} · Previous ${days==null?'—':days+' day'+(days===1?'':'s')+' ago'} · ${lastMeasured?prev.toFixed(2)+' kg':'no previous reading'}</p>
+        <div class="weight-reading" id="weight-reading">${startWeight.toFixed(2)} kg</div>
+        <div class="weight-wheel-wrap"><div class="weight-ruler-frame"><canvas class="weight-ruler" id="weight-ruler" tabindex="0" role="slider" aria-label="Weight: swipe horizontally to change, gently for 0.01 kg or quickly for kilograms" aria-valuemin="20" aria-valuemax="400" aria-valuenow="${startWeight}"></canvas></div></div>
+        <p class="weight-wheel-hint">Swipe left or right. Slow movement adjusts by 0.01 kg; a fast flick accelerates and coasts.</p>
+        <button class="entry-affirm">Record weight</button></form>`);
+      const wheel=document.getElementById('weight-ruler'),readout=document.getElementById('weight-reading');
+      const MAX=40000,MIN=2000,PIXELS_PER_CENT=10;
+      let position=startWeight*100,gestureW=null,velocity=0,animation=0;
+      const safePos=p=>clamp(p,MIN,MAX);
+      const show=()=>{
+        const value=(Math.round(position)/100).toFixed(2);
+        readout.textContent=value+' kg';wheel.setAttribute('aria-valuenow',value);
+        paintRuler();
+      };
+      function paintRuler(){
+        const box=wheel.getBoundingClientRect();if(!box.width)return;
+        const ratio=window.devicePixelRatio||1;
+        wheel.width=Math.round(box.width*ratio);wheel.height=Math.round(box.height*ratio);
+        const ctx=wheel.getContext('2d');ctx.scale(ratio,ratio);
+        const w=box.width,h=box.height,mid=w/2;
+        const minTick=Math.floor(position-(mid+20)/PIXELS_PER_CENT);
+        const maxTick=Math.ceil(position+(mid+20)/PIXELS_PER_CENT);
+        ctx.textAlign='center';ctx.textBaseline='alphabetic';
+        for(let tick=minTick;tick<=maxTick;tick++){
+          if(tick<MIN||tick>MAX)continue;
+          const x=mid+(tick-position)*PIXELS_PER_CENT;
+          const major=tick%10===0,midpoint=tick%5===0;
+          ctx.strokeStyle=major?'#637fa5':'#aabdd3';ctx.lineWidth=major?1.6:1;
+          ctx.beginPath();ctx.moveTo(x,h*.45);ctx.lineTo(x,major?h*.78:midpoint?h*.67:h*.57);ctx.stroke();
+          if(major){ctx.fillStyle='#354d70';ctx.font='bold 12px Arial';ctx.fillText((tick/100).toFixed(1),x,h*.94)}
         }
-        const stop=()=>{if(raf)cancelAnimationFrame(raf);raf=0};
-        const step=d=>{stop();p=safePos(Math.round(p)+d);drawWheel()};
-        el.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button!==0)return;stop();drag={id:e.pointerId,y:e.clientY,p,start:performance.now(),lastY:e.clientY,lastT:performance.now()};vel=0;el.setPointerCapture(e.pointerId)});
-        el.addEventListener('pointermove',e=>{
-          if(!drag||drag.id!==e.pointerId)return;
-          e.preventDefault();const now=performance.now(),dt=Math.max(1,now-drag.lastT);
-          p=safePos(drag.p+(drag.y-e.clientY)/row);
-          const instant=(drag.lastY-e.clientY)/row/dt;
-          vel=.6*instant+.4*vel;drag.lastY=e.clientY;drag.lastT=now;drawWheel();
-        });
-        el.addEventListener('pointerup',e=>{
-          if(!drag||drag.id!==e.pointerId)return;
-          const elapsed=performance.now()-drag.start;
-          const moved=Math.abs(e.clientY-drag.y);
-          if(moved<8){const bounds=el.getBoundingClientRect();const offset=Math.round((e.clientY-(bounds.top+bounds.height/2))/row);p=safePos(Math.round(p)+offset);drawWheel();drag=null;return}
-          const recent=performance.now()-drag.lastT;
-          if(recent>90)vel=0;
-          // Allow deliberate fast flicks to travel further with friction.
-          let speed=clamp(vel,-.065,.065),time=performance.now();drag=null;
-          const animate=(now)=>{
-            const dt=Math.min(36,now-time);time=now;p=safePos(p+speed*dt);
-            speed*=Math.exp(-dt/240);
-            drawWheel();
-            if(Math.abs(speed)>.00025){raf=requestAnimationFrame(animate)}
-            else{p=safePos(Math.round(p));drawWheel();raf=0}
-          };
-          if(Math.abs(speed)>.0015)raf=requestAnimationFrame(animate);
-          else{p=safePos(Math.round(p));drawWheel()}
-        });
-        el.addEventListener('pointercancel',()=>{drag=null;stop();p=safePos(Math.round(p));drawWheel()});
-        el.addEventListener('wheel',e=>{e.preventDefault();step(e.deltaY>0?-1:1)},{passive:false});
-        el.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown'].includes(e.key)){e.preventDefault();step((e.key.endsWith('Up')?1:-1)*(e.key.startsWith('Page')?5:1))}});
-        drawWheel();
+        ctx.fillStyle='#dd6c50';ctx.beginPath();ctx.moveTo(mid-7,12);ctx.lineTo(mid+7,12);ctx.lineTo(mid,27);ctx.closePath();ctx.fill();
+        ctx.strokeStyle='#dd6c50';ctx.lineWidth=2.2;ctx.beginPath();ctx.moveTo(mid,26);ctx.lineTo(mid,h*.78);ctx.stroke();
       }
-      attachWheel('kg-wheel',20,400,kg,n=>String(n),v=>kg=v);
-      attachWheel('cent-wheel',0,99,cent,n=>'.'+String(n).padStart(2,'0'),v=>cent=v,true);
+      function stop(){if(animation)cancelAnimationFrame(animation);animation=0}
+      function factor(speed){
+        // 0.01 kg steps for careful movement; fast gestures scale exponentially.
+        return Math.exp(Math.min(4.5,Math.max(0,speed-.25)*2));
+      }
+      wheel.addEventListener('pointerdown',e=>{
+        if(e.pointerType==='mouse'&&e.button!==0)return;
+        stop();velocity=0;gestureW={id:e.pointerId,x:e.clientX,t:performance.now(),lastX:e.clientX,lastT:performance.now(),history:[]};
+        try{wheel.setPointerCapture(e.pointerId)}catch{}
+      });
+      wheel.addEventListener('pointermove',e=>{
+        if(!gestureW||gestureW.id!==e.pointerId)return;
+        const now=performance.now(),dx=e.clientX-gestureW.lastX,dt=Math.max(1,now-gestureW.lastT);
+        const pxSpeed=Math.abs(dx)/dt;
+        position=safePos(position-dx/PIXELS_PER_CENT*factor(pxSpeed));
+        const instant=(-dx/PIXELS_PER_CENT*factor(pxSpeed))/dt;
+        gestureW.history.push({t:now,instant});
+        gestureW.history=gestureW.history.filter(item=>now-item.t<110);
+        velocity=.6*instant+.4*velocity;
+        gestureW.lastX=e.clientX;gestureW.lastT=now;
+        e.preventDefault();show();
+      });
+      wheel.addEventListener('pointerup',e=>{
+        if(!gestureW||gestureW.id!==e.pointerId)return;
+        const now=performance.now(),recent=now-gestureW.lastT;
+        if(recent>90)velocity=0;
+        gestureW=null;
+        let v=clamp(velocity,-.85,.85),last=now;
+        const glide=timestamp=>{
+          const dt=Math.min(timestamp-last,40);last=timestamp;
+          position=safePos(position+v*dt);v*=Math.exp(-dt/170);
+          show();
+          if(Math.abs(v)>.003&&position>MIN&&position<MAX)animation=requestAnimationFrame(glide);
+          else{position=Math.round(position);show();animation=0}
+        };
+        if(Math.abs(v)>.006)animation=requestAnimationFrame(glide);
+        else{position=Math.round(position);show()}
+      });
+      wheel.addEventListener('pointercancel',()=>{gestureW=null;stop();position=Math.round(position);show()});
+      wheel.addEventListener('keydown',e=>{
+        if(['ArrowLeft','ArrowRight','PageUp','PageDown'].includes(e.key)){
+          e.preventDefault();stop();position=safePos(Math.round(position)+(e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:e.key==='PageUp'?100:-100));show();
+        }
+      });
+      wheel.addEventListener('wheel',e=>{e.preventDefault();stop();position=safePos(Math.round(position)+(e.deltaY>0?-1:1));show()},{passive:false});
+      requestAnimationFrame(show);
       document.getElementById('weight-form').addEventListener('submit',e=>{
-        e.preventDefault();const v=kg+cent/100;
+        e.preventDefault();stop();const v=Math.round(position)/100;
         if(!Number.isFinite(v)||v<20||v>400)return;
-        today.weight=Math.round(v*100)/100;
+        today.weight=v;
         weighed=DATA.filter(d=>Number.isFinite(d.weight)).map(d=>({t:Date.parse(d.date+'T00:00:00Z'),weight:d.weight}));
         dismissEntry();draw();
       });
@@ -959,12 +1149,99 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
     triedFullscreen=true;
     if(document.fullscreenElement)return;
     document.documentElement.requestFullscreen().then(()=>{
-      if(screen.orientation?.lock)screen.orientation.lock('landscape').catch(()=>{});
+      // Orientation is user-controlled: the same graph supports both portrait and landscape.
     }).catch(()=>{});
   },{capture:true});
 
+
+  // Editable sample data. The packaged CSV is read automatically on GitHub Pages.
+  // Local CSV import overrides it only on this device (demo mode).
+  const CSV_COLUMNS=['date','weight','targetWeight','calories','budgetLow','budgetHigh','budget',
+    'protein','proteinGoal','carbs','fats','fibre','fibreGoal','steps','stepsGoal','water','waterGoal','partial'];
+  function cellsOfCsvLine(line){
+    const result=[];let value='',quoted=false;
+    for(let i=0;i<line.length;i++){
+      const char=line[i];
+      if(char==='"'){
+        if(quoted&&line[i+1]==='"'){value+='"';i++}else quoted=!quoted;
+      }else if(char===','&&!quoted){result.push(value.trim());value=''}else value+=char;
+    }
+    result.push(value.trim());return result;
+  }
+  function parseDummyCsv(text){
+    const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/).filter(line=>line.trim());
+    if(!lines.length)throw new Error('CSV is empty');
+    const header=cellsOfCsvLine(lines.shift());
+    if(!CSV_COLUMNS.every(k=>header.includes(k)))throw new Error('CSV must contain: '+CSV_COLUMNS.join(', '));
+    const parsed=lines.map((line,n)=>{
+      const cells=cellsOfCsvLine(line),record={};
+      header.forEach((key,i)=>{
+        if(key==='date')record.date=cells[i];
+        else if(key==='partial')record.partial=/^(true|1|yes)$/i.test(cells[i]||'');
+        else record[key]=cells[i]===''||cells[i]==null?null:Number(cells[i].replace(/,/g,''));
+      });
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(record.date)||!Number.isFinite(Date.parse(record.date+'T00:00:00Z')))
+        throw new Error('Invalid date on CSV row '+(n+2));
+      for(const k of CSV_COLUMNS.filter(k=>!['date','partial','weight'].includes(k))){
+        if(!Number.isFinite(record[k]))throw new Error('Invalid '+k+' on CSV row '+(n+2));
+      }
+      if(record.weight!==null&&!Number.isFinite(record.weight))throw new Error('Invalid weight on CSV row '+(n+2));
+      return record;
+    });
+    if(parsed.length<2)throw new Error('CSV needs at least two dated records');
+    parsed.sort((a,b)=>a.date.localeCompare(b.date));
+    if(parsed.some((row,i)=>i>0&&row.date===parsed[i-1].date))throw new Error('Duplicate dates in CSV');
+    return parsed;
+  }
+  function adoptDummyData(csv){
+    const next=parseDummyCsv(csv);
+    DATA=next;
+    weighed=DATA.filter(d=>Number.isFinite(d.weight)).map(d=>({t:Date.parse(d.date+'T00:00:00Z'),weight:d.weight}));
+    daysVisible=Math.min(30,DATA.length);
+    draw();
+    return next.length;
+  }
+  const SETTINGS_KEY='pieChartDemoCsvOverride';
+  document.querySelector('.settings-button').addEventListener('click',()=>{
+    showEntry('Load editable dummy data',`<div class="entry-form">
+      <p>Edit <strong>dummy-data.csv</strong> in a spreadsheet or text editor. Changes to the CSV on GitHub Pages are read when the app loads. You can also import it here for immediate testing.</p>
+      <label for="csv-file">Choose dummy-data.csv</label><input type="file" id="csv-file" accept=".csv,text/csv">
+      <p id="csv-result" aria-live="polite"></p>
+      <button type="button" class="entry-affirm" id="csv-reset">Use bundled data</button>
+    </div>`);
+    document.getElementById('csv-file').addEventListener('change',async e=>{
+      const file=e.target.files?.[0];if(!file)return;
+      try{
+        const csv=await file.text(),count=adoptDummyData(csv);
+        let persisted=false;
+        try{localStorage.setItem(SETTINGS_KEY,csv);persisted=true;}catch{}
+        document.getElementById('csv-result').textContent='Loaded '+count+' dated records'+
+          (persisted?' and saved on this device.':' for this session. Upload the CSV with the app for automatic loading.');
+      }catch(error){document.getElementById('csv-result').textContent='Import failed: '+error.message;}
+    });
+    document.getElementById('csv-reset').addEventListener('click',async()=>{
+      try{localStorage.removeItem(SETTINGS_KEY)}catch{}
+      try{const res=await fetch('./dummy-data.csv',{cache:'no-store'});if(!res.ok)throw new Error();adoptDummyData(await res.text());}
+      catch{DATA=window.DEMO_DATA||[];weighed=DATA.filter(d=>Number.isFinite(d.weight)).map(d=>({t:Date.parse(d.date+'T00:00:00Z'),weight:d.weight}));draw()}
+      dismissEntry();
+    });
+  });
+  async function loadPackagedCsv(){
+    try{
+      const override=localStorage.getItem(SETTINGS_KEY);
+      if(override){adoptDummyData(override);return;}
+    }catch{}
+    if(!/^https?:$/.test(location.protocol))return; // standalone HTML fallback stays usable
+    try{
+      const response=await fetch('./dummy-data.csv',{cache:'no-store'});
+      if(response.ok)adoptDummyData(await response.text());
+    }catch(error){console.warn('Using included demo data:',error.message)}
+  }
+
   new ResizeObserver(draw).observe(host);
+  portraitView.addEventListener('change',()=>requestAnimationFrame(draw));
   draw();
+  loadPackagedCsv();
 })();
 </script></body>
 </html>
