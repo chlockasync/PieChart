@@ -148,3 +148,14 @@ The following **supersedes conflicting prototype details** above. Keep all previ
 - Keep the **same upright, left-to-right graph** in portrait and landscape, with time on the horizontal axis and live data labels to the right. Adapt only to available portrait width.
 - Do **not** restore the old separate seven-day/four-metric portrait design; keep current series/selection and date-swipe model in both orientations.
 - In both orientations, long-press label sorting is vertical and timeline swipe is horizontal.
+
+
+## v0.1.015 — fictional historical demo data (17 November 2026)
+- This is **fictional demo history only**, not Noom export or the user's personal data. No UI/layout/interaction changes intended.
+- 1,160 daily entries, through 2026-11-17 (the final row is marked partial). The latest recorded weigh-in is 64.60 kg, with a gradual noisy change from 70.00 kg across three years; target weight 60 kg.
+- Step goal 10,000; all days over 5,000, most near 10,000, and occasional 13,000–16,000.
+- Water goal 2.0 litres; historical full days predominantly 1.9–2.5 L.
+- Calories predominantly within the historical maintenance budget band, with occasional over/under days. Protein (125 g goal), fibre (30 g goal), fats, and carbs are fictional but consistent with calorie totals (4/4/9/2 coefficients).
+- Dataset fields and CSV column structure unchanged. `dummy-data.csv` and the HTML fallback are exact matches.
+- Previously imported CSV overrides stored in device localStorage can mask updated bundled data; the gear menu's **Use bundled data** action restores the packaged CSV.
+- Default graph order remains Weight, Steps, Water, Calories, Fibre, Protein, Fats, Carbs, all initially visible, with 100-day initial view.
