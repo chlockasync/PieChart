@@ -1,16 +1,16 @@
-# MyHealthTrack v0.1.007 — landscape graph prototype
+# Joules Burn's Pie Chart — v0.1.008
 
-Open `index.html` directly or upload the contents of this folder to GitHub Pages. HTML/CSS/JavaScript are self-contained with no external dependencies.
+A landscape-first, single-page HTML/CSS/JavaScript graph prototype for GitHub Pages.
 
-Changes since v0.1.006:
-- Reordered right-side controls: Steps, Water, Weight, Calories, Protein, Fibre, Carbs, Fats.
-- Dynamically allocate all plot height among **selected** metrics, including a centred single-metric view.
-- Daily horizontal marks stay inside their full-width day/fading columns; no gaps or vertical date grid lines.
-- Today's column and marks are subtly marked 'in progress'.
-- Removed date navigation arrows; periods are 7/30/60/90 days, 6 months, 1/2/3/5 years, and all demo history.
-- Rebuilt and extended fictional dataset to roughly 3.2 years, with coherent energy/nutrient arithmetic, slower calorie-budget variation, irregular weigh-ins, and a partial current day.
-- Dates up to 90 days display daily values. Larger windows display labelled 3/7/14/28-day aggregates for legibility, with today's partial data kept separate.
+**Files:** `index.html` is fully self-contained. `PROJECT_SPEC.md` retains the project's decisions, outstanding questions, and visual prototype history. The prototype uses entirely fictional, seeded sample data and makes no external requests.
 
-**Important:** This is a design/interaction prototype using synthetic numbers only. It does not track steps or calories from a phone, store real entries, or connect to accounts. Calorie and weight data are illustrative, not personalised health guidance.
+## Try it
 
-The `PROJECT_SPEC.md` file is our living record of the agreed product requirements and choices. Update it with future iterations.
+Open `index.html` in a browser, or upload the included files to the root of a GitHub Pages repository.
+
+- Pick a time span from the date dropdown.
+- Tap the right-hand metric pills to turn series on or off. Protein and fibre show illustrative goal lines when switched on.
+- Tap inside the plot to inspect values for that date; tap again to dismiss.
+- Today's widened, dashed column represents an incomplete day.
+
+This version focuses **only on landscape**. Food entry, health integration, backup, and sign-in are future work, not yet functional. All nutritional targets in this prototype are dummy inputs.
