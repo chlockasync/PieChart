@@ -1,8 +1,8 @@
 {
   "name": "Joules Burn's Pie Chart",
   "short_name": "PieChart",
-  "description": "Private food, weight and activity tracker — prototype",
-  "start_url": "./",
+  "description": "Home graph and recording prototype",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "fullscreen",
   "orientation": "any",

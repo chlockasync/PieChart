@@ -159,3 +159,12 @@ The following **supersedes conflicting prototype details** above. Keep all previ
 - Dataset fields and CSV column structure unchanged. `dummy-data.csv` and the HTML fallback are exact matches.
 - Previously imported CSV overrides stored in device localStorage can mask updated bundled data; the gear menu's **Use bundled data** action restores the packaged CSV.
 - Default graph order remains Weight, Steps, Water, Calories, Fibre, Protein, Fats, Carbs, all initially visible, with 100-day initial view.
+
+
+## v0.1.016 — Visual selection (17 Nov 2026)
+- Chosen design: option 4 graph treatments (stronger coloured daily bars/fades, clear goal lines, light weight envelope), option 1 label treatment mirrored to RIGHT.
+- Labels: each coloured vertical-edge label presents metric name, prominent percentage (when meaningful), actual intake, and target/budget. No invented goals for fats or carbs; weight percentage is percent of target weight, NOT weight-loss completion.
+- Faint horizontal separators span the graph and right labels between visible series. All eight initially on; dynamically rearranged via existing interactions.
+- Fix to the >90-day history grouping: aggregate ONLY the selected time window, not the entire archived dataset; when grouped, plot actual recorded weigh-ins.
+- Keep same demo CSV, app shell, order, interactions, and responsive portrait/landscape layout.
+- This remains a visual prototype for user evaluation.

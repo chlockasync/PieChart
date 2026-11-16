@@ -1,7 +1,11 @@
-# Joules Burn’s Pie Chart — v0.1.015
+# Joules Burn’s Pie Chart — v0.1.016
 
-Data-only refresh of the existing v0.1.014 prototype. Fictional history now depicts weight drifting from 70 kg to 64.60 kg (target 60), steps usually around 10,000, water around 2 litres, and calories mostly within budget. Nutrient calories reconcile.
+Right-side option-1 labels and separators, option-4-inspired chart treatment.
 
-Upload the full contents of this folder to GitHub Pages. The included `dummy-data.csv` is editable. If the app still shows previous values after uploading, open the gear and select **Use bundled data** to clear any locally imported override.
-
-All recording screens and charts remain prototype-only. No real Noom data or Firebase integration yet.
+- Open `index.html` via GitHub Pages.
+- Demo records are in `dummy-data.csv` and bundled into the HTML for offline preview.
+- The chart initially shows 100 days (grouped into three-day bins) with all eight metrics visible.
+- Double-tap a metric label to record; press and hold to reorder; tap the eye to hide; swipe the chart horizontally to change history.
+- Weight percentage expresses actual weight divided by target weight, not weight-loss completion.
+- No targets defined for carbs/fats.
+- No Firebase, automatic step collection, or persistence yet (demo only).
