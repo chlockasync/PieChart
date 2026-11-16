@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#fffaf2">
-  <title>Joules Burn's Pie Chart — v0.1.009</title>
+  <title>Joules Burn's Pie Chart — v0.1.010</title>
   <link rel="manifest" href="manifest.webmanifest">
   <style>:root {
   color-scheme: light;
@@ -110,7 +110,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
   .metric-sub{font-size:clamp(8px,.92vw,10px);line-height:1;}
 }
 
-/* v0.1.009: touch-first metric ordering and entry sheets. */
+/* v0.1.010: touch-first metric ordering and entry sheets. */
 .metric {touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;}
 .metric.drag-ready {outline:2px solid #8597b3;outline-offset:-1px;}
 .metric.dragging {z-index:30;opacity:1 !important;filter:none !important;box-shadow:0 6px 22px #17294a55;transition:none;cursor:grabbing;}
@@ -136,6 +136,65 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
 .entry-preview {display:grid;grid-template-columns:1fr auto;gap:4px 10px;font-size:13px;padding:10px;border-radius:12px;background:#eff8f1;border:1px solid #d9eadc;}
 .entry-note {font-size:11px!important;color:#687b96!important;}
 @media(max-height:420px){.entry-sheet{padding:9px 14px}.entry-titlebar{margin-bottom:4px}.entry-form{gap:5px}.entry-sheet p{margin:2px 0 5px}.entry-results{max-height:16vh}}
+
+/* v0.1.010: reference-anchored labels, no date selector. */
+.range-readout{justify-self:center;border:1px solid #e3e5e9;background:#fffaf4;color:#526684;border-radius:999px;padding:6px 16px;white-space:nowrap;font-size:clamp(11px,1.26vw,17px);font-weight:900;}
+.main-area{gap:0;grid-template-columns:minmax(0,1fr) clamp(137px,15vw,221px);}
+.chart-shell{touch-action:none;user-select:none;-webkit-user-select:none;}
+.metric-row{overflow:visible;}
+.metric-row .metric{position:absolute;display:grid;grid-template-columns:minmax(0,1fr) 24px;grid-template-rows:auto auto auto;align-content:start;align-items:start;justify-items:start;
+  left:0;right:0;width:100%;padding:3px 5px 2px 12px;box-shadow:none!important;border:0;border-top:3px solid var(--line);border-radius:0 9px 8px 0;
+  background:linear-gradient(to bottom,var(--wash) 0%,rgba(255,255,255,0) 100%);touch-action:none;user-select:none;cursor:default;
+  transition:opacity .14s;overflow:hidden;}
+.metric-row .metric-head{grid-column:1;grid-row:1;justify-self:start;display:flex;align-items:center;gap:4px;font-size:clamp(10px,1.15vw,13px);line-height:1.05;white-space:nowrap;}
+.metric-row .metric-main{grid-column:1;grid-row:2;justify-self:start;font-size:clamp(12px,1.55vw,18px);font-weight:900;line-height:1.06;}
+.metric-row .metric-sub{grid-column:1;grid-row:3;justify-self:start;font-size:clamp(9px,1vw,12px);line-height:1.08;}
+.metric-row .metric-icon{font-size:clamp(10px,1.4vw,16px);}
+.metric-row .metric[aria-pressed='false']{background:#fffaf8a8;box-shadow:none!important;border-top:1px dotted #d9dbe3;height:24px!important;opacity:.48;}
+.metric-row .metric[aria-pressed='false'] .metric-head{color:#68758b;}
+.metric-row .metric[aria-pressed='false'] .metric-main,.metric-row .metric[aria-pressed='false'] .metric-sub{display:none;}
+.metric-steps{--line:#9476d4;--wash:#9476d448}
+.metric-water{--line:#27bfd4;--wash:#27bfd448}
+.metric-weight{--line:#3377e1;--wash:#3377e148}
+.metric-calories{--line:#ed9d11;--wash:#ed9d1148}
+.metric-protein{--line:#56a52b;--wash:#56a52b48}
+.metric-fibre{--line:#9b72b4;--wash:#9b72b448}
+.metric-carbs{--line:#1c9bf3;--wash:#1c9bf348}
+.metric-fats{--line:#ef5c84;--wash:#ef5c8448}
+.visibility-btn{position:absolute;right:2px;top:2px;height:23px;width:24px;border:0;border-radius:6px;background:#ffffffad;color:#5a6a80;font-size:14px;padding:0;display:grid;place-items:center;touch-action:manipulation;cursor:pointer;}
+.visibility-btn[aria-pressed='false']{color:#9fa6b2;background:transparent;}
+.metric.drag-ready{outline:1.5px dashed #79849b;}
+.metric.dragging{z-index:50;opacity:1!important;filter:none!important;box-shadow:0 4px 14px #1b2e4b3b!important;transform:none;}
+@media(max-height:500px) and (orientation:landscape){
+  .main-area{grid-template-columns:minmax(0,1fr) clamp(126px,15.5vw,170px);}
+  .metric-row .metric{padding:2px 2px 1px 5px;}
+  .metric-row .metric-head{font-size:clamp(9px,1.30vw,11px);}
+  .metric-row .metric-main{font-size:clamp(11px,1.6vw,14px);}
+  .metric-row .metric-sub{font-size:clamp(8px,1.1vw,10px);}
+  .visibility-btn{height:21px;width:21px;font-size:12px;}
+}
+/* Entry controls designed for touch and inertia, not numerical spinbuttons. */
+.water-recents{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
+.water-recents button{border:1px solid #a9dfe8;color:#1c6883;background:#e7faff;border-radius:12px;font-size:16px;font-weight:900;padding:11px 7px;min-height:48px;touch-action:manipulation;}
+.water-recents button.new-amount{background:#f4efff;border-color:#d9c5ff;color:#6d48a9;}
+.water-recents button:active{transform:scale(.98)}
+.recent-form[hidden]{display:none;}
+.weight-wheel-wrap{display:flex;gap:18px;align-items:center;justify-content:center;position:relative;user-select:none;-webkit-user-select:none;}
+.weight-wheel-unit{display:flex;flex-direction:column;align-items:center;gap:4px;color:#607390;font-size:11px;font-weight:900;}
+.weight-wheel{position:relative;width:115px;height:158px;overflow:hidden;border-radius:12px;background:linear-gradient(to bottom,#eef4fb 0%,#fff 27%,#fff 73%,#eef4fb 100%);border:1px solid #d6e3f1;touch-action:none;cursor:grab;}
+.weight-wheel:active{cursor:grabbing;}
+.weight-wheel .wheel-row{height:32px;position:absolute;left:0;right:0;top:calc(50% - 16px);display:grid;place-items:center;font-variant-numeric:tabular-nums;font-weight:800;font-size:17px;pointer-events:none;will-change:transform;}
+.weight-wheel .wheel-center{position:absolute;top:calc(50% - 16px);height:32px;left:0;right:0;border-top:1px solid #91b9e3;border-bottom:1px solid #91b9e3;background:#dceeff77;pointer-events:none;}
+.weight-reading{text-align:center;font-size:21px;font-weight:900;font-variant-numeric:tabular-nums;color:#30486f;}
+.weight-wheel-hint{text-align:center;color:#77849a;font-size:11px;margin:0!important;}
+
+/* Hidden metrics are accessible without pushing live graph labels off their values. */
+.metric-row .metric[hidden],.hidden-metrics-toggle[hidden],.hidden-metrics-popup[hidden]{display:none!important}
+.hidden-metrics-toggle{position:absolute;bottom:1px;right:2px;z-index:12;border:1px dashed #b5bed0;background:#fffdf9df;color:#61738f;border-radius:9px;padding:3px 7px;font-size:10px;font-weight:900;cursor:pointer;}
+.hidden-metrics-popup{position:absolute;right:0;bottom:27px;z-index:60;min-width:140px;border:1px solid #d5dce9;border-radius:11px;background:#fffefa;box-shadow:0 5px 22px #33496944;padding:7px;display:grid;gap:5px;}
+.hidden-metrics-popup button{border:1px solid #dce4ef;background:#f8fbff;padding:7px 8px;border-radius:8px;color:#344868;font-weight:800;text-align:left;font-size:12px;}
+
+.metric-row.compact-series .metric-sub{display:none;}
 </style>
   
   
@@ -144,9 +203,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
   <main class="screen" aria-label="Joules Burn's Pie Chart home screen">
     <header class="topbar">
       <div class="brand" aria-label="Joules Burn's Pie Chart"><span class="brand-mark" aria-hidden="true">🍎</span><span class="brand-name">Joules Burn's Pie Chart</span></div>
-      <nav class="date-navigation" aria-label="Time range">
-        <label class="date-pill"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M7 2.5v5M17 2.5v5M3.5 10h17"/></svg><select id="period" aria-label="Show most recent days"><option value="7">Last 7 Days</option><option value="30" selected>Last 30 Days</option><option value="60">Last 60 Days</option><option value="90">Last 90 Days</option><option value="6m">Last 6 Months</option><option value="1y">Last Year</option><option value="2y">Last 2 Years</option><option value="3y">Last 3 Years</option><option value="5y">Last 5 Years</option><option value="all">All History</option></select><svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></label>
-      </nav>
+      <div class="range-readout" id="range-readout" aria-live="polite">Last 30 days</div>
       <div class="top-actions">
         <button class="settings-button" type="button" title="Settings — future development" aria-label="Settings (not implemented)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.7 2.9 10.2 1h3.6l.5 1.9a9.3 9.3 0 0 1 2 .9l1.8-1 2.5 2.6-.9 1.8a9.3 9.3 0 0 1 .8 2l2 .5v3.6l-2 .5a9.3 9.3 0 0 1-.8 2l.9 1.8-2.5 2.5-1.8-1a9.3 9.3 0 0 1-2 .9l-.5 2h-3.6l-.5-2a9.3 9.3 0 0 1-2-.9l-1.8 1-2.5-2.5 1-1.8a9.3 9.3 0 0 1-.9-2l-2-.5V9.7l2-.5a9.3 9.3 0 0 1 .9-2l-1-1.8 2.5-2.6 1.8 1a9.3 9.3 0 0 1 2-.9Z"/><circle cx="12" cy="11.5" r="3.6"/></svg>
@@ -155,52 +212,54 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
     </header>
 
     <div class="main-area">
-      <section class="chart-shell" aria-label="Interactive health trends graph">
+      <section class="chart-shell" aria-label="Interactive health trends graph. Swipe right to see more history, left to zoom towards today; tap to inspect a day.">
         <svg id="chart" role="img" aria-label="Multi-series daily weight, calories, nutrient intake, steps, and water chart"></svg>
         <div class="chart-tooltip" id="tooltip" hidden></div>
       </section>
 
       <section class="metric-row" aria-label="Current values and chart series visibility">
-      <button class="metric metric-steps" type="button" data-key="steps" aria-pressed="true" title="Show or hide steps and goal">
+      <div class="metric metric-steps" role="button" tabindex="0" type="button" data-key="steps" aria-pressed="true" title="Double-tap to record · hold to drag · eye to toggle">
         <span class="metric-head"><span class="metric-icon" aria-hidden="true">👟</span><span>Steps</span></span>
         <span class="metric-main" id="steps-value">—</span>
         <span class="metric-sub" id="steps-goal">—</span>
-      </button>
-      <button class="metric metric-water" type="button" data-key="water" aria-pressed="true" title="Show or hide water and goal">
+      <button class="visibility-btn" type="button" aria-label="Hide steps" title="Hide or show steps" aria-pressed="true">◉</button></div>
+      <div class="metric metric-water" role="button" tabindex="0" type="button" data-key="water" aria-pressed="true" title="Double-tap to record · hold to drag · eye to toggle">
         <span class="metric-head"><span class="metric-icon" aria-hidden="true">💧</span><span>Water</span></span>
         <span class="metric-main" id="water-value">—</span>
         <span class="metric-sub" id="water-goal">—</span>
-      </button>
-      <button class="metric metric-weight" type="button" data-key="weight" aria-pressed="true" title="Show or hide weight">
+      <button class="visibility-btn" type="button" aria-label="Hide water" title="Hide or show water" aria-pressed="true">◉</button></div>
+      <div class="metric metric-weight" role="button" tabindex="0" type="button" data-key="weight" aria-pressed="true" title="Double-tap to record · hold to drag · eye to toggle">
         <span class="metric-head"><span class="metric-icon" aria-hidden="true">⚖</span><span>Weight</span></span>
         <span class="metric-main" id="weight-value">—</span>
         <span class="metric-sub" id="weight-goal">Target —</span>
-      </button>
-      <button class="metric metric-calories" type="button" data-key="calories" aria-pressed="true" title="Show or hide calories and budget">
+      <button class="visibility-btn" type="button" aria-label="Hide weight" title="Hide or show weight" aria-pressed="true">◉</button></div>
+      <div class="metric metric-calories" role="button" tabindex="0" type="button" data-key="calories" aria-pressed="true" title="Double-tap to record · hold to drag · eye to toggle">
         <span class="metric-head"><span class="metric-icon" aria-hidden="true">🔥</span><span>Calories</span></span>
         <span class="metric-main" id="calories-value">—</span>
         <span class="metric-sub" id="calories-goal">—</span>
-      </button>
-      <button class="metric metric-protein" type="button" data-key="protein" aria-pressed="true" title="Show or hide protein">
+      <button class="visibility-btn" type="button" aria-label="Hide calories" title="Hide or show calories" aria-pressed="true">◉</button></div>
+      <div class="metric metric-protein" role="button" tabindex="0" type="button" data-key="protein" aria-pressed="true" title="Double-tap to record · hold to drag · eye to toggle">
         <span class="metric-head"><span class="metric-icon" aria-hidden="true">💪</span><span>Protein</span></span>
         <span class="metric-main" id="protein-value">—</span>
         <span class="metric-sub" id="protein-goal">—</span>
-      </button>
-      <button class="metric metric-fibre" type="button" data-key="fibre" aria-pressed="false" title="Show or hide fibre">
+      <button class="visibility-btn" type="button" aria-label="Hide protein" title="Hide or show protein" aria-pressed="true">◉</button></div>
+      <div class="metric metric-fibre" role="button" tabindex="0" type="button" data-key="fibre" aria-pressed="false" title="Double-tap to record · hold to drag · eye to toggle">
         <span class="metric-head"><span class="metric-icon" aria-hidden="true">🌿</span><span>Fibre</span></span>
         <span class="metric-main" id="fibre-value">—</span>
         <span class="metric-sub" id="fibre-goal">Optional</span>
-      </button>
-      <button class="metric metric-carbs" type="button" data-key="carbs" aria-pressed="true" title="Show or hide carbohydrates">
+      <button class="visibility-btn" type="button" aria-label="Hide fibre" title="Hide or show fibre" aria-pressed="true">◉</button></div>
+      <div class="metric metric-carbs" role="button" tabindex="0" type="button" data-key="carbs" aria-pressed="true" title="Double-tap to record · hold to drag · eye to toggle">
         <span class="metric-head"><span class="metric-icon" aria-hidden="true">🌾</span><span>Carbs</span></span>
         <span class="metric-main" id="carbs-value">—</span>
         <span class="metric-sub" id="carbs-goal">—</span>
-      </button>
-      <button class="metric metric-fats" type="button" data-key="fats" aria-pressed="true" title="Show or hide fats">
+      <button class="visibility-btn" type="button" aria-label="Hide carbs" title="Hide or show carbs" aria-pressed="true">◉</button></div>
+      <div class="metric metric-fats" role="button" tabindex="0" type="button" data-key="fats" aria-pressed="true" title="Double-tap to record · hold to drag · eye to toggle">
         <span class="metric-head"><span class="metric-icon" aria-hidden="true">💧</span><span>Fats</span></span>
         <span class="metric-main" id="fats-value">—</span>
         <span class="metric-sub" id="fats-goal">—</span>
-      </button>
+      <button class="visibility-btn" type="button" aria-label="Hide fats" title="Hide or show fats" aria-pressed="true">◉</button></div>
+        <button type="button" id="hidden-metrics-toggle" class="hidden-metrics-toggle" aria-expanded="false" aria-controls="hidden-metrics-popup" hidden>+ Metrics</button>
+        <div class="hidden-metrics-popup" id="hidden-metrics-popup" hidden></div>
     </section>
     </div>
 
@@ -265,14 +324,14 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
   }
   // No fabricated missing weights. All nutrient-to-calorie checks are consistent by construction.
   return records;
-})();</script><script>/* PieChart v0.1.009 — visual prototype, deliberately no external services. */
+})();</script><script>/* PieChart v0.1.010 — visual prototype, deliberately no external services. */
 (() => {
   'use strict';
   const DATA = window.DEMO_DATA || [];
   const svg=document.getElementById('chart');
   const host=document.querySelector('.chart-shell');
   const tooltip=document.getElementById('tooltip');
-  const periodSelect=document.getElementById('period');
+  const rangeReadout=document.getElementById('range-readout');
     const NS='http://www.w3.org/2000/svg';
   const defaultKeys=['steps','water','weight','calories','protein','fibre','carbs','fats'];
   const loadOrder=()=>{
@@ -290,6 +349,9 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
   const active=Object.fromEntries(keys.map(k=>[k,!optionalKeys.has(k)]));
   const shown=k=>active[k];
   let current=[], scales={},geometry=null, hovered=-1, focusedAxis='calories';
+  let daysVisible=30;
+  const MIN_DAYS=7;
+
   const fmt=v=>Math.round(v).toLocaleString('en-NZ');
   const one=v=>Number(v).toFixed(1);
   const clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v));
@@ -310,18 +372,8 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
     return a[l]*(h-n)+a[h]*(n-l);
   }
   function rangeData(){
-    const sel=periodSelect.value;
-    let daily;
-    if(sel==='all') daily=DATA;
-    else if(/^\d+$/.test(sel)) daily=DATA.slice(-Number(sel));
-    else {
-      const end=new Date(DATA.at(-1).date+'T00:00:00Z');
-      const start=new Date(end);
-      if(sel==='6m') start.setUTCMonth(start.getUTCMonth()-6);
-      else start.setUTCFullYear(start.getUTCFullYear()-Number(sel.slice(0,-1)));
-      const startIso=start.toISOString().slice(0,10);
-      daily=DATA.filter(d=>d.date>=startIso);
-    }
+    const daily=DATA.slice(-Math.max(MIN_DAYS,Math.min(DATA.length,Math.round(daysVisible))));
+    rangeReadout.textContent='Last '+daily.length+' days';
     // Daily observations remain literal daily slots through 90 days.
     // Long time windows use true group averages, marked clearly on inspection.
     if(daily.length<=90) return daily;
@@ -357,11 +409,11 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
     if(!n) return output;
     // Arrange the selected series from top to bottom, allowing a small amount
     // of data-driven overlap; with just one selected its centre is exactly 50%.
-    const span=n===1?0:n===2?.54:n===3?.68:n===4?.76:Math.min(.84,.77+.02*(n-4));
+    const span=n===1?0:n===2?.54:n===3?.64:n===4?.64:Math.min(.75,.68+.01*(n-4));
     const spacing=n>1?span/(n-1):0;
     visible.forEach((k,index)=>{
       const centre=n===1?.5:(.5+span/2-index*spacing);
-      const amplitude=n===1?.31:Math.min(.27,spacing*.47,centre-.035,.965-centre);
+      const amplitude=n===1?.31:Math.min(.27,spacing*.43,centre-.105,.90-centre);
       let values=rows.map(d=>valueFor(k,d)).filter(Number.isFinite);
       if(k==='steps'||k==='water'||k==='protein'||k==='fibre')values=values.concat(rows.map(d=>goalFor(k,d)).filter(Number.isFinite));
       if(k==='calories')values=values.concat(rows.flatMap(d=>[d.budgetLow,d.budgetHigh]).filter(Number.isFinite));
@@ -370,7 +422,13 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
         values=values.concat(extremaForWeight(rows).flatMap(d=>[d.lo,d.hi]).filter(Number.isFinite));
       }
       if(!values.length){output[k]={centre,offset:0,scale:0,amplitude};return;}
-      const lo=quantile(values,.03),hi=quantile(values,.97);
+      let lo=quantile(values,.03),hi=quantile(values,.97);
+      // In-progress today's value must remain visible even if it is well
+      // below a completed day's typical total.
+      const today=rows.at(-1);
+      if(today?.partial&&Number.isFinite(valueFor(k,today))){
+        const now=valueFor(k,today);lo=Math.min(lo,now);hi=Math.max(hi,now);
+      }
       const mid=(lo+hi)/2;
       const minHalf={weight:.20,water:.20,calories:90,steps:1100,protein:8,fibre:3,carbs:12,fats:8}[k]||1;
       const half=Math.max((hi-lo)/2,minHalf);
@@ -420,37 +478,41 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
     }
     return paths.join(' ');
   }
+  const WEIGHT_WINDOW_DAYS=7;
+  const MS_DAY=86400000;
+  let weighed=DATA.filter(d=>Number.isFinite(d.weight)).map(d=>({t:Date.parse(d.date+'T00:00:00Z'),weight:d.weight}));
+  function windowWeight(date,extraDays=0){
+    const centre=Date.parse(date+'T00:00:00Z'), radius=(WEIGHT_WINDOW_DAYS-1)/2*MS_DAY+extraDays*MS_DAY;
+    const near=weighed.filter(w=>Math.abs(w.t-centre)<=radius);
+    return near.length?{lo:Math.min(...near.map(w=>w.weight)),hi:Math.max(...near.map(w=>w.weight))}:{lo:null,hi:null};
+  }
   function extremaForWeight(rows){
-    // Include real readings (not invented weights) and grouped real min/max in scale.
-    return rows.map(d=>d.summary?{lo:d.weightLo,hi:d.weightHi}:{lo:d.weight,hi:d.weight});
+    return rows.map(d=>d.summary?{lo:d.weightLo,hi:d.weightHi}:windowWeight(d.date));
   }
   function weightEnvelope(rows, edges, widths, y){
-    // Use only ACTUAL measured highs and lows as anchors, including the two
-    // ends of each anchor's day-wide mark. Do not linearly invent weigh-ins.
-    // A local extremum is compared with measured weights in a centred seven-day window.
-    const observed=rows.map((d,i)=>({i,hi:d.summary?d.weightHi:d.weight,lo:d.summary?d.weightLo:d.weight}))
-                       .filter(o=>Number.isFinite(o.hi)&&Number.isFinite(o.lo));
-    if(observed.length<2)return null;
-    const extrema=(property,high)=>{
-      const keep=[];
-      observed.forEach((o,j)=>{
-        const v=o[property];
-        const day=Date.parse(rows[o.i].date+'T00:00:00Z');
-        // Seven-day centred window, based on calendar days and actual weighed readings.
-        const near=observed.filter(d=>Math.abs(Date.parse(rows[d.i].date+'T00:00:00Z')-day)<=3*86400000);
-        const extreme=near.every(d=>high?v>=d[property]:v<=d[property]);
-        if(j===0||j===observed.length-1||extreme)keep.push(o);
-      });
-      return keep;
-    };
-    const upper=extrema('hi',true),lower=extrema('lo',false);
-    const points=arr=>arr.flatMap(o=>[
-      [edges[o.i],y(pos('weight',o[arr===upper?'hi':'lo']))],
-      [edges[o.i]+widths[o.i],y(pos('weight',o[arr===upper?'hi':'lo']))]
-    ]);
-    const u=points(upper),l=points(lower);
-    const d=arr=>arr.map((p,i)=>(i?'L':'M')+p[0].toFixed(2)+' '+p[1].toFixed(2)).join(' ');
-    return {shape:d(u)+' '+d(l.slice().reverse()).replace(/^M/,'L')+' Z',top:d(u),bottom:d(l)};
+    // Seven-calendar-day measured highs and lows from ALL historical readings,
+    // including dates outside the viewport. The envelope is clipped, but
+    // neither boundary is artificially closed at the left screen edge.
+    const coords=[];
+    const first=rows[0], last=rows.at(-1);
+    if(!first)return null;
+    const before=new Date(Date.parse((first.from||first.date)+'T00:00:00Z')-MS_DAY).toISOString().slice(0,10);
+    const after=new Date(Date.parse(last.date+'T00:00:00Z')+MS_DAY).toISOString().slice(0,10);
+    const extra=windowWeight(before);
+    if(Number.isFinite(extra.lo))coords.push({x:edges[0]-Math.max(12,widths[0]*2),...extra});
+    rows.forEach((d,i)=>{
+      const v=d.summary?{lo:d.weightLo,hi:d.weightHi}:windowWeight(d.date);
+      if(!Number.isFinite(v.lo))return;
+      coords.push({x:edges[i],...v},{x:edges[i]+widths[i],...v});
+    });
+    const tail=windowWeight(after);
+    if(Number.isFinite(tail.lo))coords.push({x:edges.at(-1)+widths.at(-1)+Math.max(12,widths.at(-1)),...tail});
+    if(coords.length<2)return null;
+    // Never fill across an unknown measurement period wider than a local window.
+    const pts=(key)=>coords.map(p=>[p.x,y(pos('weight',p[key]))]);
+    const upper=pts('hi'),lower=pts('lo');
+    const path=a=>a.map(([px,py],i)=>(i?'L':'M')+px.toFixed(2)+' '+py.toFixed(2)).join(' ');
+    return {shape:path(upper)+' '+path(lower.slice().reverse()).replace(/^M/,'L')+' Z',top:path(upper),bottom:path(lower)};
   }
   function gradientDefs(){
     const defs=el('defs');
@@ -480,48 +542,40 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
     });
   }
   function positionMetricButtons(){
-    const panel=document.querySelector('.metric-row');
-    const h=panel.clientHeight;
-    if(!h)return;
+    const panel=document.querySelector('.metric-row'),h=panel.clientHeight;
+    if(!h||!geometry)return;
     const buttons=[...panel.querySelectorAll('.metric')];
-    const display=keys.filter(k=>active[k]);
-    const offs=keys.filter(k=>!active[k]);
-    const activeHeight=clamp(h*.115,27,42),offHeight=clamp(h*.065,17,23),gap=2;
-    // Active labels aim at the actual newest plotted point, not a fixed sidebar slot.
-    const positions=[];
-    for(const k of display){
-      const b=buttons.find(button=>button.dataset.key===k);
-      b.style.height=activeHeight+'px';
-      const row=[...current].reverse().find(r=>Number.isFinite(valueFor(k,r)));
-      const localPos=row?pos(k,valueFor(k,row)):scales[k]?.centre;
-      const target=Number.isFinite(localPos)?(1-localPos)*geometry.ph+geometry.mt-activeHeight/2:0;
-      positions.push({b,h:activeHeight,target});
+    const on=keys.filter(k=>active[k]),off=keys.filter(k=>!active[k]);
+    const more=document.getElementById('hidden-metrics-toggle');
+    more.hidden=!off.length;more.textContent=`+ ${off.length} hidden`;
+    for(const b of buttons)b.hidden=!active[b.dataset.key];
+    const gap=2, activeH=Math.min(Math.max(46,h*.080),Math.max(32,h/Math.max(on.length,1)-gap));
+    panel.classList.toggle('compact-series',on.length>=7);
+    const positions=on.map((k,index)=>{
+      const b=buttons.find(n=>n.dataset.key===k);
+      const d=[...current].reverse().find(row=>Number.isFinite(valueFor(k,row)));
+      const measured=k==='weight'?(d?.weight??weighed.at(-1)?.weight):(d?valueFor(k,d):null);
+      const f=Number.isFinite(measured)?pos(k,measured):scales[k]?.centre;
+      const desired=Number.isFinite(f)?geometry.y(f):((index+.5)*h/Math.max(1,on.length));
+      return {b,k,desired};
+    });
+    // True anchors first; move a label only when it would collide with another.
+    const tops=positions.map(v=>clamp(v.desired,0,Math.max(0,h-activeH)));
+    for(let i=1;i<tops.length;i++)tops[i]=Math.max(tops[i],tops[i-1]+activeH+gap);
+    if(tops.length&&tops.at(-1)>h-activeH){
+      tops[tops.length-1]=h-activeH;
+      for(let i=tops.length-2;i>=0;i--)tops[i]=Math.min(tops[i],tops[i+1]-activeH-gap);
     }
-    const left=Math.max(0,h-(offHeight+gap)*offs.length-gap);
-    // Keep active buttons ordered and non-overlapping while tracking their lines.
-    const bottomCap=offs.length?left-gap:h;
-    const total=positions.length*(activeHeight+gap);
-    const maxStart=Math.max(0,bottomCap-total);
-    let last=-activeHeight-gap;
-    positions.forEach((entry,i)=>{
-      const remaining=positions.length-i-1;
-      const latest=Math.max(0,bottomCap-activeHeight-remaining*(activeHeight+gap));
-      let top=clamp(entry.target,0,latest);
-      top=Math.max(last+activeHeight+gap,top);
-      entry.b.style.top=Math.min(top,latest)+'px';
-      last=parseFloat(entry.b.style.top);
-    });
-    offs.forEach((k,i)=>{
-      const b=buttons.find(button=>button.dataset.key===k);
-      b.style.height=offHeight+'px';
-      b.style.top=Math.min(h-offHeight,left+(offHeight+gap)*i)+'px';
-    });
+    if(tops.length&&tops[0]<0){
+      tops[0]=0;for(let i=1;i<tops.length;i++)tops[i]=Math.max(tops[i],tops[i-1]+activeH+gap);
+    }
+    positions.forEach(({b},i)=>{b.style.height=activeH+'px';b.style.top=tops[i]+'px'});
   }
   function draw(){
     if(!DATA.length)return;
     current=rangeData();hovered=-1;tooltip.hidden=true;
     const r=host.getBoundingClientRect(),width=Math.max(260,Math.round(r.width)),height=Math.max(140,Math.round(r.height));
-    const ml=clamp(width*.025,12,30),mr=clamp(width*.013,7,15),mt=clamp(height*.046,12,25),mb=clamp(height*.085,22,34);
+    const ml=clamp(width*.025,12,30),mr=0,mt=clamp(height*.046,12,25),mb=clamp(height*.085,22,34);
     const pw=width-ml-mr,ph=height-mt-mb;
     const typical=current.find(d=>!d.partial)?.daysCount||1;
     const visualWidths=current.map(d=>d.partial?Math.max(2.4,typical*2.25):(d.daysCount||1));
@@ -619,92 +673,143 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
     put('water-value',one(d.water/1000)+' L');
     put('water-goal','/ '+one(d.waterGoal/1000)+' L ('+Math.round(100*d.water/d.waterGoal)+'%)');
   }
-  periodSelect.addEventListener('change',draw);
   const metricPanel=document.querySelector('.metric-row');
   const metricButtons=[...metricPanel.querySelectorAll('.metric')];
-  function syncOrder(){
-    keys.forEach(k=>metricPanel.append(metricButtons.find(b=>b.dataset.key===k)));
-    draw();
+  const hiddenToggle=document.getElementById('hidden-metrics-toggle');
+  const hiddenPopup=document.getElementById('hidden-metrics-popup');
+  const byKey=k=>metricButtons.find(b=>b.dataset.key===k);
+  function rebuildHiddenMenu(){
+    hiddenPopup.replaceChildren();
+    for(const k of keys.filter(k=>!active[k])){
+      const b=document.createElement('button');b.type='button';b.textContent='+ '+labels[k];
+      b.addEventListener('click',()=>{hiddenPopup.hidden=true;hiddenToggle.setAttribute('aria-expanded','false');toggleMetric(k)});
+      hiddenPopup.append(b);
+    }
+    if(!hiddenPopup.children.length)hiddenPopup.hidden=true;
   }
+  hiddenToggle.addEventListener('click',e=>{
+    e.stopPropagation();rebuildHiddenMenu();hiddenPopup.hidden=!hiddenPopup.hidden;
+    hiddenToggle.setAttribute('aria-expanded',String(!hiddenPopup.hidden));
+  });
+  document.addEventListener('pointerdown',e=>{
+    if(!hiddenPopup.hidden&&!hiddenPopup.contains(e.target)&&e.target!==hiddenToggle){hiddenPopup.hidden=true;hiddenToggle.setAttribute('aria-expanded','false')}
+  });
+  function syncOrder(){keys.forEach(k=>metricPanel.append(byKey(k)));rebuildHiddenMenu();draw();}
   function toggleMetric(k){
-    active[k]=!active[k];
-    const b=metricButtons.find(n=>n.dataset.key===k);
+    active[k]=!active[k];const b=byKey(k);
     b.setAttribute('aria-pressed',String(active[k]));
-    draw();
+    const eye=b.querySelector('.visibility-btn');
+    eye.textContent=active[k]?'◉':'○';eye.setAttribute('aria-pressed',String(active[k]));
+    eye.setAttribute('aria-label',(active[k]?'Hide ':'Show ')+labels[k]);
+    rebuildHiddenMenu();draw();
   }
-  function doubleTapMetric(k){
-    if(k==='steps')return; // step counts are automatic; no entry screen
-    openEntry(k==='water'?'water':k==='weight'?'weight':'food');
-  }
-  let pendingTap=null;
-  function cancelTap(){if(pendingTap){clearTimeout(pendingTap.timer);pendingTap=null;}}
-  function metricTap(k){
+  function doubleTapMetric(k){if(k!=='steps')openEntry(k==='water'?'water':k==='weight'?'weight':'food');}
+  let lastTap=null;
+  function labelTap(k){
     const now=performance.now();
-    if(pendingTap&&pendingTap.k===k&&now-pendingTap.t<430){cancelTap();doubleTapMetric(k);return;}
-    cancelTap();
-    pendingTap={k,t:now,timer:setTimeout(()=>{pendingTap=null;toggleMetric(k);},435)};
+    if(lastTap?.k===k&&now-lastTap.time<440){lastTap=null;doubleTapMetric(k);}else lastTap={k,time:now};
   }
-  // 900 ms hold begins a drag; tap is deliberately delayed to disambiguate double-tap.
-  let dragging=null;
-  metricButtons.forEach(button=>{
-    button.setAttribute('aria-pressed',String(active[button.dataset.key]));
-    let press=null;
-    button.addEventListener('pointerdown',e=>{
+  let press=null;
+  metricButtons.forEach(b=>{
+    const k=b.dataset.key,eye=b.querySelector('.visibility-btn');
+    b.setAttribute('aria-pressed',String(active[k]));
+    eye.textContent=active[k]?'◉':'○';eye.setAttribute('aria-pressed',String(active[k]));
+    eye.addEventListener('pointerdown',e=>e.stopPropagation());
+    eye.addEventListener('click',e=>{e.stopPropagation();toggleMetric(k);});
+    b.addEventListener('pointerdown',e=>{
+      if(e.target.closest('.visibility-btn'))return;
       if(e.pointerType==='mouse'&&e.button!==0)return;
-      press={pointerId:e.pointerId,y:e.clientY,x:e.clientX,started:false};
-      button.setPointerCapture(e.pointerId);
+      // Pointer capture stays on the same element throughout the drag.
+      press={b,id:e.pointerId,startY:e.clientY,startX:e.clientX,dragging:false,valid:true};
+      try{b.setPointerCapture(e.pointerId)}catch{}
       press.timer=setTimeout(()=>{
-        if(!press)return;
-        cancelTap();
-        press.started=true;dragging={button, key:button.dataset.key};
-        button.classList.add('dragging');
-        button.style.transform='scale(1.025)';
+        if(!press||press.b!==b||!press.valid)return;
+        press.dragging=true;b.classList.add('dragging','drag-ready');
         if(navigator.vibrate)navigator.vibrate(25);
-      },900);
+      },620);
     });
-    button.addEventListener('pointermove',e=>{
-      if(!press||e.pointerId!==press.pointerId)return;
-      if(!press.started){if(Math.hypot(e.clientX-press.x,e.clientY-press.y)>13){clearTimeout(press.timer);press=null;}return;}
+    b.addEventListener('pointermove',e=>{
+      if(!press||press.b!==b||e.pointerId!==press.id)return;
+      const moved=Math.hypot(e.clientX-press.startX,e.clientY-press.startY);
+      if(!press.dragging){if(moved>12){press.valid=false;clearTimeout(press.timer)}return;}
       e.preventDefault();
-      const rect=metricPanel.getBoundingClientRect();
-      const y=clamp(e.clientY-rect.top,0,rect.height);
-      const h=button.getBoundingClientRect().height;
-      const top=clamp(y-h/2,0,Math.max(0,rect.height-h));
-      button.style.top=top+'px';
-      const others=keys.filter(k=>k!==pressKey(button));
-      const sorted=others.map(k=>{const other=metricButtons.find(b=>b.dataset.key===k);return {k,mid:parseFloat(other.style.top||'0')+other.getBoundingClientRect().height/2};}).sort((a,b)=>a.mid-b.mid);
-      let target=sorted.filter(o=>y>o.mid).length;
-      const next=others.slice();next.splice(target,0,button.dataset.key);
-      if(next.join('|')!==keys.join('|')){
-        keys=next;
-        // Refit graph bands to match the order while dragging, then keep dragged button under finger.
-        draw();
-        button.style.top=top+'px';
-      }
+      const delta=e.clientY-press.startY;
+      b.style.transform=`translateY(${delta}px) scale(1.02)`;
     });
-    button.addEventListener('pointerup',e=>{
-      if(!press||e.pointerId!==press.pointerId)return;
-      const wasDrag=press.started;clearTimeout(press.timer);press=null;
-      button.classList.remove('dragging');button.style.transform='';
-      if(wasDrag){
-        dragging=null;
+    function finish(e,cancel=false){
+      if(!press||press.b!==b||e.pointerId!==press.id)return;
+      const wasDrag=press.dragging;clearTimeout(press.timer);press=null;
+      b.classList.remove('dragging','drag-ready');b.style.transform='';
+      if(wasDrag&&!cancel){
+        const others=keys.filter(x=>x!==k);
+        const targetY=e.clientY;
+        // Hidden labels have zero-size rectangles. Only plotted labels can act
+        // as visual drop targets; preserve hidden items' relative order.
+        const plotted=others.filter(x=>active[x]);
+        const rank=plotted.filter(x=>targetY>byKey(x).getBoundingClientRect().top+byKey(x).getBoundingClientRect().height/2).length;
+        const insertBefore=plotted[rank];
+        const index=insertBefore?others.indexOf(insertBefore):plotted.length?others.indexOf(plotted.at(-1))+1:0;
+        keys=others.slice();keys.splice(index,0,k);
         try{localStorage.setItem('pieChartMetricOrder',JSON.stringify(keys));}catch{}
         syncOrder();
-      }else metricTap(button.dataset.key);
+      }
+    }
+    b.addEventListener('pointerup',e=>{
+      if(!press||press.b!==b)return;
+      const isTap=!press.dragging&&press.valid;
+      finish(e,false);
+      if(isTap)labelTap(k);
       e.preventDefault();
     });
-    button.addEventListener('pointercancel',()=>{if(press)clearTimeout(press.timer);press=null;dragging=null;button.classList.remove('dragging');button.style.transform='';draw();});
-    button.addEventListener('contextmenu',e=>e.preventDefault());
-    button.addEventListener('click',e=>e.preventDefault());
-    button.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleMetric(button.dataset.key);}});
+    b.addEventListener('pointercancel',e=>finish(e,true));
+    b.addEventListener('contextmenu',e=>e.preventDefault());
+    b.addEventListener('click',e=>e.preventDefault());
+    b.addEventListener('keydown',e=>{
+      if(e.target!==b)return;
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();doubleTapMetric(k)}
+      if(e.altKey&&(e.key==='ArrowDown'||e.key==='ArrowUp')){
+        e.preventDefault();const i=keys.indexOf(k),j=clamp(i+(e.key==='ArrowDown'?1:-1),0,keys.length-1);
+        if(i!==j){keys.splice(i,1);keys.splice(j,0,k);try{localStorage.setItem('pieChartMetricOrder',JSON.stringify(keys))}catch{}syncOrder()}
+      }
+    });
   });
-  function pressKey(b){return b.dataset.key;}
   syncOrder();
-  host.addEventListener('click',e=>{
-    if(!geometry)return;
-    if(!tooltip.hidden){tooltip.hidden=true;hovered=-1;return;}
-    showTooltip(e.clientX,e.clientY);
+  // Drag dates from left to right to bring older history into view;
+  // right to left reduces the window towards today. Never redraw in the
+  // middle of a pointer capture (avoids gesture cancellation on Chrome).
+  let gesture=null;
+  host.addEventListener('pointerdown',e=>{
+    if(e.pointerType==='mouse'&&e.button!==0)return;
+    e.preventDefault();
+    gesture={id:e.pointerId,x:e.clientX,y:e.clientY,base:daysVisible,moving:false,dx:0};
+    try{host.setPointerCapture(e.pointerId)}catch{}
   });
+  host.addEventListener('pointermove',e=>{
+    if(!gesture||e.pointerId!==gesture.id)return;
+    const dx=e.clientX-gesture.x,dy=e.clientY-gesture.y;
+    if(Math.abs(dy)>Math.abs(dx)&&!gesture.moving&&Math.abs(dy)>24)return;
+    if(Math.abs(dx)<20&&!gesture.moving)return;
+    gesture.moving=true;gesture.dx=dx;
+    e.preventDefault();
+  });
+  host.addEventListener('pointerup',e=>{
+    if(!gesture||e.pointerId!==gesture.id)return;
+    const dx=e.clientX-gesture.x;
+    const moved=gesture.moving;
+    const base=gesture.base;gesture=null;
+    if(moved){
+      daysVisible=clamp(Math.round(base*Math.exp((dx/Math.max(300,host.clientWidth))*1.6)),MIN_DAYS,DATA.length);
+      draw();tooltip.hidden=true;hovered=-1;return;
+    }
+    if(!tooltip.hidden){tooltip.hidden=true;hovered=-1}else showTooltip(e.clientX,e.clientY);
+  });
+  function finishInterruptedSwipe(){
+    if(!gesture)return;
+    const {dx,base,moving}=gesture;gesture=null;
+    if(moving&&Math.abs(dx)>20){daysVisible=clamp(Math.round(base*Math.exp((dx/Math.max(300,host.clientWidth))*1.6)),MIN_DAYS,DATA.length);draw();}
+  }
+  host.addEventListener('pointercancel',finishInterruptedSwipe);
+  host.addEventListener('lostpointercapture',e=>{if(gesture&&gesture.id===e.pointerId)finishInterruptedSwipe()});
   document.addEventListener('click',e=>{if(!host.contains(e.target)){tooltip.hidden=true;hovered=-1;}});
   const entryBackdrop=document.getElementById('entry-backdrop');
   const entryContent=document.getElementById('entry-content');
@@ -728,27 +833,92 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
   entryBackdrop.addEventListener('pointerdown',e=>{if(e.target===entryBackdrop)dismissEntry();});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!entryBackdrop.hidden)dismissEntry();});
   function openEntry(type){
-    cancelTap();
     const today=DATA.at(-1),lastMeasured=[...DATA].reverse().find(r=>r!==today&&Number.isFinite(r.weight));
     if(type==='water'){
-      showEntry('Record water',`<form class="entry-form" id="water-form"><p>Record an amount of water as a Food Item.</p><label for="water-input">Amount (mL)</label><input id="water-input" type="number" inputmode="decimal" min="1" step="50" value="250" required><button class="entry-affirm">Record water</button></form>`);
-      document.getElementById('water-form').addEventListener('submit',e=>{
-        e.preventDefault();const v=Number(document.getElementById('water-input').value);
-        if(!Number.isFinite(v)||v<=0)return;
-        today.water+=Math.round(v);dismissEntry();draw();
-      });
+      const recentsKey='pieChartWaterRecentMl';
+      let recent=[];
+      try{const saved=JSON.parse(localStorage.getItem(recentsKey));recent=Array.isArray(saved)?saved.filter(n=>Number.isFinite(n)&&n>0).slice(0,5):[250,500,330,750,200];}catch{recent=[250,500,330,750,200]}
+      showEntry('Record water',`<div class="entry-form"><p>Tap a previously used amount to record it immediately.</p><div class="water-recents" id="water-recents"></div><form class="entry-form recent-form" id="water-new-form" hidden><label for="water-new-amount">New amount (mL)</label><input id="water-new-amount" type="number" inputmode="decimal" min="1" max="10000" step="1" value="250" required><button class="entry-affirm">Record amount</button></form><p class="entry-note">Recently used amounts are remembered on this device in the prototype.</p></div>`);
+      const add=v=>{
+        v=Math.round(Number(v));if(!Number.isFinite(v)||v<=0||v>10000)return;
+        today.water+=v;recent=[v,...recent.filter(n=>n!==v)].slice(0,5);
+        try{localStorage.setItem(recentsKey,JSON.stringify(recent))}catch{}
+        dismissEntry();draw();
+      };
+      const row=document.getElementById('water-recents');
+      for(const v of recent){const b=document.createElement('button');b.type='button';b.textContent=v>=1000?(v/1000).toFixed(v%1000?2:1)+' L':v+' mL';b.addEventListener('click',()=>add(v));row.append(b)}
+      const newBtn=document.createElement('button');newBtn.type='button';newBtn.className='new-amount';newBtn.textContent='+ New amount';row.append(newBtn);
+      newBtn.addEventListener('click',()=>{document.getElementById('water-new-form').hidden=false;document.getElementById('water-new-amount').focus()});
+      document.getElementById('water-new-form').addEventListener('submit',e=>{e.preventDefault();add(document.getElementById('water-new-amount').value)});
     }else if(type==='weight'){
       const prev=lastMeasured?Number(lastMeasured.weight):80;
-      const days=lastMeasured?Math.round((Date.parse(today.date)-Date.parse(lastMeasured.date))/86400000):null;
-      showEntry('Record weight',`<form class="entry-form" id="weight-form"><p>${new Date(today.date+'T12:00:00').toLocaleDateString('en-NZ',{weekday:'long',day:'numeric',month:'long'})} · Last recorded ${days==null?'never':days+' day'+(days===1?'':'s')+' ago'}${lastMeasured?' · '+prev.toFixed(2)+' kg':''}</p><label for="weight-input">New measurement (kg)</label><div class="entry-number"><button type="button" id="weight-down" aria-label="Decrease by 0.01 kg">−</button><input id="weight-input" type="number" inputmode="decimal" min="20" max="400" step="0.01" value="${(today.weight??prev).toFixed(2)}" required><button type="button" id="weight-up" aria-label="Increase by 0.01 kg">+</button></div><button class="entry-affirm">Record weight</button></form>`);
-      const weight=document.getElementById('weight-input');
-      const adjust=d=>{weight.value=(Math.round((Number(weight.value)+d)*100)/100).toFixed(2);};
-      document.getElementById('weight-down').addEventListener('click',()=>adjust(-.01));
-      document.getElementById('weight-up').addEventListener('click',()=>adjust(.01));
-      weight.addEventListener('wheel',e=>{e.preventDefault();adjust(e.deltaY>0?-.01:.01);},{passive:false});
+      const days=lastMeasured?Math.round((Date.parse(today.date)-Date.parse(lastMeasured.date))/MS_DAY):null;
+      const startWeight=Math.round((today.weight??prev)*100)/100;
+      showEntry('Record weight',`<form class="entry-form" id="weight-form"><p>${new Date(today.date+'T12:00:00').toLocaleDateString('en-NZ',{weekday:'long',day:'numeric',month:'long'})} · Previous ${days==null?'—':days+' day'+(days===1?'':'s')+' ago'} · ${lastMeasured?prev.toFixed(2)+' kg':'no previous reading'}</p><div class="weight-reading" id="weight-reading">${startWeight.toFixed(2)} kg</div><div class="weight-wheel-wrap"><div class="weight-wheel-unit"><span>Whole kg</span><div class="weight-wheel" id="kg-wheel" tabindex="0" aria-label="Whole kilograms, scroll to adjust" role="spinbutton"></div></div><div class="weight-wheel-unit"><span>Hundredths</span><div class="weight-wheel" id="cent-wheel" tabindex="0" aria-label="Hundredths of a kilogram, scroll to adjust" role="spinbutton"></div></div></div><p class="weight-wheel-hint">Flick either wheel to spin it; a fast flick continues with momentum.</p><button class="entry-affirm">Record weight</button></form>`);
+      let kg=Math.floor(startWeight),cent=Math.round((startWeight-kg)*100);
+      const show=()=>{document.getElementById('weight-reading').textContent=(kg+cent/100).toFixed(2)+' kg'};
+      function attachWheel(id,min,max,initial,format,update,wrap=false){
+        const el=document.getElementById(id),row=32;
+        let p=initial,drag=null,vel=0,raf=0;
+        const total=max-min+1;
+        const safePos=n=>wrap?n:clamp(n,min,max);
+        function drawWheel(){
+          const selected=Math.round(p);
+          el.replaceChildren();const selectedMark=document.createElement('div');selectedMark.className='wheel-center';el.append(selectedMark);
+          for(let d=-3;d<=3;d++){
+            let val=selected+d;if(wrap)val=min+((val-min)%total+total)%total;
+            if(val<min||val>max)continue;
+            const item=document.createElement('div');item.className='wheel-row';item.textContent=format(val);
+            item.style.transform=`translateY(${((val===selected?0:d)-(p-selected))*row}px)`;
+            item.style.opacity=String(Math.max(.14,1-Math.abs(d-(p-selected))*.25));
+            if(Math.abs(d-(p-selected))<.7)item.style.fontSize='22px';
+            el.append(item);
+          }
+          const val=wrap?min+((selected-min)%total+total)%total:clamp(selected,min,max);
+          el.setAttribute('aria-valuenow',String(val));update(val);show();
+        }
+        const stop=()=>{if(raf)cancelAnimationFrame(raf);raf=0};
+        const step=d=>{stop();p=safePos(Math.round(p)+d);drawWheel()};
+        el.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button!==0)return;stop();drag={id:e.pointerId,y:e.clientY,p,start:performance.now(),lastY:e.clientY,lastT:performance.now()};vel=0;el.setPointerCapture(e.pointerId)});
+        el.addEventListener('pointermove',e=>{
+          if(!drag||drag.id!==e.pointerId)return;
+          e.preventDefault();const now=performance.now(),dt=Math.max(1,now-drag.lastT);
+          p=safePos(drag.p+(drag.y-e.clientY)/row);
+          const instant=(drag.lastY-e.clientY)/row/dt;
+          vel=.6*instant+.4*vel;drag.lastY=e.clientY;drag.lastT=now;drawWheel();
+        });
+        el.addEventListener('pointerup',e=>{
+          if(!drag||drag.id!==e.pointerId)return;
+          const elapsed=performance.now()-drag.start;
+          const moved=Math.abs(e.clientY-drag.y);
+          if(moved<8){const bounds=el.getBoundingClientRect();const offset=Math.round((e.clientY-(bounds.top+bounds.height/2))/row);p=safePos(Math.round(p)+offset);drawWheel();drag=null;return}
+          const recent=performance.now()-drag.lastT;
+          if(recent>90)vel=0;
+          // Allow deliberate fast flicks to travel further with friction.
+          let speed=clamp(vel,-.065,.065),time=performance.now();drag=null;
+          const animate=(now)=>{
+            const dt=Math.min(36,now-time);time=now;p=safePos(p+speed*dt);
+            speed*=Math.exp(-dt/240);
+            drawWheel();
+            if(Math.abs(speed)>.00025){raf=requestAnimationFrame(animate)}
+            else{p=safePos(Math.round(p));drawWheel();raf=0}
+          };
+          if(Math.abs(speed)>.0015)raf=requestAnimationFrame(animate);
+          else{p=safePos(Math.round(p));drawWheel()}
+        });
+        el.addEventListener('pointercancel',()=>{drag=null;stop();p=safePos(Math.round(p));drawWheel()});
+        el.addEventListener('wheel',e=>{e.preventDefault();step(e.deltaY>0?-1:1)},{passive:false});
+        el.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown'].includes(e.key)){e.preventDefault();step((e.key.endsWith('Up')?1:-1)*(e.key.startsWith('Page')?5:1))}});
+        drawWheel();
+      }
+      attachWheel('kg-wheel',20,400,kg,n=>String(n),v=>kg=v);
+      attachWheel('cent-wheel',0,99,cent,n=>'.'+String(n).padStart(2,'0'),v=>cent=v,true);
       document.getElementById('weight-form').addEventListener('submit',e=>{
-        e.preventDefault();const v=Number(weight.value);if(!Number.isFinite(v)||v<20||v>400)return;
-        today.weight=Math.round(v*100)/100;dismissEntry();draw();
+        e.preventDefault();const v=kg+cent/100;
+        if(!Number.isFinite(v)||v<20||v>400)return;
+        today.weight=Math.round(v*100)/100;
+        weighed=DATA.filter(d=>Number.isFinite(d.weight)).map(d=>({t:Date.parse(d.date+'T00:00:00Z'),weight:d.weight}));
+        dismissEntry();draw();
       });
     }else{
       showEntry('Record food, dish, or meal',`<form class="entry-form" id="food-form"><label for="food-search">Search saved foods, dishes, and meals</label><input id="food-search" placeholder="Search…" autocomplete="off"><div class="entry-results" id="food-results"></div><div id="food-choice"></div><p class="entry-note">Demo library and demo-day recording only. Shared recipes, ingredient editing, and Firebase will come in later development.</p><button class="entry-affirm" id="food-submit" disabled>Record</button></form>`);
