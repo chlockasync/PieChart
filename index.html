@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#fffaf2">
-  <title>Joules Burn's Pie Chart — v0.1.008 landscape graph</title>
+  <title>Joules Burn's Pie Chart — v0.1.009</title>
+  <link rel="manifest" href="manifest.webmanifest">
   <style>:root {
   color-scheme: light;
   --ink: #192c50;
@@ -108,6 +109,33 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
   .metric-main{font-size:clamp(11px,1.4vw,15px);line-height:1.04;}
   .metric-sub{font-size:clamp(8px,.92vw,10px);line-height:1;}
 }
+
+/* v0.1.009: touch-first metric ordering and entry sheets. */
+.metric {touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;}
+.metric.drag-ready {outline:2px solid #8597b3;outline-offset:-1px;}
+.metric.dragging {z-index:30;opacity:1 !important;filter:none !important;box-shadow:0 6px 22px #17294a55;transition:none;cursor:grabbing;}
+.entry-backdrop[hidden] {display:none}
+.entry-backdrop {position:fixed;inset:0;z-index:100;background:#182b4d77;display:flex;align-items:center;justify-content:center;padding:max(10px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));}
+.entry-sheet {position:relative;max-height:97dvh;min-height:0;overflow-y:auto;overscroll-behavior:contain;width:min(620px,94vw);border-radius:22px;background:#fffdfa;border:1px solid #dbe3ee;padding:18px 22px 20px;box-shadow:0 14px 50px #10204450;}
+.entry-titlebar{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:12px;}
+.entry-titlebar h2 {margin:0;font-size:clamp(16px,2.6vw,25px);color:#344a69;}
+.close-entry {border:1px solid #dae2ee;border-radius:100px;background:white;color:#405775;font-size:25px;line-height:1;width:33px;height:33px;}
+.entry-sheet p {margin:6px 0 12px;color:#61748c;font-size:13px;}
+.entry-form {display:grid;gap:9px;max-height:calc(97dvh - 80px);overflow-y:auto;padding-bottom:4px;}
+.entry-form label {font-size:13px;font-weight:800;color:#3f5370;}
+.entry-form input, .entry-form select{padding:9px 12px;border:1px solid #bdcde0;border-radius:12px;background:#fff;color:#182c4f;font:inherit;width:100%;}
+.entry-form input[type='number']{font-variant-numeric:tabular-nums;}
+.entry-number {display:flex;align-items:center;gap:10px;}
+.entry-number input{flex:1;font-size:24px;font-weight:800;text-align:center;}
+.entry-number button {border:1px solid #c1cddd;background:#eef4ff;border-radius:11px;color:#344b77;font-size:20px;min-width:39px;align-self:stretch;}
+.entry-affirm {border:0;border-radius:14px;padding:11px 18px;background:#875be0;color:white;font-weight:900;justify-self:end;}
+.entry-results {display:grid;gap:5px;max-height:25vh;overflow:auto;}
+.entry-results button {text-align:left;display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid #d7e3ef;border-radius:10px;background:#f7f9fc;color:#23375c;padding:7px 10px;}
+.entry-results button[aria-selected='true']{outline:2px solid #8a6bdd;background:#f1ebff;}
+.entry-results small {font-size:11px;color:#687b96;}
+.entry-preview {display:grid;grid-template-columns:1fr auto;gap:4px 10px;font-size:13px;padding:10px;border-radius:12px;background:#eff8f1;border:1px solid #d9eadc;}
+.entry-note {font-size:11px!important;color:#687b96!important;}
+@media(max-height:420px){.entry-sheet{padding:9px 14px}.entry-titlebar{margin-bottom:4px}.entry-form{gap:5px}.entry-sheet p{margin:2px 0 5px}.entry-results{max-height:16vh}}
 </style>
   
   
@@ -175,6 +203,13 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
       </button>
     </section>
     </div>
+
+    <div class="entry-backdrop" id="entry-backdrop" hidden>
+      <section class="entry-sheet" role="dialog" aria-modal="true" aria-labelledby="entry-heading">
+        <div class="entry-titlebar"><h2 id="entry-heading">Record</h2><button class="close-entry" id="entry-close" type="button" aria-label="Close">×</button></div>
+        <div id="entry-content"></div>
+      </section>
+    </div>
   </main>
 <script>window.DEMO_DATA = (() => {
   // Deterministic fictional data. No API calls, no personal or clinical data.
@@ -230,7 +265,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
   }
   // No fabricated missing weights. All nutrient-to-calorie checks are consistent by construction.
   return records;
-})();</script><script>/* PieChart v0.1.008 — visual prototype, deliberately no external services. */
+})();</script><script>/* PieChart v0.1.009 — visual prototype, deliberately no external services. */
 (() => {
   'use strict';
   const DATA = window.DEMO_DATA || [];
@@ -239,7 +274,12 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
   const tooltip=document.getElementById('tooltip');
   const periodSelect=document.getElementById('period');
     const NS='http://www.w3.org/2000/svg';
-  const keys=['steps','water','weight','calories','protein','fibre','carbs','fats'];
+  const defaultKeys=['steps','water','weight','calories','protein','fibre','carbs','fats'];
+  const loadOrder=()=>{
+    try {const k=JSON.parse(localStorage.getItem('pieChartMetricOrder'));return Array.isArray(k)&&k.length===8&&defaultKeys.every(x=>k.includes(x))?k:defaultKeys.slice();}
+    catch{return defaultKeys.slice();}
+  };
+  let keys=loadOrder();
   const coreKeys=['steps','weight','calories','water'];
   const optionalKeys=new Set(['protein','carbs','fats','fibre']);
   const hiddenInPortrait=new Set(['protein','carbs','fats','fibre']);
@@ -387,7 +427,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
   function weightEnvelope(rows, edges, widths, y){
     // Use only ACTUAL measured highs and lows as anchors, including the two
     // ends of each anchor's day-wide mark. Do not linearly invent weigh-ins.
-    // A local extremum compares with the neighbouring two observed readings.
+    // A local extremum is compared with measured weights in a centred seven-day window.
     const observed=rows.map((d,i)=>({i,hi:d.summary?d.weightHi:d.weight,lo:d.summary?d.weightLo:d.weight}))
                        .filter(o=>Number.isFinite(o.hi)&&Number.isFinite(o.lo));
     if(observed.length<2)return null;
@@ -395,7 +435,9 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
       const keep=[];
       observed.forEach((o,j)=>{
         const v=o[property];
-        const near=observed.slice(Math.max(0,j-2),Math.min(observed.length,j+3));
+        const day=Date.parse(rows[o.i].date+'T00:00:00Z');
+        // Seven-day centred window, based on calendar days and actual weighed readings.
+        const near=observed.filter(d=>Math.abs(Date.parse(rows[d.i].date+'T00:00:00Z')-day)<=3*86400000);
         const extreme=near.every(d=>high?v>=d[property]:v<=d[property]);
         if(j===0||j===observed.length-1||extreme)keep.push(o);
       });
@@ -578,19 +620,179 @@ button:focus-visible, select:focus-visible { outline: 3px solid #609fe8; outline
     put('water-goal','/ '+one(d.waterGoal/1000)+' L ('+Math.round(100*d.water/d.waterGoal)+'%)');
   }
   periodSelect.addEventListener('change',draw);
-  document.querySelectorAll('.metric').forEach(button=>{
+  const metricPanel=document.querySelector('.metric-row');
+  const metricButtons=[...metricPanel.querySelectorAll('.metric')];
+  function syncOrder(){
+    keys.forEach(k=>metricPanel.append(metricButtons.find(b=>b.dataset.key===k)));
+    draw();
+  }
+  function toggleMetric(k){
+    active[k]=!active[k];
+    const b=metricButtons.find(n=>n.dataset.key===k);
+    b.setAttribute('aria-pressed',String(active[k]));
+    draw();
+  }
+  function doubleTapMetric(k){
+    if(k==='steps')return; // step counts are automatic; no entry screen
+    openEntry(k==='water'?'water':k==='weight'?'weight':'food');
+  }
+  let pendingTap=null;
+  function cancelTap(){if(pendingTap){clearTimeout(pendingTap.timer);pendingTap=null;}}
+  function metricTap(k){
+    const now=performance.now();
+    if(pendingTap&&pendingTap.k===k&&now-pendingTap.t<430){cancelTap();doubleTapMetric(k);return;}
+    cancelTap();
+    pendingTap={k,t:now,timer:setTimeout(()=>{pendingTap=null;toggleMetric(k);},435)};
+  }
+  // 900 ms hold begins a drag; tap is deliberately delayed to disambiguate double-tap.
+  let dragging=null;
+  metricButtons.forEach(button=>{
     button.setAttribute('aria-pressed',String(active[button.dataset.key]));
-    button.addEventListener('click',()=>{
-      const k=button.dataset.key;active[k]=!active[k];
-      button.setAttribute('aria-pressed',String(active[k]));draw();
+    let press=null;
+    button.addEventListener('pointerdown',e=>{
+      if(e.pointerType==='mouse'&&e.button!==0)return;
+      press={pointerId:e.pointerId,y:e.clientY,x:e.clientX,started:false};
+      button.setPointerCapture(e.pointerId);
+      press.timer=setTimeout(()=>{
+        if(!press)return;
+        cancelTap();
+        press.started=true;dragging={button, key:button.dataset.key};
+        button.classList.add('dragging');
+        button.style.transform='scale(1.025)';
+        if(navigator.vibrate)navigator.vibrate(25);
+      },900);
     });
+    button.addEventListener('pointermove',e=>{
+      if(!press||e.pointerId!==press.pointerId)return;
+      if(!press.started){if(Math.hypot(e.clientX-press.x,e.clientY-press.y)>13){clearTimeout(press.timer);press=null;}return;}
+      e.preventDefault();
+      const rect=metricPanel.getBoundingClientRect();
+      const y=clamp(e.clientY-rect.top,0,rect.height);
+      const h=button.getBoundingClientRect().height;
+      const top=clamp(y-h/2,0,Math.max(0,rect.height-h));
+      button.style.top=top+'px';
+      const others=keys.filter(k=>k!==pressKey(button));
+      const sorted=others.map(k=>{const other=metricButtons.find(b=>b.dataset.key===k);return {k,mid:parseFloat(other.style.top||'0')+other.getBoundingClientRect().height/2};}).sort((a,b)=>a.mid-b.mid);
+      let target=sorted.filter(o=>y>o.mid).length;
+      const next=others.slice();next.splice(target,0,button.dataset.key);
+      if(next.join('|')!==keys.join('|')){
+        keys=next;
+        // Refit graph bands to match the order while dragging, then keep dragged button under finger.
+        draw();
+        button.style.top=top+'px';
+      }
+    });
+    button.addEventListener('pointerup',e=>{
+      if(!press||e.pointerId!==press.pointerId)return;
+      const wasDrag=press.started;clearTimeout(press.timer);press=null;
+      button.classList.remove('dragging');button.style.transform='';
+      if(wasDrag){
+        dragging=null;
+        try{localStorage.setItem('pieChartMetricOrder',JSON.stringify(keys));}catch{}
+        syncOrder();
+      }else metricTap(button.dataset.key);
+      e.preventDefault();
+    });
+    button.addEventListener('pointercancel',()=>{if(press)clearTimeout(press.timer);press=null;dragging=null;button.classList.remove('dragging');button.style.transform='';draw();});
+    button.addEventListener('contextmenu',e=>e.preventDefault());
+    button.addEventListener('click',e=>e.preventDefault());
+    button.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleMetric(button.dataset.key);}});
   });
+  function pressKey(b){return b.dataset.key;}
+  syncOrder();
   host.addEventListener('click',e=>{
     if(!geometry)return;
     if(!tooltip.hidden){tooltip.hidden=true;hovered=-1;return;}
     showTooltip(e.clientX,e.clientY);
   });
   document.addEventListener('click',e=>{if(!host.contains(e.target)){tooltip.hidden=true;hovered=-1;}});
+  const entryBackdrop=document.getElementById('entry-backdrop');
+  const entryContent=document.getElementById('entry-content');
+  const entryHeading=document.getElementById('entry-heading');
+  const closeEntry=document.getElementById('entry-close');
+  // Demo food database only; the real shared Food > Dish > Meal library will follow.
+  const sampleLibrary=[
+    {name:'Water',kind:'Food Item',fav:true,g:1000,water:1000,protein:0,carbs:0,fats:0,fibre:0},
+    {name:'Oats',kind:'Food Item',fav:true,g:50,water:0,protein:8,carbs:28,fats:3.5,fibre:5},
+    {name:'Apple',kind:'Food Item',fav:true,g:150,water:0,protein:.4,carbs:21,fats:.2,fibre:3.6},
+    {name:'Oat milk',kind:'Food Item',fav:false,g:200,water:0,protein:2,carbs:13,fats:3,fibre:1.2},
+    {name:'Porridge',kind:'Dish',fav:true,g:265,water:0,protein:10,carbs:47,fats:7,fibre:6},
+    {name:'Berry porridge',kind:'Dish',fav:true,g:325,water:0,protein:11,carbs:54,fats:7,fibre:9},
+    {name:'Chicken and rice',kind:'Meal',fav:false,g:420,water:0,protein:36,carbs:59,fats:12,fibre:5},
+    {name:'Toast and fruit',kind:'Meal',fav:false,g:260,water:0,protein:7,carbs:40,fats:6,fibre:5}
+  ];
+  let selectedFood=null;
+  function showEntry(kind,html){entryHeading.textContent=kind;entryContent.innerHTML=html;entryBackdrop.hidden=false;}
+  function dismissEntry(){entryBackdrop.hidden=true;selectedFood=null;}
+  closeEntry.addEventListener('click',dismissEntry);
+  entryBackdrop.addEventListener('pointerdown',e=>{if(e.target===entryBackdrop)dismissEntry();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!entryBackdrop.hidden)dismissEntry();});
+  function openEntry(type){
+    cancelTap();
+    const today=DATA.at(-1),lastMeasured=[...DATA].reverse().find(r=>r!==today&&Number.isFinite(r.weight));
+    if(type==='water'){
+      showEntry('Record water',`<form class="entry-form" id="water-form"><p>Record an amount of water as a Food Item.</p><label for="water-input">Amount (mL)</label><input id="water-input" type="number" inputmode="decimal" min="1" step="50" value="250" required><button class="entry-affirm">Record water</button></form>`);
+      document.getElementById('water-form').addEventListener('submit',e=>{
+        e.preventDefault();const v=Number(document.getElementById('water-input').value);
+        if(!Number.isFinite(v)||v<=0)return;
+        today.water+=Math.round(v);dismissEntry();draw();
+      });
+    }else if(type==='weight'){
+      const prev=lastMeasured?Number(lastMeasured.weight):80;
+      const days=lastMeasured?Math.round((Date.parse(today.date)-Date.parse(lastMeasured.date))/86400000):null;
+      showEntry('Record weight',`<form class="entry-form" id="weight-form"><p>${new Date(today.date+'T12:00:00').toLocaleDateString('en-NZ',{weekday:'long',day:'numeric',month:'long'})} · Last recorded ${days==null?'never':days+' day'+(days===1?'':'s')+' ago'}${lastMeasured?' · '+prev.toFixed(2)+' kg':''}</p><label for="weight-input">New measurement (kg)</label><div class="entry-number"><button type="button" id="weight-down" aria-label="Decrease by 0.01 kg">−</button><input id="weight-input" type="number" inputmode="decimal" min="20" max="400" step="0.01" value="${(today.weight??prev).toFixed(2)}" required><button type="button" id="weight-up" aria-label="Increase by 0.01 kg">+</button></div><button class="entry-affirm">Record weight</button></form>`);
+      const weight=document.getElementById('weight-input');
+      const adjust=d=>{weight.value=(Math.round((Number(weight.value)+d)*100)/100).toFixed(2);};
+      document.getElementById('weight-down').addEventListener('click',()=>adjust(-.01));
+      document.getElementById('weight-up').addEventListener('click',()=>adjust(.01));
+      weight.addEventListener('wheel',e=>{e.preventDefault();adjust(e.deltaY>0?-.01:.01);},{passive:false});
+      document.getElementById('weight-form').addEventListener('submit',e=>{
+        e.preventDefault();const v=Number(weight.value);if(!Number.isFinite(v)||v<20||v>400)return;
+        today.weight=Math.round(v*100)/100;dismissEntry();draw();
+      });
+    }else{
+      showEntry('Record food, dish, or meal',`<form class="entry-form" id="food-form"><label for="food-search">Search saved foods, dishes, and meals</label><input id="food-search" placeholder="Search…" autocomplete="off"><div class="entry-results" id="food-results"></div><div id="food-choice"></div><p class="entry-note">Demo library and demo-day recording only. Shared recipes, ingredient editing, and Firebase will come in later development.</p><button class="entry-affirm" id="food-submit" disabled>Record</button></form>`);
+      const search=document.getElementById('food-search'),results=document.getElementById('food-results');
+      const choice=document.getElementById('food-choice');
+      const renderResults=()=>{
+        const q=search.value.trim().toLowerCase();
+        results.replaceChildren();
+        sampleLibrary.filter(d=>d.name.toLowerCase().includes(q)).sort((a,b)=>(b.fav?1:0)-(a.fav?1:0)).forEach(item=>{
+          const b=document.createElement('button');b.type='button';b.setAttribute('aria-selected',String(selectedFood===item));
+          b.innerHTML=`<span>${safe(item.name)}</span><small>${item.kind}${item.fav?' · Favourite':''}</small>`;
+          b.addEventListener('click',()=>{
+            selectedFood=item;renderResults();
+            choice.innerHTML=`<label for="food-g">Quantity (g or mL)</label><input id="food-g" type="number" inputmode="decimal" min="1" step="1" value="${item.g}" required><div class="entry-preview"><span>Calories (estimate)</span><b id="food-est">—</b><span>Protein · Carbs · Fats · Fibre</span><b id="food-macros">—</b></div>`;
+            const inp=document.getElementById('food-g');
+            function upd(){const f=Number(inp.value)/item.g;document.getElementById('food-est').textContent=Math.round((4*item.protein+4*item.carbs+9*item.fats+2*item.fibre)*f)+' kcal';document.getElementById('food-macros').textContent=[item.protein,item.carbs,item.fats,item.fibre].map(v=>(v*f).toFixed(1)+'g').join(' / ');}
+            inp.addEventListener('input',upd);upd();document.getElementById('food-submit').disabled=false;
+          });results.append(b);
+        });
+      };
+      search.addEventListener('input',renderResults);renderResults();
+      document.getElementById('food-form').addEventListener('submit',e=>{
+        e.preventDefault();if(!selectedFood)return;
+        const qty=Number(document.getElementById('food-g').value);if(qty<=0||!Number.isFinite(qty))return;
+        const f=qty/selectedFood.g;const macros={protein:today.protein+selectedFood.protein*f,carbs:today.carbs+selectedFood.carbs*f,fats:today.fats+selectedFood.fats*f,fibre:today.fibre+selectedFood.fibre*f};
+        for(const [k,v] of Object.entries(macros))today[k]=Math.round(v*10)/10;
+        today.calories=Math.round(4*today.protein+4*today.carbs+9*today.fats+2*today.fibre);
+        today.water+=Math.round(selectedFood.water*f);
+        dismissEntry();draw();
+      });
+    }
+  }
+  // On touchscreen Chrome, the first user interaction may start fullscreen.
+  // Browsers cannot auto-enter fullscreen on page load without user activation.
+  let triedFullscreen=false;
+  document.addEventListener('pointerup',e=>{
+    if(triedFullscreen||!e.isTrusted||navigator.maxTouchPoints<1||!document.documentElement.requestFullscreen)return;
+    triedFullscreen=true;
+    if(document.fullscreenElement)return;
+    document.documentElement.requestFullscreen().then(()=>{
+      if(screen.orientation?.lock)screen.orientation.lock('landscape').catch(()=>{});
+    }).catch(()=>{});
+  },{capture:true});
+
   new ResizeObserver(draw).observe(host);
   draw();
 })();

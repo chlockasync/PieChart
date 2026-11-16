@@ -1,16 +1,14 @@
-# Joules Burn's Pie Chart — v0.1.008
+# Joules Burn's Pie Chart — v0.1.009
 
-A landscape-first, single-page HTML/CSS/JavaScript graph prototype for GitHub Pages.
+This is a **landscape-only HTML visual/interaction prototype** with ~3 years of synthetic records. Upload the contents of this folder to a GitHub Pages repository (or open `index.html` directly to see the visual prototype).
 
-**Files:** `index.html` is fully self-contained. `PROJECT_SPEC.md` retains the project's decisions, outstanding questions, and visual prototype history. The prototype uses entirely fictional, seeded sample data and makes no external requests.
+- Tap a right-hand label: toggle graph series.
+- Double-tap Water or Weight: respective recording sheet.
+- Double-tap Calories, Protein, Fibre, Carbs, or Fats: Food Item/Dish/Meal demo search.
+- Hold a label ~0.9 s, then drag vertically: reorder the series and graph bands. Order is saved on the device.
+- Tap the graph: inspect one date's exact values.
+- Select date range in the centre of the header.
 
-## Try it
+Fullscreen: When installed as an eligible PWA, the supplied manifest requests fullscreen landscape. In a regular browser tab, fullscreen normally needs a user gesture and orientation lock may not work. The prototype tries on the first touchscreen gesture. The eventual Android APK can launch immersive landscape automatically.
 
-Open `index.html` in a browser, or upload the included files to the root of a GitHub Pages repository.
-
-- Pick a time span from the date dropdown.
-- Tap the right-hand metric pills to turn series on or off. Protein and fibre show illustrative goal lines when switched on.
-- Tap inside the plot to inspect values for that date; tap again to dismiss.
-- Today's widened, dashed column represents an incomplete day.
-
-This version focuses **only on landscape**. Food entry, health integration, backup, and sign-in are future work, not yet functional. All nutritional targets in this prototype are dummy inputs.
+**Prototype limits:** Recording affects only the current demo session; it is not saved or synced. No real food database, Health Connect, auth, or off-device backups yet. These are retained in `PROJECT_SPEC.md`.
