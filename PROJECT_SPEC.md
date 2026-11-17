@@ -1,3 +1,5 @@
+> **CURRENT DESIGN STATE (17 November 2026):** Refer to the latest v0.1.018 section at the end of this document. Older dated sections record superseded prototypes and are retained for historical context only. In particular, the current app has **no multi-day aggregation**, no period selector, a 100-day initial view, all eight metrics on, and separate vertical series bands, with the same upright chart in portrait and landscape.
+
 # Joules Burn's Pie Chart (PieChart) — Living project specification
 
 ## CURRENT UI DIRECTION — v0.1.012 (supersedes earlier portrait and today-column experiments)
@@ -168,3 +170,38 @@ The following **supersedes conflicting prototype details** above. Keep all previ
 - Fix to the >90-day history grouping: aggregate ONLY the selected time window, not the entire archived dataset; when grouped, plot actual recorded weigh-ins.
 - Keep same demo CSV, app shell, order, interactions, and responsive portrait/landscape layout.
 - This remains a visual prototype for user evaluation.
+
+## v0.1.018 graph styling trial (17 November 2026)
+- Based on user's selected option 4 chart styling and option 1 label styling on the RIGHT.
+- All eight metrics remain visible by default and retain user-defined drag order.
+- No multi-day aggregation: original daily readings at every timeline scale.
+- Each active metric now occupies an independently scaled, explicitly bounded vertical plotting strip; columns, faded fills, goal lines, budget ribbon, and weight envelope clip within its own band. Thin full-width separators mark boundaries.
+- Right-hand labels use white/transparent background, name/icon, large colour-coded percentage where a target exists, readable actuals and goal/budget, with a thin coloured stripe at far RIGHT. No invented targets for fat or carbohydrate intake.
+- Current prototype retains the existing 7-day rolling measured weight high/low rule and plots actual weigh-in dots, now using smoothed paths through the centre of unchanged extrema runs. Weight target remains separate from scale.
+- User-requested task is purely visual; original recording controls, timeline gesture, CSV import, and fullscreen PWA behaviour preserved.
+
+
+## v0.1.019 — Reference fidelity
+- Selected left-hand illustration in `image(7).png` is the pixel-level visual specification, not inspiration.
+- All eight graphs have separate rows, fine high-opacity daily readings, a shorter saturated-to-transparent vertical fade, thin horizontal dividers, and narrow right readouts with a 4 px colour accent at the far right.
+- No multi-day data summaries; show all daily records as given.
+- Weight uses actual recorded dots with the 7-day measured high/low ribbon, and original out-of-view context.
+- Default 100-day view, prior colour scheme, same user-chosen order, no newly invented fat/carb goals.
+
+## Visual acceptance, 17 Nov 2026
+- The **left-hand** image in the user's `image(7).png` is the styling reference, including fine vivid lines, short soft fades, clean separated rows, dense daily data, and a narrow integrated white label panel on the right.
+- Template-style extra cards, chart summaries, coloured panel backgrounds, and introducing unrequested features are prohibited.
+- Fats and Carbs still have no agreed daily targets; their large values display accurate grams rather than fictitious percentages used in concept artwork.
+- All eight rows and all 100 individual days are drawn on initial load. Touch recording and graph reordering are retained.
+
+## v0.1.020 — Clean visual-system rebuild (17 November 2026)
+- Replaced the accumulated multi-version CSS (~43 KB) with one coherent ~9 KB stylesheet, retaining the existing interactive HTML/JS and recording functionality.
+- Visual authority remains the selected concept art (left image in the user's comparison); a browser screenshot must be inspected before packaging. Portrait is the same graph and timeline orientation as landscape, not a distinct design.
+- Keep eight independent non-overlapping chart rows in order Weight, Steps, Water, Calories, Fibre, Protein, Fats, Carbs, with dividing lines across the chart and legend and 4 px right-edge coloured strips.
+- Right labels are vertically centred in their allocated rows, with dark metric titles, prominent coloured percentage where a valid goal exists, actual reading, and target or budget text. Fats and carbs show gram intake without invented percentages or targets.
+- Retain individual daily records at every history span, with 100 days initially and all eight rows visible. No multi-day summaries.
+- The 7-day rolling measured weight high/low envelope, circle measurements, and its source calculations are preserved verbatim from v0.1.019. Do not alter this without discussing it with the user.
+- Other series use coloured day-wide caps over layered luminous tails: a separate soft continuous atmospheric field, graded individual plumes, and fine translucent vertical threads. Tails stay clipped within the same graph band.
+- Goal and calorie-budget boundaries use a saturated dashed stroke with a wider translucent under-stroke, drawn above columns so the line is never obscured. Budget boundary rendering uses a small local visual smoothing of original budget values; underlying targets/CSV are unchanged.
+- Colours and date gestures remain consistent. Installed PWA requests fullscreen and supports portrait and landscape; Chrome preview cannot hide its own controls.
+- Version packaging remains YYYYMMDDHHMM-v#.#.###-PieChart-description.zip, NZ local time. ZIP root contains index.html, manifest.webmanifest, dummy-data.csv, icons, README, and PROJECT_SPEC.

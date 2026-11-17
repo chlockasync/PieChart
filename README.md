@@ -1,11 +1,8 @@
-# Joules Burn’s Pie Chart — v0.1.016
+# Joules Burn's Pie Chart — v0.1.020
 
-Right-side option-1 labels and separators, option-4-inspired chart treatment.
+Upload **the contents of this ZIP** directly into the root of the PieChart GitHub Pages repository.
+Open `index.html`, or install the hosted website as a PWA to use its fullscreen display.
 
-- Open `index.html` via GitHub Pages.
-- Demo records are in `dummy-data.csv` and bundled into the HTML for offline preview.
-- The chart initially shows 100 days (grouped into three-day bins) with all eight metrics visible.
-- Double-tap a metric label to record; press and hold to reorder; tap the eye to hide; swipe the chart horizontally to change history.
-- Weight percentage expresses actual weight divided by target weight, not weight-loss completion.
-- No targets defined for carbs/fats.
-- No Firebase, automatic step collection, or persistence yet (demo only).
+This is the single-stylesheet visual rebuild of the approved concept. Graphs retain one record per day (100 days on initial display), the previous weight envelope calculations, and the touch interactions from the previous prototype. Demo records are fictional and editable in `dummy-data.csv`; the HTML embeds the same data for standalone previews.
+
+Data recording in this build is for interactive demonstration and does not yet persist to Firebase. All eight data series remain available in portrait and landscape. Fats and carbs have no established daily targets, so their readouts are grams, not percentages.
