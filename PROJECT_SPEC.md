@@ -241,3 +241,15 @@ Replace the five-segment pie-chart mark with the user-approved, right-facing mea
 ## v0.1.026 — Name update (17 November 2026)
 
 Visible app and installed-PWA name is now **Jules Berne’s Pie Chart**. Files and ZIP packages remain **PieChart**. No other design or behaviour change.
+
+
+## v0.1.027 — Food Item approval and search foundation (17 November 2026)
+
+**Firm product constraint:** The user-approved database of Food Items starts EMPTY; NEVER preseed generic foods, sample nutrition products, placeholder ingredients, or a canned food library. Preserve this when moving to Firebase. Sources are *suggestions* only: an externally sourced product does not exist in the app's approved database until selected, reviewed/edited, completed with all five required nutritional values, and explicitly approved.
+
+- Settings → Food library and nutrition-metric double tap launch the initial Food Item library screen. This is NOT yet food-recording functionality; do not add demo foods to nutritional totals.
+- Library search matches approved items first only while the query remains relevant. Typeahead also searches Open Food Facts (visually distinguished). To respect provider rate limits, remote lookups debounce and are rate-limited to one request per 8 seconds, with in-session caching. External failures must not fabricate results.
+- Food Item fields include name, optional brand/barcode, source, per-100g or per-100mL kcal/protein/carbs/fats/fibre, per-field provenance/estimation, and optional familiar-measure conversions. Every nutritional value must be a finite non-negative number before approval; blank values are never silently treated as zero. Recent quantities have a place in the model but recording will be designed later.
+- Explicit approval and updates stored in `localStorage` only during prototype stage (`pieChartApprovedFoodItemsV1`); use empty array if no saved data. Allow editing approved items and removing by confirmation, but no automatic importing, bulk populating, or online sync yet. The graph's fictitious historical records and existing weight/water controls are unchanged.
+- Open Food Facts is an external crowdsourced nutritional source, not a verified library. The user reviews results and supplies any missing/estimated values before approval. This first integration doesn't automatically research estimates from secondary sources: note this as future functionality.
+- Google accounts/Firebase persistence, shared library, full nutrition source discovery, Food Item > Dish > Meal compositions and version propagation, and food recording are still future phases.
