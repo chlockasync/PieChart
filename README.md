@@ -1,4 +1,20 @@
-# Jules Berne’s Pie Chart — v0.1.044
+# Jules Berne’s Pie Chart — v0.1.045
+
+Patch over v0.1.044. No changes to Firestore rules, the database adapter, Firebase configuration, or existing food records.
+
+## v0.1.045 — One food search, consistent navigation, hidden scrollbars
+
+- **One shared food search:** Food Library, Make a Dish, and Put together a Meal all use the **same search controller**, results, source ranking, barcode lookup, and Add new Food Item action. The chosen context determines what happens when you select a result. A newly created item returns to the unfinished Dish or Meal and becomes an ingredient after saving it; external results use the same review form as the library.
+- **Back and Close:** Dialog Close (×), Cancel/Back where applicable, and Escape return to the preceding screen instead of skipping straight to the graph. Unfinished recipe edits, ingredient amounts, and selected options survive reviewing or adding an item, or opening a variation.
+- **Scrollbars:** All visible scrollbar tracks and thumbs are hidden throughout the app. Forms and lists still scroll; no scrollbar gutter overlays input fields or source labels.
+
+**Patch files:** `index.html`, `PROJECT_SPEC.md`, `README.md`. Upload these over the files in your existing GitHub Pages repository; keep all other files. This patch only changes UI and navigation, not stored records.
+
+**Testing:** Browser interaction tests covered the shared lookup in both contexts, creating an ingredient, returning to a partially edited recipe, nested variation navigation, Settings/Account/Targets history, and scrolling without visible bars. Device-specific Android back gestures and on-screen keyboard behaviour still need live verification.
+
+---
+
+## Previous release: v0.1.044
 
 GitHub Pages / Firebase phone-first nutrition and weight tracker. This is a **change-only patch** over v0.1.043; leave all unlisted files in place, including `firebase-config.js`, reference data, `dummy-data.csv`, images, and Firebase rules. Existing database records remain unchanged.
 
