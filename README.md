@@ -1,6 +1,19 @@
-# Jules Berne’s Pie Chart — v0.1.043
+# Jules Berne’s Pie Chart — v0.1.044
 
-Phone-first nutrition, weight, water, and activity tracker for GitHub Pages. The two-member Firebase project is now configured, and the user has verified shared food-library synchronisation across phone and computer.
+GitHub Pages / Firebase phone-first nutrition and weight tracker. This is a **change-only patch** over v0.1.043; leave all unlisted files in place, including `firebase-config.js`, reference data, `dummy-data.csv`, images, and Firebase rules. Existing database records remain unchanged.
+
+## v0.1.044 — Settings, search, recipes, and goals
+
+- **Settings** now has only three links: Food library, Personal targets, and Account. Google sign-in/out, connection status, User ID, food-library copy/export, and required reference-data credits are under **Account**. No demo graph controls remain in Settings; edit the bundled `dummy-data.csv` outside the app. Previous on-device CSV overrides are ignored.
+- **Protein and Fibre graph targets:** Previously, the final sample date used fictional target figures, which produced a sharp goal-line jump at the transition to live data. For signed-in users, the same current personal goals now apply throughout the visible historical part of the graph. Historical food values and weigh-ins are not changed.
+- **Food search:** “Add new Food Item” appears immediately after matching library items and *before every* external source result. External results use visibly lighter text. Search does not zoom the form (16 px input), and its focus treatment avoids an added outside outline. Food-library scrolling remains available without showing a scrollbar or reserving an empty gutter.
+- **Variations:** Saving a variation requires an explicitly entered, unique name. The form no longer automatically suggests “[name] Variation”. The optional recipe link is labelled “Update details when [parent name] is updated”.
+
+**Changed files:** `index.html`, `PROJECT_SPEC.md`, and `README.md`. Upload these over existing GitHub Pages files. `piechart-db.js` and Firestore configuration/rules are unchanged.
+
+**Checks:** UI and syntax tested locally; mobile keyboard effects and live Firebase remain to be checked on the intended devices.
+
+---
 
 ## Version 0.1.043 — Water allocation, weight goal line, and interface cleanup
 
