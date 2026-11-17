@@ -1,4 +1,4 @@
-/* PieChart v0.1.046 — food-based water records, private personal details and targets.
+/* PieChart v0.1.047 — food-based water records, private personal details and targets.
    Firestore uses owner-private personal collections and a member-only approved food library.
    No private key belongs in a GitHub Pages app. An administrator manually provisions
    the initial two membership documents through Firebase Console. */
@@ -144,6 +144,10 @@ function watchPersonal(uid,epoch){
       const values=snapshot.data()||{};
       state.targets=Object.fromEntries(['weight','water','steps','protein','fibre'].map(k=>
         [k,Number.isFinite(values[k])&&values[k]>0?values[k]:null]));
+      // An unset intensity in an older account defaults to Moderate; never overwrite
+      // Firestore merely because the older document did not contain the new field.
+      state.targets.goalIntensity=['gentle','moderate','strong'].includes(values.goalIntensity)
+        ?values.goalIntensity:'moderate';
       const details=values.details||{};
       state.details={
         dateOfBirth:typeof details.dateOfBirth==='string'&&isValidDateOfBirth(details.dateOfBirth)?details.dateOfBirth:null,
@@ -278,10 +282,15 @@ function cleanDetails(values){
   return {dateOfBirth,heightCm,sex};
 }
 function cleanTargets(values){
-  if(!values||typeof values!=='object'||Object.keys(values).some(k=>!Object.hasOwn(TARGET_LIMITS,k)))
+  if(!values||typeof values!=='object'||Object.keys(values).some(k=>k!=='goalIntensity'&&!Object.hasOwn(TARGET_LIMITS,k)))
     throw new Error('Invalid target fields.');
   const clean={};
   for(const [key,value] of Object.entries(values)){
+    if(key==='goalIntensity'){
+      if(!['gentle','moderate','strong'].includes(value))throw new Error('Choose a valid goal intensity.');
+      clean.goalIntensity=value;
+      continue;
+    }
     if(value===null){clean[key]=null;continue;}
     const [min,max]=TARGET_LIMITS[key];
     if(typeof value!=='number'||!Number.isFinite(value)||value<min||value>max||

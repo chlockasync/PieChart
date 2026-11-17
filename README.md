@@ -1,3 +1,18 @@
+# Jules Berne’s Pie Chart — v0.1.047
+
+Install this change-only ZIP **over v0.1.046**, replacing only `index.html`, `piechart-db.js`, `PROJECT_SPEC.md`, and `README.md`. Keep your working Firebase configuration, datasets, icons, and all other files unchanged. No Firebase rules or console changes are needed.
+
+## Goal intensity
+
+- **Details & Targets** now has **Goal intensity** immediately under the Weight target, with **Gentle**, **Moderate**, and **Strong** choices.
+- The choice is stored alongside the existing private targets in the same Firestore document and syncs only to the current account's devices. Existing users default to Moderate until they explicitly choose otherwise; no prior targets are replaced.
+- Goal intensity will control the *pace* of recommended weight change when calorie-target calculations are implemented. It does **not** change calorie-range width. Do not add a separate width control yet; range width and safety rules will be considered with the actual calorie-budget algorithm.
+- **No calorie-budget formula is activated in this patch**. Signed-in chart values, real weight/water records, and fictional demo CSV entries are unchanged.
+
+**Verification:** The database validation and form behaviour were checked locally. Verify sync on the two authorised devices once deployed.
+
+---
+
 # Jules Berne’s Pie Chart — v0.1.046
 
 Patch over **v0.1.045**. The ZIP contains only changed files: `index.html`, `piechart-db.js`, `PROJECT_SPEC.md`, and `README.md`. Keep every other GitHub Pages file, including `firebase-config.js`, existing library indexes, icons, and Firebase rules.
