@@ -1,6 +1,17 @@
-# Jules Berne’s Pie Chart — v0.1.042
+# Jules Berne’s Pie Chart — v0.1.043
 
 Phone-first nutrition, weight, water, and activity tracker for GitHub Pages. The two-member Firebase project is now configured, and the user has verified shared food-library synchronisation across phone and computer.
+
+## Version 0.1.043 — Water allocation, weight goal line, and interface cleanup
+
+- **Food Item water contribution:** The review/edit form has an optional *Counts towards water intake* checkbox immediately after Scan nutrition panel. Enabled items allocate a chosen 0–100% of mass remaining after macronutrients and fibre to water (approximate mL equivalent, with USDA carbohydrate/fibre overlap accounted for). Existing non-water items default to zero; an item named Water defaults to 100% until deliberately changed. Drinks, Dishes, and Meals sum their eligible ingredients' contributions and snapshot the result when recorded. The Water shortcut respects Water's configured contribution; older records are unchanged.
+- **Weight graph:** Show its dashed target line only if the goal lies within the original visible weight band (never rescale to force it). Remove the white outline from individual weigh-in dots.
+- **Chart tap:** Completely remove the daily popup/tooltip for now; chart swipe and date-axis navigation remain.
+- **Food search:** Reserve a right-hand scrollbar gutter instead of wrapping labels to hide scrollbar overlap.
+
+**Install:** Apply this change-only patch over v0.1.042: replace `index.html`, `piechart-db.js`, `PROJECT_SPEC.md`, and `README.md`. Keep your existing `dummy-data.csv`, source reference data, `firebase-config.js`, Firestore rules, icons, and all other files. No Firebase Console or security-rule changes required. No existing foods or diary records are overwritten.
+
+---
 
 ## Version 0.1.042 — water as food, history, and clearer library labels
 

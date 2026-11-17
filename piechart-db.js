@@ -1,4 +1,4 @@
-/* PieChart v0.1.042 — food-based water records, personal history and targets.
+/* PieChart v0.1.043 — food-based water records, personal history and targets.
    Firestore uses owner-private personal collections and a member-only approved food library.
    No private key belongs in a GitHub Pages app. An administrator manually provisions
    the initial two membership documents through Firebase Console. */
@@ -236,7 +236,7 @@ function recordWeight(date,kg){return createPrivateEntry('weightEntries',{date,k
 function recordFood(date,entry){
   return createPrivateEntry('foodEntries',{date,...entry});
 }
-function recordWater(date,ml,waterFood){
+function recordWater(date,ml,waterFood,waterContributionMl=null){
   if(!Number.isInteger(ml)||ml<=0||ml>10000)throw new Error('Invalid water amount.');
   if(!waterFood||waterFood.type!=='Food Item'||String(waterFood.name).trim().toLowerCase()!=='water')
     throw new Error('Add a Food Item named Water to the shared library first.');
@@ -247,8 +247,9 @@ function recordWater(date,ml,waterFood){
     nutrition[k]=Math.round(values[k]*ml)/100; // two decimal places for a per-100 mL quantity
   }
   nutrition.energyKj=Math.round((Number.isFinite(values.energyKj)?values.energyKj:values.calories*4.184)*ml)/100;
+  const waterMl=Number.isFinite(waterContributionMl)&&waterContributionMl>=0?waterContributionMl:ml;
   return recordFood(date,{itemId:waterFood.id,name:waterFood.name,type:'Food Item',unit:'mL',
-    quantity:ml,waterMl:ml,nutrition,source:'water-shortcut'});
+    quantity:ml,waterMl,nutrition,source:'water-shortcut'});
 }
 const TARGET_LIMITS={weight:[20,400],water:[.1,15],steps:[1,100000],protein:[1,1000],fibre:[1,300]};
 function saveTargets(values){
