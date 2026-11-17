@@ -1,6 +1,6 @@
 > **CURRENT DESIGN STATE (17 November 2026):** Refer to the latest v0.1.018 section at the end of this document. Older dated sections record superseded prototypes and are retained for historical context only. In particular, the current app has **no multi-day aggregation**, no period selector, a 100-day initial view, all eight metrics on, and separate vertical series bands, with the same upright chart in portrait and landscape.
 
-# Joules Burn's Pie Chart (PieChart) — Living project specification
+# Jules Berne's Pie Chart (PieChart) — Living project specification
 
 ## CURRENT UI DIRECTION — v0.1.012 (supersedes earlier portrait and today-column experiments)
 
@@ -51,7 +51,7 @@ First phase: **maintenance range for current body weight**, sedentary baseline p
 
 ## Graph and visual design
 
-Landscape-first, soft rounded friendly palette in spirit of later ListsForTheShop design. **The home screen IS the graph**. The original chosen visual reference, supplied in the conversation 16 Nov 2026, had a compact Joules Burn's Pie Chart (PieChart)/logo/date-range/Today/settings header, graph filling the main area, and one bottom row of pastel metric cells. Subsequent agreed revisions replace that bottom row with a right-hand vertical stack; see below. No added sidebars, dashboard cards, second data rows, reporting panels, or bulky controls. Graph can display raw points/lines, smooth trends and historical comparisons, and eventually scenario projections; keep first HTML pass faithful to selected image.
+Landscape-first, soft rounded friendly palette in spirit of later ListsForTheShop design. **The home screen IS the graph**. The original chosen visual reference, supplied in the conversation 16 Nov 2026, had a compact Jules Berne's Pie Chart (PieChart)/logo/date-range/Today/settings header, graph filling the main area, and one bottom row of pastel metric cells. Subsequent agreed revisions replace that bottom row with a right-hand vertical stack; see below. No added sidebars, dashboard cards, second data rows, reporting panels, or bulky controls. Graph can display raw points/lines, smooth trends and historical comparisons, and eventually scenario projections; keep first HTML pass faithful to selected image.
 
 Graph variables requested: weight and target weight; calorie budget and consumed; protein, carbs, fats; steps and step goal; water and water goal. Different units must be scaled coherently on the same graph while preserving true values on labels/inspection; user's concern is that a shared percentage-of-target axis may crowd all lines near 100%, so **test with realistic dummy data before choosing a refined approach**. Supports trends, smoothing, ranges, optional relationships/forecasts in later versions. No separate large reporting cards. Current intake and remaining budget should be identifiable within home graph layout without reducing graph space.
 
@@ -93,7 +93,7 @@ Portrait work is suspended for now by explicit user decision. The graph remains 
 
 ## v0.1.008 — renamed PieChart, range and axis refinement (landscape only)
 
-App's *full visible name*: **Joules Burn's Pie Chart**. All published ZIP and source file names use **PieChart**. Continue versioning `YYYYMMDDHHMM-v#.#.###-PieChart-update-descriptor.zip` in NZ local time.
+App's *full visible name*: **Jules Berne's Pie Chart**. All published ZIP and source file names use **PieChart**. Continue versioning `YYYYMMDDHHMM-v#.#.###-PieChart-update-descriptor.zip` in NZ local time.
 
 - The right controls are **Steps, Water, Weight, Calories, Protein, Fibre, Carbs, Fats**. Nutrients are optional and initially off. Targets **Protein 125 g/day** and **Fibre 30 g/day** are **fictional placeholder goals for the prototype**, not final personal recommendations, and appear as native-scale dashed lines when selected. Carbs/fats do not receive imposed goal lines yet.
 - **Do not show a Today button.** Date picker still selects most recent 7, 30, 60, 90 days; 6 months; 1, 2, 3, 5 years; or all history.
@@ -227,3 +227,17 @@ The following **supersedes conflicting prototype details** above. Keep all previ
 - The selected weight stays below the orange pointer (two decimal places, 0.01 kg) in the same visual typographic style as the moving 0.1-kg graduations; no separate boxed current-value field.
 - Other ruler numerals move with the scale and are masked by the fixed measurement when approaching the centre. The ticks continue to move, and slow/fast gesture calibration and inertia are retained.
 - No graph, water recording, data, or food-screen modifications.
+
+
+## v0.1.024 — Title bar identity (17 November 2026)
+
+Replace the old apple emoji with a compact five-segment pie-chart icon using the existing graph palette. Keep the established single-line name "Jules Berne's Pie Chart", compact spacing, navy typography, and right-hand CSV settings control. Render settings as a navy/grey outlined gear instead of a solid black silhouette. Use the same pie-chart mark in PWA icons, removing the apple branding. All graph drawing, values, axes, recording screens, dummy history, and interactions remain unchanged.
+
+
+## v0.1.025 — Approved pie and nautical chart identity (17 November 2026)
+
+Replace the five-segment pie-chart mark with the user-approved, right-facing meat-pie slice on a nautical navigation chart. Use the same illustrated artwork in the compact title bar and both PWA installation icons. No changes to graphs, scaling, weights, water, food recording prototype, dummy data, gestures, or full-screen PWA settings.
+
+## v0.1.026 — Name update (17 November 2026)
+
+Visible app and installed-PWA name is now **Jules Berne’s Pie Chart**. Files and ZIP packages remain **PieChart**. No other design or behaviour change.
