@@ -1,10 +1,11 @@
 /* PieChart Firebase web-app configuration.
-   Copy the firebaseConfig values from Firebase Console → Project Settings → Your apps.
-   These are public web-app identifiers, NOT a service-account key.
-   Do not put private keys, credentials, or tokens in this file. */
+   Firebase web-app identifiers are public. Keep private keys and service-account
+   credentials out of this file and out of the GitHub Pages repository. */
 export const firebaseConfig = {
-  apiKey: '',
-  authDomain: '',
-  projectId: '',
-  appId: ''
+  apiKey: 'AIzaSyBVAQC_Yr7WIMrtZ6gMtBwRF1JOfZMJBjo',
+  authDomain: 'julesvernespiechart.firebaseapp.com',
+  projectId: 'julesvernespiechart',
+  storageBucket: 'julesvernespiechart.firebasestorage.app',
+  messagingSenderId: '15718121247',
+  appId: '1:15718121247:web:c7ae796b6d0d41bdc6fa2a'
 };
