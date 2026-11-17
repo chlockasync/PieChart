@@ -1,3 +1,19 @@
+# Jules Berne’s Pie Chart — v0.1.046
+
+Patch over **v0.1.045**. The ZIP contains only changed files: `index.html`, `piechart-db.js`, `PROJECT_SPEC.md`, and `README.md`. Keep every other GitHub Pages file, including `firebase-config.js`, existing library indexes, icons, and Firebase rules.
+
+## v0.1.046 — Details & Targets
+
+- Rename **Settings → Personal targets** to **Settings → Details & Targets**, keeping the same position in the three-link Settings menu.
+- Add optional **Date of birth**, **Height (cm)**, and **Sex (for the energy calculation)** above the existing Weight, Water, Steps, Protein, and Fibre targets. Sex uses the female/male categories needed by conventional equation coefficients, with **Not specified** allowed. No guessed defaults.
+- Store these personal details in an account-private `details` map inside the **existing** `users/{uid}/settings/targets` Firestore document. One atomic write saves details and all five targets together. No rule changes, migration, or reconfiguration. Previous target-only documents continue to load with blank personal details.
+- Do **not** add a manual activity-level dropdown. Steps will indicate ambulatory activity but cannot represent cycling, resistance exercise, carrying loads, or all non-step activity. No energy-budget formula is enabled yet.
+- The form remains keyboard-scrollable and returns to Settings on Save or Back. Empty fields remain unset; input validation rejects invalid dates, heights, and target values.
+
+**Verification needed:** Open Details & Targets on each authorised account, save data, refresh the app, and confirm the same account restores its own fields without affecting the other account. No live Firebase sign-in was used in local checks.
+
+---
+
 # Jules Berne’s Pie Chart — v0.1.045
 
 Patch over v0.1.044. No changes to Firestore rules, the database adapter, Firebase configuration, or existing food records.

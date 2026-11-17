@@ -1,4 +1,4 @@
-/* PieChart v0.1.043 — food-based water records, personal history and targets.
+/* PieChart v0.1.046 — food-based water records, private personal details and targets.
    Firestore uses owner-private personal collections and a member-only approved food library.
    No private key belongs in a GitHub Pages app. An administrator manually provisions
    the initial two membership documents through Firebase Console. */
@@ -7,7 +7,7 @@ import {firebaseConfig} from './firebase-config.js';
 const listeners=new Set();
 const state={mode:'local',configured:false,uid:'',displayName:'',email:'',error:'',
   foods:[],foodsFromCache:false,pending:false,online:navigator.onLine,
-  weights:[],waters:[],foodEntries:[],targets:{},targetsLoaded:false,targetsFromCache:true,
+  weights:[],waters:[],foodEntries:[],targets:{},details:{},targetsLoaded:false,targetsFromCache:true,
   weightsLoaded:false,watersLoaded:false,foodEntriesLoaded:false,privateFromCache:true,privatePending:false,
   weightsPending:false,watersPending:false,foodEntriesPending:false,targetsPending:false,initialRemoteFoods:false};
 let app,auth,db,sdkAuth,sdkStore;
@@ -25,7 +25,7 @@ function stopSubscriptions(){
 }
 function clearAccount(){
   state.uid='';state.displayName='';state.email='';state.foods=[];state.weights=[];
-  state.waters=[];state.foodEntries=[];state.targets={};state.targetsLoaded=false;state.targetsFromCache=true;
+  state.waters=[];state.foodEntries=[];state.targets={};state.details={};state.targetsLoaded=false;state.targetsFromCache=true;
   state.weightsLoaded=false;state.watersLoaded=false;state.foodEntriesLoaded=false;state.foodEntriesLoaded=false;state.privatePending=false;
   state.weightsPending=false;state.watersPending=false;state.foodEntriesPending=false;state.targetsPending=false;
   state.initialRemoteFoods=false;state.pending=false;state.privateFromCache=true;
@@ -144,6 +144,12 @@ function watchPersonal(uid,epoch){
       const values=snapshot.data()||{};
       state.targets=Object.fromEntries(['weight','water','steps','protein','fibre'].map(k=>
         [k,Number.isFinite(values[k])&&values[k]>0?values[k]:null]));
+      const details=values.details||{};
+      state.details={
+        dateOfBirth:typeof details.dateOfBirth==='string'&&isValidDateOfBirth(details.dateOfBirth)?details.dateOfBirth:null,
+        heightCm:Number.isFinite(details.heightCm)&&details.heightCm>=80&&details.heightCm<=250?details.heightCm:null,
+        sex:['female','male'].includes(details.sex)?details.sex:null
+      };
       // A missing document on an unprimed offline cache is NOT confirmation
       // that the account has no saved targets. Avoid overwriting unknown goals.
       state.targetsLoaded=snapshot.exists()||!snapshot.metadata.fromCache;
@@ -190,7 +196,7 @@ async function initialize(){
           if(stopWaters){stopWaters();stopWaters=null;}
           if(stopTargets){stopTargets();stopTargets=null;}
           if(stopFoodEntries){stopFoodEntries();stopFoodEntries=null;}
-          state.foods=[];state.weights=[];state.waters=[];state.foodEntries=[];state.targets={};state.targetsLoaded=false;
+          state.foods=[];state.weights=[];state.waters=[];state.foodEntries=[];state.targets={};state.details={};state.targetsLoaded=false;
           state.weightsLoaded=false;state.watersLoaded=false;state.foodEntriesLoaded=false;
           setMode(membership.metadata.fromCache?'checking-membership':'not-authorized');return;
         }
@@ -236,7 +242,7 @@ function recordWeight(date,kg){return createPrivateEntry('weightEntries',{date,k
 function recordFood(date,entry){
   return createPrivateEntry('foodEntries',{date,...entry});
 }
-function recordWater(date,ml,waterFood,waterContributionMl=null){
+function recordWater(date,ml,waterFood){
   if(!Number.isInteger(ml)||ml<=0||ml>10000)throw new Error('Invalid water amount.');
   if(!waterFood||waterFood.type!=='Food Item'||String(waterFood.name).trim().toLowerCase()!=='water')
     throw new Error('Add a Food Item named Water to the shared library first.');
@@ -247,14 +253,31 @@ function recordWater(date,ml,waterFood,waterContributionMl=null){
     nutrition[k]=Math.round(values[k]*ml)/100; // two decimal places for a per-100 mL quantity
   }
   nutrition.energyKj=Math.round((Number.isFinite(values.energyKj)?values.energyKj:values.calories*4.184)*ml)/100;
-  const waterMl=Number.isFinite(waterContributionMl)&&waterContributionMl>=0?waterContributionMl:ml;
   return recordFood(date,{itemId:waterFood.id,name:waterFood.name,type:'Food Item',unit:'mL',
-    quantity:ml,waterMl,nutrition,source:'water-shortcut'});
+    quantity:ml,waterMl:ml,nutrition,source:'water-shortcut'});
 }
 const TARGET_LIMITS={weight:[20,400],water:[.1,15],steps:[1,100000],protein:[1,1000],fibre:[1,300]};
-function saveTargets(values){
-  requireMembership();
-  if(!state.targetsLoaded)throw new Error('Targets have not finished loading. Reconnect before editing them.');
+// Date of birth and stature are stored in the account-private settings document.
+// No age, calorie budget, or activity level is guessed from missing fields.
+function isValidDateOfBirth(value){
+  if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
+  const [year,month,day]=value.split('-').map(Number);
+  const date=new Date(year,month-1,day);
+  const today=new Date();
+  return year>=1900&&date.getFullYear()===year&&date.getMonth()===month-1&&date.getDate()===day&&
+    date.getTime()<=new Date(today.getFullYear(),today.getMonth(),today.getDate()).getTime();
+}
+function cleanDetails(values){
+  if(!values||typeof values!=='object'||Object.keys(values).some(k=>!['dateOfBirth','heightCm','sex'].includes(k)))
+    throw new Error('Invalid personal details.');
+  const {dateOfBirth=null,heightCm=null,sex=null}=values;
+  if(dateOfBirth!==null&&!isValidDateOfBirth(dateOfBirth))throw new Error('Check the date of birth.');
+  if(heightCm!==null&&(typeof heightCm!=='number'||!Number.isFinite(heightCm)||heightCm<80||heightCm>250))
+    throw new Error('Check the height.');
+  if(sex!==null&&!['female','male'].includes(sex))throw new Error('Check the sex used for the energy estimate.');
+  return {dateOfBirth,heightCm,sex};
+}
+function cleanTargets(values){
   if(!values||typeof values!=='object'||Object.keys(values).some(k=>!Object.hasOwn(TARGET_LIMITS,k)))
     throw new Error('Invalid target fields.');
   const clean={};
@@ -265,12 +288,31 @@ function saveTargets(values){
        (key==='steps'&&!Number.isInteger(value)))throw new Error('Invalid '+key+' target.');
     clean[key]=value;
   }
+  return clean;
+}
+function saveDetailsAndTargets(values){
+  requireMembership();
+  if(!state.targetsLoaded)throw new Error('Details & Targets have not finished loading. Reconnect before editing them.');
+  const targets=cleanTargets(values?.targets);
+  const details=cleanDetails(values?.details);
+  // Same settings/targets document and owner-only rules as previous releases.
+  // Single atomic write avoids saving only half a form.
+  const task=sdkStore.setDoc(sdkStore.doc(db,'users',state.uid,'settings','targets'),
+    {...targets,details},{merge:true});
+  task.catch(error=>{state.error=friendly(error);broadcast()});
+  return true;
+}
+
+function saveTargets(values){
+  requireMembership();
+  if(!state.targetsLoaded)throw new Error('Targets have not finished loading. Reconnect before editing them.');
+  const clean=cleanTargets(values);
   const task=sdkStore.setDoc(sdkStore.doc(db,'users',state.uid,'settings','targets'),clean,{merge:true});
   task.catch(error=>{state.error=friendly(error);broadcast()});
   return true; // queued locally; server acknowledgement may follow when back online
 }
 window.addEventListener('online',()=>{state.online=true;broadcast()});
 window.addEventListener('offline',()=>{state.online=false;broadcast()});
-window.PieChartDB={state,subscribe,signIn,signOut,saveFoodChanges,uploadLocalFoods,recordWeight,recordWater,recordFood,saveTargets};
+window.PieChartDB={state,subscribe,signIn,signOut,saveFoodChanges,uploadLocalFoods,recordWeight,recordWater,recordFood,saveTargets,saveDetailsAndTargets};
 broadcast();
 if(configured)initialize();
