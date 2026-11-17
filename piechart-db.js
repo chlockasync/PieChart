@@ -1,4 +1,4 @@
-/* PieChart v0.1.041 — personal records, targets, and nutrient precision.
+/* PieChart v0.1.042 — food-based water records, personal history and targets.
    Firestore uses owner-private personal collections and a member-only approved food library.
    No private key belongs in a GitHub Pages app. An administrator manually provisions
    the initial two membership documents through Firebase Console. */
@@ -7,11 +7,11 @@ import {firebaseConfig} from './firebase-config.js';
 const listeners=new Set();
 const state={mode:'local',configured:false,uid:'',displayName:'',email:'',error:'',
   foods:[],foodsFromCache:false,pending:false,online:navigator.onLine,
-  weights:[],waters:[],targets:{},targetsLoaded:false,targetsFromCache:true,
-  weightsLoaded:false,watersLoaded:false,privateFromCache:true,privatePending:false,
-  weightsPending:false,watersPending:false,targetsPending:false,initialRemoteFoods:false};
+  weights:[],waters:[],foodEntries:[],targets:{},targetsLoaded:false,targetsFromCache:true,
+  weightsLoaded:false,watersLoaded:false,foodEntriesLoaded:false,privateFromCache:true,privatePending:false,
+  weightsPending:false,watersPending:false,foodEntriesPending:false,targetsPending:false,initialRemoteFoods:false};
 let app,auth,db,sdkAuth,sdkStore;
-let stopMember=null,stopFoods=null,stopWeights=null,stopWaters=null,stopTargets=null;
+let stopMember=null,stopFoods=null,stopWeights=null,stopWaters=null,stopFoodEntries=null,stopTargets=null;
 let authEpoch=0;
 
 function broadcast(){
@@ -20,14 +20,14 @@ function broadcast(){
 }
 function setMode(mode,error=''){state.mode=mode;state.error=error;broadcast();}
 function stopSubscriptions(){
-  for(const stop of [stopMember,stopFoods,stopWeights,stopWaters,stopTargets])try{stop?.()}catch{}
-  stopMember=stopFoods=stopWeights=stopWaters=stopTargets=null;
+  for(const stop of [stopMember,stopFoods,stopWeights,stopWaters,stopFoodEntries,stopTargets])try{stop?.()}catch{}
+  stopMember=stopFoods=stopWeights=stopWaters=stopFoodEntries=stopTargets=null;
 }
 function clearAccount(){
   state.uid='';state.displayName='';state.email='';state.foods=[];state.weights=[];
-  state.waters=[];state.targets={};state.targetsLoaded=false;state.targetsFromCache=true;
-  state.weightsLoaded=false;state.watersLoaded=false;state.privatePending=false;
-  state.weightsPending=false;state.watersPending=false;state.targetsPending=false;
+  state.waters=[];state.foodEntries=[];state.targets={};state.targetsLoaded=false;state.targetsFromCache=true;
+  state.weightsLoaded=false;state.watersLoaded=false;state.foodEntriesLoaded=false;state.foodEntriesLoaded=false;state.privatePending=false;
+  state.weightsPending=false;state.watersPending=false;state.foodEntriesPending=false;state.targetsPending=false;
   state.initialRemoteFoods=false;state.pending=false;state.privateFromCache=true;
 }
 function friendly(error){
@@ -48,21 +48,16 @@ function subscribe(callback){
   listeners.add(callback);callback(state);return ()=>listeners.delete(callback);
 }
 function requireMembership(){
-  if(state.mode!=='connected')throw new Error('Sign in with an approved account before saving shared data.');
+  if(state.mode!=='connected')throw new Error('Sign in with an authorised account before saving shared data.');
 }
 function safeFood(food){
   if(!food||food.approved!==true||!['Food Item','Dish','Meal'].includes(food.type||'Food Item')||
      typeof food.id!=='string'||!/^[a-zA-Z0-9_-]{5,128}$/.test(food.id)||
-     !food.name||typeof food.name!=='string')throw new Error('Invalid approved food record.');
+     !food.name||typeof food.name!=='string')throw new Error('Invalid food library record.');
   const values=food.values||{};
   if(!['calories','protein','carbs','fats','fibre'].every(k=>typeof values[k]==='number'&&Number.isFinite(values[k])&&values[k]>=0))
-    throw new Error('Approved foods require all five nutrients.');
+    throw new Error('Food Items require all five nutrients.');
   const copy=JSON.parse(JSON.stringify({...food,type:food.type||'Food Item'}));
-  // Enforce a maximum of two decimals on every approved nutritional value,
-  // irrespective of the precision supplied by a reference database.
-  for(const k of ['calories','energyKj','protein','carbs','fats','fibre']){
-    if(Number.isFinite(copy.values[k]))copy.values[k]=Number(copy.values[k].toFixed(2));
-  }
   if(JSON.stringify(copy).length>40000)throw new Error('Food record is too large.');
   return copy;
 }
@@ -130,7 +125,7 @@ function uploadLocalFoods(localItems){
 }
 
 function watchPersonal(uid,epoch){
-  const collections=[['weightEntries','weights'],['waterEntries','waters']];
+  const collections=[['weightEntries','weights'],['waterEntries','waters'],['foodEntries','foodEntries']];
   for(const [name,key] of collections){
     const stop=sdkStore.onSnapshot(sdkStore.collection(db,'users',uid,name),{includeMetadataChanges:true},snapshot=>{
       if(epoch!==authEpoch)return;
@@ -138,10 +133,10 @@ function watchPersonal(uid,epoch){
       state[key+'Loaded']=true;
       state.privateFromCache=snapshot.metadata.fromCache;
       state[key+'Pending']=snapshot.metadata.hasPendingWrites;
-      state.privatePending=state.weightsPending||state.watersPending||state.targetsPending;
+      state.privatePending=state.weightsPending||state.watersPending||state.foodEntriesPending||state.targetsPending;
       broadcast();
     },error=>{if(epoch===authEpoch){state.error=friendly(error);broadcast();}});
-    if(name==='weightEntries')stopWeights=stop;else stopWaters=stop;
+    if(name==='weightEntries')stopWeights=stop;else if(name==='waterEntries')stopWaters=stop;else stopFoodEntries=stop;
   }
   stopTargets=sdkStore.onSnapshot(sdkStore.doc(db,'users',uid,'settings','targets'),
     {includeMetadataChanges:true},snapshot=>{
@@ -154,19 +149,14 @@ function watchPersonal(uid,epoch){
       state.targetsLoaded=snapshot.exists()||!snapshot.metadata.fromCache;
       state.targetsFromCache=snapshot.metadata.fromCache;
       state.targetsPending=snapshot.metadata.hasPendingWrites;
-      state.privatePending=state.weightsPending||state.watersPending||state.targetsPending;
+      state.privatePending=state.weightsPending||state.watersPending||state.foodEntriesPending||state.targetsPending;
       broadcast();
     },error=>{if(epoch===authEpoch){state.error=friendly(error);broadcast();}});
 }
 function watchFoods(uid,epoch){
   stopFoods=sdkStore.onSnapshot(sdkStore.collection(db,'approvedFoods'),{includeMetadataChanges:true},snapshot=>{
     if(epoch!==authEpoch)return;
-    state.foods=snapshot.docs.map(x=>{
-      const item={...x.data(),id:x.id};
-      if(item.values)item.values=Object.fromEntries(Object.entries(item.values).map(([k,v])=>
-        [k,Number.isFinite(v)?Number(v.toFixed(2)):v]));
-      return item;
-    });
+    state.foods=snapshot.docs.map(x=>({...x.data(),id:x.id}));
     state.foodsFromCache=snapshot.metadata.fromCache;
     state.pending=snapshot.metadata.hasPendingWrites;
     state.initialRemoteFoods=true;
@@ -199,8 +189,9 @@ async function initialize(){
           if(stopWeights){stopWeights();stopWeights=null;}
           if(stopWaters){stopWaters();stopWaters=null;}
           if(stopTargets){stopTargets();stopTargets=null;}
-          state.foods=[];state.weights=[];state.waters=[];state.targets={};state.targetsLoaded=false;
-          state.weightsLoaded=false;state.watersLoaded=false;
+          if(stopFoodEntries){stopFoodEntries();stopFoodEntries=null;}
+          state.foods=[];state.weights=[];state.waters=[];state.foodEntries=[];state.targets={};state.targetsLoaded=false;
+          state.weightsLoaded=false;state.watersLoaded=false;state.foodEntriesLoaded=false;
           setMode(membership.metadata.fromCache?'checking-membership':'not-authorized');return;
         }
         if(!stopFoods)watchFoods(user.uid,epoch);
@@ -220,18 +211,45 @@ async function signOut(){
 }
 function createPrivateEntry(collection,record){
   requireMembership();
-  if(!['weightEntries','waterEntries'].includes(collection))throw new Error('Unsupported private record.');
+  if(!['weightEntries','waterEntries','foodEntries'].includes(collection))throw new Error('Unsupported private record.');
   const id=crypto.randomUUID();
   const payload={...record,id,createdAt:new Date().toISOString()};
   if(!/^\d{4}-\d{2}-\d{2}$/.test(payload.date))throw new Error('Invalid local record date.');
   if(collection==='weightEntries'&&(!Number.isFinite(payload.kg)||payload.kg<20||payload.kg>400))throw new Error('Invalid weight.');
   if(collection==='waterEntries'&&(!Number.isInteger(payload.ml)||payload.ml<=0||payload.ml>10000))throw new Error('Invalid water amount.');
+  if(collection==='foodEntries'){
+    if(typeof payload.itemId!=='string'||!payload.itemId||typeof payload.name!=='string'||!payload.name||
+       !Number.isFinite(payload.quantity)||payload.quantity<=0||payload.quantity>100000||
+       !Number.isFinite(payload.waterMl)||payload.waterMl<0||payload.waterMl>100000||
+       !['Food Item','Dish','Meal'].includes(payload.type)||
+       !['g','mL','whole'].includes(payload.unit)||
+       !['calories','protein','carbs','fats','fibre','energyKj'].every(k=>Number.isFinite(payload.nutrition?.[k])&&payload.nutrition[k]>=0))
+      throw new Error('Invalid food record.');
+  }
   const task=sdkStore.setDoc(sdkStore.doc(db,'users',state.uid,collection,id),payload);
   task.catch(error=>{state.error=friendly(error);broadcast()});
   return id;
 }
 function recordWeight(date,kg){return createPrivateEntry('weightEntries',{date,kg});}
-function recordWater(date,ml){return createPrivateEntry('waterEntries',{date,ml});}
+// Each newly-recorded glass of water is a Food Item consumption, not a second
+// independent water counter. Old waterEntries are read-only history and remain counted.
+function recordFood(date,entry){
+  return createPrivateEntry('foodEntries',{date,...entry});
+}
+function recordWater(date,ml,waterFood){
+  if(!Number.isInteger(ml)||ml<=0||ml>10000)throw new Error('Invalid water amount.');
+  if(!waterFood||waterFood.type!=='Food Item'||String(waterFood.name).trim().toLowerCase()!=='water')
+    throw new Error('Add a Food Item named Water to the shared library first.');
+  const values=waterFood.values||{};
+  const nutrition={};
+  for(const k of ['calories','protein','carbs','fats','fibre']){
+    if(!Number.isFinite(values[k])||values[k]<0)throw new Error('The Water Food Item has incomplete nutrition.');
+    nutrition[k]=Math.round(values[k]*ml)/100; // two decimal places for a per-100 mL quantity
+  }
+  nutrition.energyKj=Math.round((Number.isFinite(values.energyKj)?values.energyKj:values.calories*4.184)*ml)/100;
+  return recordFood(date,{itemId:waterFood.id,name:waterFood.name,type:'Food Item',unit:'mL',
+    quantity:ml,waterMl:ml,nutrition,source:'water-shortcut'});
+}
 const TARGET_LIMITS={weight:[20,400],water:[.1,15],steps:[1,100000],protein:[1,1000],fibre:[1,300]};
 function saveTargets(values){
   requireMembership();
@@ -252,6 +270,6 @@ function saveTargets(values){
 }
 window.addEventListener('online',()=>{state.online=true;broadcast()});
 window.addEventListener('offline',()=>{state.online=false;broadcast()});
-window.PieChartDB={state,subscribe,signIn,signOut,saveFoodChanges,uploadLocalFoods,recordWeight,recordWater,saveTargets};
+window.PieChartDB={state,subscribe,signIn,signOut,saveFoodChanges,uploadLocalFoods,recordWeight,recordWater,recordFood,saveTargets};
 broadcast();
 if(configured)initialize();
