@@ -1,23 +1,26 @@
-# Jules Berne’s Pie Chart — v0.1.039
+# Jules Berne’s Pie Chart — v0.1.040
 
-An installable, phone-first health, nutrition, and activity tracker prototype for GitHub Pages. The chart and its CSV history are **fictional demonstrations**. The food library supports explicitly approved Food Items, Dishes, and Meals, with local NZ/AU/USDA reference search, barcode lookup, and review of OCR-scanned nutrition labels.
+Phone-first nutrition, weight, water, and activity tracker for GitHub Pages. The two-member Firebase project is now configured, and the user has verified shared food-library synchronisation across phone and computer.
 
-## Version 0.1.039 — Firebase foundation
+## Version 0.1.040 — private Weight, Water, and Targets
 
-This version adds a configurable Firebase/Firestore connection, Google account sign-in, a two-member allowlist, shared approved-food synchronisation, and secure collection paths for private personal records. **The live backend is not active until the project owner completes the setup.** Read **`FIREBASE_SETUP.md`** for the one-time console and GitHub Pages steps.
+When **signed into an approved account**, Weight and Water recording now creates **private Firestore records** under that account. Daily water is the sum of actual drink records; a day with no recorded drinks is unknown rather than a false zero. Weight uses each actual weigh-in, with the most recent entry of the date determining the chart point. **Today's incomplete entries appear in the right-hand readouts, not as today's plotted graph column**; they become part of the plotted history tomorrow. Signed-in charts contain no invented values for other metrics. When signed out, the CSV-backed **fictional demo chart** remains available for interface testing.
 
-This is not yet a production data tracker: the existing chart, weight sheet, and water sheet still work with demo data, not the Firestore personal records. Automatic, recoverable historical backups are **not implemented**; Firestore syncing and its offline cache are not backups. Continue to retain independent approved-food exports.
+**Settings → Personal targets** is one page for optional Weight (kg), Water (litres), Steps, Protein (g), and Fibre (g). Blank means no target. Targets are saved per account and synchronised between that person's devices, never the other member's account. Calories are still to be calculated rather than manually targeted, and no fat/carbohydrate targets are added.
 
-## Applying update ZIPs
+The old temporary food-item snapshot no longer seeds either library. The two new live Food Items already created in Firestore are not changed by this patch. Previous browser-local foods are not deleted, and no transfer into Firebase happens automatically.
 
-The initial full project lives in GitHub Pages. Each later `PieChart` ZIP is a **patch** containing *only files changed in that version*. Extract or upload the patch over the existing files, preserving all unchanged files. Do not delete earlier files simply because they are absent from the patch. Include **new** files from the patch (this version adds `firebase-config.js`, `piechart-db.js`, `firestore.rules`, and `FIREBASE_SETUP.md`).
+## Applying this delta ZIP
 
-This version also updates `index.html`, `PROJECT_SPEC.md`, and this `README.md`. `PROJECT_SPEC.md` is the authoritative requirements and implementation-status reference. `firestore.rules` must also be **published in Firebase Console**; merely uploading it to GitHub Pages does not activate the rules.
+Upload **only the files contained in this patch** over the corresponding files in your existing GitHub Pages repository, keeping all other files. This patch changes `index.html`, `piechart-db.js`, `PROJECT_SPEC.md`, and this `README.md`. **Do not replace your working `firebase-config.js`**, re-register your Google accounts, or republish Firestore rules; those are unchanged and the existing rules already permit owner-private `settings/targets` documents.
 
-## Food library
+Refresh the installed app or website after publishing. If the page appears unchanged, reload it fully to clear the older cached HTML/JavaScript.
 
-From the home chart, open Settings → Food library. Approved records appear first, with read-only NZ Concise (2021), AFCD Release 3, and USDA Foundation (2026) search suggestions after them. A barcode scan or a selected external suggestion opens an editable review form; nothing external is approved automatically. The bundled `approved-foods-seed.js` contains only an earlier user-approved testing snapshot and is **not** a general starter library.
+## Testing
 
-Without configured Firebase, records remain local to the browser as in the previous prototype. With Firebase connected and a valid membership document, approved records load from the shared Firestore library. Use Settings → Transfer local approved foods to **explicitly** copy approved items from that browser into the cloud, without overwriting matching cloud records or deleting local copies.
+1. In **Settings → Personal targets**, set Weight and Water goals and save. Reopen the form and confirm they were retained. The first target load needs a successful server connection before editing.
+2. Double-tap Weight and record a weigh-in. The current weight label should update and persist after a refresh; it will appear as an actual chart point when that date is complete.
+3. Double-tap Water and record two quantities. The current day's total should be the sum, and should persist after a refresh.
+4. Sign into the **same account** on another device to confirm the same weight, water, and target values. Sign into the **other account** and confirm that those private values do not appear there. The approved Food Item library remains shared.
 
-The bundled `dummy-data.csv` controls the **demo chart only**. The branded icon and locally bundled reference indexes are unchanged.
+**Limitations:** Live Firestore writes have not been tested against the owner's actual project from this environment; local UI tests use simulated database updates. Historical record editing/deletion, automatic independently recoverable backups, food diary, activity imports, and calorie-budget calculations are still to be developed. Firestore cache/sync alone is **not** a backup. Do not enter irreplaceable data without a separate recovery plan. See `PROJECT_SPEC.md` for agreed behaviour and remaining work.

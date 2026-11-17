@@ -1,4 +1,4 @@
-/* PieChart v0.1.039 — database adapter.
+/* PieChart v0.1.040 — personal records and targets.
    Firestore uses owner-private personal collections and a member-only approved food library.
    No private key belongs in a GitHub Pages app. An administrator manually provisions
    the initial two membership documents through Firebase Console. */
@@ -7,9 +7,11 @@ import {firebaseConfig} from './firebase-config.js';
 const listeners=new Set();
 const state={mode:'local',configured:false,uid:'',displayName:'',email:'',error:'',
   foods:[],foodsFromCache:false,pending:false,online:navigator.onLine,
-  weights:[],waters:[],privateFromCache:true,initialRemoteFoods:false};
+  weights:[],waters:[],targets:{},targetsLoaded:false,targetsFromCache:true,
+  weightsLoaded:false,watersLoaded:false,privateFromCache:true,privatePending:false,
+  weightsPending:false,watersPending:false,targetsPending:false,initialRemoteFoods:false};
 let app,auth,db,sdkAuth,sdkStore;
-let stopMember=null,stopFoods=null,stopWeights=null,stopWaters=null;
+let stopMember=null,stopFoods=null,stopWeights=null,stopWaters=null,stopTargets=null;
 let authEpoch=0;
 
 function broadcast(){
@@ -18,12 +20,15 @@ function broadcast(){
 }
 function setMode(mode,error=''){state.mode=mode;state.error=error;broadcast();}
 function stopSubscriptions(){
-  for(const stop of [stopMember,stopFoods,stopWeights,stopWaters])try{stop?.()}catch{}
-  stopMember=stopFoods=stopWeights=stopWaters=null;
+  for(const stop of [stopMember,stopFoods,stopWeights,stopWaters,stopTargets])try{stop?.()}catch{}
+  stopMember=stopFoods=stopWeights=stopWaters=stopTargets=null;
 }
 function clearAccount(){
   state.uid='';state.displayName='';state.email='';state.foods=[];state.weights=[];
-  state.waters=[];state.initialRemoteFoods=false;state.pending=false;state.privateFromCache=true;
+  state.waters=[];state.targets={};state.targetsLoaded=false;state.targetsFromCache=true;
+  state.weightsLoaded=false;state.watersLoaded=false;state.privatePending=false;
+  state.weightsPending=false;state.watersPending=false;state.targetsPending=false;
+  state.initialRemoteFoods=false;state.pending=false;state.privateFromCache=true;
 }
 function friendly(error){
   if(!error)return 'Unknown database error';
@@ -125,11 +130,28 @@ function watchPersonal(uid,epoch){
     const stop=sdkStore.onSnapshot(sdkStore.collection(db,'users',uid,name),{includeMetadataChanges:true},snapshot=>{
       if(epoch!==authEpoch)return;
       state[key]=snapshot.docs.map(x=>({id:x.id,...x.data()}));
+      state[key+'Loaded']=true;
       state.privateFromCache=snapshot.metadata.fromCache;
+      state[key+'Pending']=snapshot.metadata.hasPendingWrites;
+      state.privatePending=state.weightsPending||state.watersPending||state.targetsPending;
       broadcast();
     },error=>{if(epoch===authEpoch){state.error=friendly(error);broadcast();}});
     if(name==='weightEntries')stopWeights=stop;else stopWaters=stop;
   }
+  stopTargets=sdkStore.onSnapshot(sdkStore.doc(db,'users',uid,'settings','targets'),
+    {includeMetadataChanges:true},snapshot=>{
+      if(epoch!==authEpoch)return;
+      const values=snapshot.data()||{};
+      state.targets=Object.fromEntries(['weight','water','steps','protein','fibre'].map(k=>
+        [k,Number.isFinite(values[k])&&values[k]>0?values[k]:null]));
+      // A missing document on an unprimed offline cache is NOT confirmation
+      // that the account has no saved targets. Avoid overwriting unknown goals.
+      state.targetsLoaded=snapshot.exists()||!snapshot.metadata.fromCache;
+      state.targetsFromCache=snapshot.metadata.fromCache;
+      state.targetsPending=snapshot.metadata.hasPendingWrites;
+      state.privatePending=state.weightsPending||state.watersPending||state.targetsPending;
+      broadcast();
+    },error=>{if(epoch===authEpoch){state.error=friendly(error);broadcast();}});
 }
 function watchFoods(uid,epoch){
   stopFoods=sdkStore.onSnapshot(sdkStore.collection(db,'approvedFoods'),{includeMetadataChanges:true},snapshot=>{
@@ -166,7 +188,9 @@ async function initialize(){
           if(stopFoods){stopFoods();stopFoods=null;}
           if(stopWeights){stopWeights();stopWeights=null;}
           if(stopWaters){stopWaters();stopWaters=null;}
-          state.foods=[];state.weights=[];state.waters=[];
+          if(stopTargets){stopTargets();stopTargets=null;}
+          state.foods=[];state.weights=[];state.waters=[];state.targets={};state.targetsLoaded=false;
+          state.weightsLoaded=false;state.watersLoaded=false;
           setMode(membership.metadata.fromCache?'checking-membership':'not-authorized');return;
         }
         if(!stopFoods)watchFoods(user.uid,epoch);
@@ -181,7 +205,7 @@ async function signIn(){
   catch(error){state.error=friendly(error);broadcast();throw new Error(state.error);}
 }
 async function signOut(){
-  if(state.pending)throw new Error('Shared food edits are waiting to sync. Reconnect before signing out.');
+  if(state.pending||state.privatePending)throw new Error('Changes are waiting to sync. Reconnect before signing out.');
   if(auth)await sdkAuth.signOut(auth);
 }
 function createPrivateEntry(collection,record){
@@ -198,8 +222,26 @@ function createPrivateEntry(collection,record){
 }
 function recordWeight(date,kg){return createPrivateEntry('weightEntries',{date,kg});}
 function recordWater(date,ml){return createPrivateEntry('waterEntries',{date,ml});}
+const TARGET_LIMITS={weight:[20,400],water:[.1,15],steps:[1,100000],protein:[1,1000],fibre:[1,300]};
+function saveTargets(values){
+  requireMembership();
+  if(!state.targetsLoaded)throw new Error('Targets have not finished loading. Reconnect before editing them.');
+  if(!values||typeof values!=='object'||Object.keys(values).some(k=>!Object.hasOwn(TARGET_LIMITS,k)))
+    throw new Error('Invalid target fields.');
+  const clean={};
+  for(const [key,value] of Object.entries(values)){
+    if(value===null){clean[key]=null;continue;}
+    const [min,max]=TARGET_LIMITS[key];
+    if(typeof value!=='number'||!Number.isFinite(value)||value<min||value>max||
+       (key==='steps'&&!Number.isInteger(value)))throw new Error('Invalid '+key+' target.');
+    clean[key]=value;
+  }
+  const task=sdkStore.setDoc(sdkStore.doc(db,'users',state.uid,'settings','targets'),clean,{merge:true});
+  task.catch(error=>{state.error=friendly(error);broadcast()});
+  return true; // queued locally; server acknowledgement may follow when back online
+}
 window.addEventListener('online',()=>{state.online=true;broadcast()});
 window.addEventListener('offline',()=>{state.online=false;broadcast()});
-window.PieChartDB={state,subscribe,signIn,signOut,saveFoodChanges,uploadLocalFoods,recordWeight,recordWater};
+window.PieChartDB={state,subscribe,signIn,signOut,saveFoodChanges,uploadLocalFoods,recordWeight,recordWater,saveTargets};
 broadcast();
 if(configured)initialize();
