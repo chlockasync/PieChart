@@ -1,4 +1,4 @@
-/* PieChart v0.1.040 — personal records and targets.
+/* PieChart v0.1.041 — personal records, targets, and nutrient precision.
    Firestore uses owner-private personal collections and a member-only approved food library.
    No private key belongs in a GitHub Pages app. An administrator manually provisions
    the initial two membership documents through Firebase Console. */
@@ -58,6 +58,11 @@ function safeFood(food){
   if(!['calories','protein','carbs','fats','fibre'].every(k=>typeof values[k]==='number'&&Number.isFinite(values[k])&&values[k]>=0))
     throw new Error('Approved foods require all five nutrients.');
   const copy=JSON.parse(JSON.stringify({...food,type:food.type||'Food Item'}));
+  // Enforce a maximum of two decimals on every approved nutritional value,
+  // irrespective of the precision supplied by a reference database.
+  for(const k of ['calories','energyKj','protein','carbs','fats','fibre']){
+    if(Number.isFinite(copy.values[k]))copy.values[k]=Number(copy.values[k].toFixed(2));
+  }
   if(JSON.stringify(copy).length>40000)throw new Error('Food record is too large.');
   return copy;
 }
@@ -156,7 +161,12 @@ function watchPersonal(uid,epoch){
 function watchFoods(uid,epoch){
   stopFoods=sdkStore.onSnapshot(sdkStore.collection(db,'approvedFoods'),{includeMetadataChanges:true},snapshot=>{
     if(epoch!==authEpoch)return;
-    state.foods=snapshot.docs.map(x=>({...x.data(),id:x.id}));
+    state.foods=snapshot.docs.map(x=>{
+      const item={...x.data(),id:x.id};
+      if(item.values)item.values=Object.fromEntries(Object.entries(item.values).map(([k,v])=>
+        [k,Number.isFinite(v)?Number(v.toFixed(2)):v]));
+      return item;
+    });
     state.foodsFromCache=snapshot.metadata.fromCache;
     state.pending=snapshot.metadata.hasPendingWrites;
     state.initialRemoteFoods=true;

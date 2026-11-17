@@ -1,14 +1,16 @@
-# Jules Berne’s Pie Chart — v0.1.040
+# Jules Berne’s Pie Chart — v0.1.041
 
 Phone-first nutrition, weight, water, and activity tracker for GitHub Pages. The two-member Firebase project is now configured, and the user has verified shared food-library synchronisation across phone and computer.
 
-## Version 0.1.040 — private Weight, Water, and Targets
+## Version 0.1.041 — entry usability, precision, and food creation
 
-When **signed into an approved account**, Weight and Water recording now creates **private Firestore records** under that account. Daily water is the sum of actual drink records; a day with no recorded drinks is unknown rather than a false zero. Weight uses each actual weigh-in, with the most recent entry of the date determining the chart point. **Today's incomplete entries appear in the right-hand readouts, not as today's plotted graph column**; they become part of the plotted history tomorrow. Signed-in charts contain no invented values for other metrics. When signed out, the CSV-backed **fictional demo chart** remains available for interface testing.
+- **Targets:** Save now closes the Targets dialogue once the write is queued. Invalid inputs and immediate storage errors keep the form open.
+- **On-screen keyboard:** Entry sheets follow the visible mobile viewport, remain scrollable, and keep their close control accessible. Form scrolling is simplified, with a single scrolling area for food-search results while typing.
+- **Weight:** The ruler, arrow keys, wheel, and recorded values now snap to **0.05 kg** increments (matching the scales), not 0.01 kg.
+- **Food Item creation:** Search results have **Create new Food Item**, prefilled with the typed name or barcode, just after the first direct matches and before weaker matches. Dish/Meal creation remains available.
+- **Nutrition precision:** Calories, kJ, protein, carbs, fats, and fibre values display and save at a maximum of two decimals. Existing approved foods are shown at two-decimal precision without silently rewriting old cloud documents; they are normalised when explicitly saved. Reference datasets are not modified.
 
-**Settings → Personal targets** is one page for optional Weight (kg), Water (litres), Steps, Protein (g), and Fibre (g). Blank means no target. Targets are saved per account and synchronised between that person's devices, never the other member's account. Calories are still to be calculated rather than manually targeted, and no fat/carbohydrate targets are added.
-
-The old temporary food-item snapshot no longer seeds either library. The two new live Food Items already created in Firestore are not changed by this patch. Previous browser-local foods are not deleted, and no transfer into Firebase happens automatically.
+All other v0.1.040 database behaviour remains: the shared library is preserved, and personal Weight, Water, and targets remain private to their account. These are interface and data-validation fixes, with no changes to the Firestore rules or configuration.
 
 ## Applying this delta ZIP
 
@@ -18,9 +20,9 @@ Refresh the installed app or website after publishing. If the page appears uncha
 
 ## Testing
 
-1. In **Settings → Personal targets**, set Weight and Water goals and save. Reopen the form and confirm they were retained. The first target load needs a successful server connection before editing.
-2. Double-tap Weight and record a weigh-in. The current weight label should update and persist after a refresh; it will appear as an actual chart point when that date is complete.
-3. Double-tap Water and record two quantities. The current day's total should be the sum, and should persist after a refresh.
-4. Sign into the **same account** on another device to confirm the same weight, water, and target values. Sign into the **other account** and confirm that those private values do not appear there. The approved Food Item library remains shared.
+1. Save any change in **Settings → Personal targets**. The dialogue should close and reopening it should show the saved value.
+2. On a phone, open Targets or a Food Item, focus a field near the bottom, and check that you can scroll to the remaining fields and buttons with the keyboard open.
+3. Double-tap Weight, use a gentle swipe or arrow key, and confirm values jump in **0.05 kg** steps (e.g. 72.40, 72.45, 72.50).
+4. Search for a food name not yet in the library. Choose **Create new Food Item: [typed name]**, enter the required nutrition values, and approve it. Check the record appears on the other authorised account, and that every nutritional value has at most two decimals.
 
-**Limitations:** Live Firestore writes have not been tested against the owner's actual project from this environment; local UI tests use simulated database updates. Historical record editing/deletion, automatic independently recoverable backups, food diary, activity imports, and calorie-budget calculations are still to be developed. Firestore cache/sync alone is **not** a backup. Do not enter irreplaceable data without a separate recovery plan. See `PROJECT_SPEC.md` for agreed behaviour and remaining work.
+**Limitations:** Mobile keyboard layout was checked in Chromium with a reduced visible viewport, not on the owner's physical phone. Firebase synchronisation of this patch needs confirmation against the live project. Firestore sync/cache is still **not a historical backup**. Historical editing, food diary, activity imports, and calorie budgets are unfinished. See `PROJECT_SPEC.md` for the current requirements and outstanding work.
