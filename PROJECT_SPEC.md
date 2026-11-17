@@ -213,3 +213,17 @@ The following **supersedes conflicting prototype details** above. Keep all previ
 - The per-metric right-edge accent is now 12px instead of 4px. Its full-height background is a 30% mix of the metric colour and white; an opaque, metric-coloured foreground rises from the bottom to the target achievement percentage, capped at 100% visually. Numeric percentages may exceed 100%.
 - No invented targets: Fats and Carbs show the muted colour strip without a foreground progress fill until a target is explicitly configured.
 - The wider bars gain space by modestly expanding the right legend column and reducing the chart width. Chart series, weight envelope, demo data, gestures, labels, and independent daily readings are unchanged.
+
+
+## v0.1.022 (17 Nov 2026) — recording controls and timeline alignment
+- Yesterday’s axis date sits directly below the centre of the last completed day column, not at the right end of the legend; month/year axis behavior otherwise preserved.
+- Weight recording screen contains only horizontal ruler and Record/Cancel buttons. A fixed two-decimal kilogram reading is drawn directly below the pointer inside the ruler. Gentle swipes have reduced sensitivity and no momentum, while faster swipes still accelerate with momentum.
+- Water recording: five most recent quantities (backfilled from the initial sample values if needed), then a sixth new-quantity button in a regular equal-height 3×2 grid.
+- Recording controls share the established softly rounded PieChart colour palette. Food recording is intentionally not redesigned this version. Graph rendering and demonstration history unchanged.
+
+
+## v0.1.023 (17 Nov 2026) — ruler pointer/readout correction
+- Weight entry returns to a spacious rounded white sheet with the existing weight ruler and Record/Cancel only.
+- The selected weight stays below the orange pointer (two decimal places, 0.01 kg) in the same visual typographic style as the moving 0.1-kg graduations; no separate boxed current-value field.
+- Other ruler numerals move with the scale and are masked by the fixed measurement when approaching the centre. The ticks continue to move, and slow/fast gesture calibration and inertia are retained.
+- No graph, water recording, data, or food-screen modifications.
