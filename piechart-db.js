@@ -1,4 +1,4 @@
-/* PieChart v0.1.047 — food-based water records, private personal details and targets.
+/* PieChart v0.1.048 — food-based water records, private personal details and targets.
    Firestore uses owner-private personal collections and a member-only approved food library.
    No private key belongs in a GitHub Pages app. An administrator manually provisions
    the initial two membership documents through Firebase Console. */
@@ -322,6 +322,6 @@ function saveTargets(values){
 }
 window.addEventListener('online',()=>{state.online=true;broadcast()});
 window.addEventListener('offline',()=>{state.online=false;broadcast()});
-window.PieChartDB={state,subscribe,signIn,signOut,saveFoodChanges,uploadLocalFoods,recordWeight,recordWater,recordFood,saveTargets,saveDetailsAndTargets};
+window.PieChartDB={apiRevision:2,state,subscribe,signIn,signOut,saveFoodChanges,uploadLocalFoods,recordWeight,recordWater,recordFood,saveTargets,saveDetailsAndTargets};
 broadcast();
 if(configured)initialize();

@@ -1,3 +1,15 @@
+# Jules Berne’s Pie Chart — v0.1.048
+
+**Fix:** Settings → **Details & Targets** could fail to save with “Invalid target fields” after adding Goal intensity. The v0.1.047 HTML still pointed to `piechart-db.js?v=0.1.044`, allowing an older cached copy of the database module to reject the new field. This patch loads the current module with a fresh versioned URL (`?v=0.1.048`) and shows a clearer warning if the HTML and database module ever get out of sync.
+
+**Installation:** Apply this change-only ZIP over **v0.1.047**, replacing **all four files included here**: `index.html`, `piechart-db.js`, `PROJECT_SPEC.md`, and `README.md`. Keep the configured `firebase-config.js`, sample data, source databases, assets, and all other files unchanged. No Firebase rules or migration are required; your stored details, targets, and food items are untouched.
+
+After GitHub Pages publishes the files, reload the page. If the old error continues, close/reopen the installed app or perform a hard refresh to update its cached HTML.
+
+**Checks:** Validator and API version tests, syntax validation, and file/version consistency. Live Firebase writes cannot be verified from this workspace.
+
+---
+
 # Jules Berne’s Pie Chart — v0.1.047
 
 Install this change-only ZIP **over v0.1.046**, replacing only `index.html`, `piechart-db.js`, `PROJECT_SPEC.md`, and `README.md`. Keep your working Firebase configuration, datasets, icons, and all other files unchanged. No Firebase rules or console changes are needed.
