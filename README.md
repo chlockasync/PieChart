@@ -1,22 +1,23 @@
-# Jules Berne’s Pie Chart — v0.1.028
+# Jules Berne’s Pie Chart — v0.1.039
 
-An installable GitHub Pages prototype. Upload the ZIP contents together into the site root. `index.html` is the app, `manifest.webmanifest` and the icons enable installation, and `PROJECT_SPEC.md` is the up-to-date, authoritative requirements record. The bundled demo CSV is **fictional chart data**, not food entries.
+An installable, phone-first health, nutrition, and activity tracker prototype for GitHub Pages. The chart and its CSV history are **fictional demonstrations**. The food library supports explicitly approved Food Items, Dishes, and Meals, with local NZ/AU/USDA reference search, barcode lookup, and review of OCR-scanned nutrition labels.
 
-## Food library — first working reference/approval flow
+## Version 0.1.039 — Firebase foundation
 
-Open **Settings → Food library**. The approved-food library starts entirely empty. The search box finds approved foods immediately and searches a separate NZ reference if one has been loaded. The result panel is the same height before and after you type, without the previous four-character layout jump.
+This version adds a configurable Firebase/Firestore connection, Google account sign-in, a two-member allowlist, shared approved-food synchronisation, and secure collection paths for private personal records. **The live backend is not active until the project owner completes the setup.** Read **`FIREBASE_SETUP.md`** for the one-time console and GitHub Pages steps.
 
-To enable official NZ food typeahead, download **[New Zealand FOODfiles 2024](https://www.foodcomposition.co.nz/foodfiles/)** on a Windows computer, run its installer, and locate the `Standard DATA.AP` text file in the installed data files. In the PieChart food library, choose **Load NZ FOODfiles data** and select that file. This is a one-time reference load per device; it is **not** an import into your approved library. The read-only search index is held in browser IndexedDB, or in the current session if that storage is unavailable. The reference data must remain distinct from any modified, user-approved copies. The latest NZ online search is at https://www.foodcomposition.co.nz/search/ (the 2024 downloadable dataset is older).
+This is not yet a production data tracker: the existing chart, weight sheet, and water sheet still work with demo data, not the Firestore personal records. Automatic, recoverable historical backups are **not implemented**; Firestore syncing and its offline cache are not backups. Continue to retain independent approved-food exports.
 
-For a packaged food, enter its **7–14 digit barcode** and press **Barcode**, or try **Scan** to use the camera on a browser/device supporting `BarcodeDetector`. Barcode lookup currently uses the public **Open Food Facts** product endpoint as a labelled fallback; it is **not** the NZ name-search provider. A product might not exist there, or have missing nutrients. Manual barcode entry always remains available when camera scanning is unsupported. An internet connection is required for barcode lookup.
+## Applying update ZIPs
 
-Selecting an external reference or barcode result opens an editable review. **All five nutritional fields (calories, protein, carbohydrates, fats, and fibre) and a data source are mandatory**; unavailable data must be supplied as a visibly marked estimate rather than an unlabeled zero. Pressing **Approve and save** is the only operation that adds a Food Item to your own library. No starter foods, mock products, bulk imports, or unapproved external food records are included in the release.
+The initial full project lives in GitHub Pages. Each later `PieChart` ZIP is a **patch** containing *only files changed in that version*. Extract or upload the patch over the existing files, preserving all unchanged files. Do not delete earlier files simply because they are absent from the patch. Include **new** files from the patch (this version adds `firebase-config.js`, `piechart-db.js`, `firestore.rules`, and `FIREBASE_SETUP.md`).
 
-## Prototype limitations
+This version also updates `index.html`, `PROJECT_SPEC.md`, and this `README.md`. `PROJECT_SPEC.md` is the authoritative requirements and implementation-status reference. `firestore.rules` must also be **published in Firebase Console**; merely uploading it to GitHub Pages does not activate the rules.
 
-- **Approved foods still save to browser localStorage only**. They are not backed up, shared, or synced through Firebase. Do not use this prototype for irreplaceable food records.
-- The official NZ file importer was developed from the published **Standard DATA.AP** format and tested against synthetic data in that format; it has **not yet been verified with the actual NZ 2024 file** in this environment.
-- Live public barcode API access and phone-camera scanning require verification on the real devices; browser tests use simulated API responses.
-- Food recording, Dishes, Meals, personal accounts, automatic steps, and genuine nutrient calculations from real diary entries are not yet connected. The graph still displays fictional demo data.
+## Food library
 
-The graph, weight ruler, water controls, title bar, and icons are otherwise unchanged.
+From the home chart, open Settings → Food library. Approved records appear first, with read-only NZ Concise (2021), AFCD Release 3, and USDA Foundation (2026) search suggestions after them. A barcode scan or a selected external suggestion opens an editable review form; nothing external is approved automatically. The bundled `approved-foods-seed.js` contains only an earlier user-approved testing snapshot and is **not** a general starter library.
+
+Without configured Firebase, records remain local to the browser as in the previous prototype. With Firebase connected and a valid membership document, approved records load from the shared Firestore library. Use Settings → Transfer local approved foods to **explicitly** copy approved items from that browser into the cloud, without overwriting matching cloud records or deleting local copies.
+
+The bundled `dummy-data.csv` controls the **demo chart only**. The branded icon and locally bundled reference indexes are unchanged.

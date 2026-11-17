@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    // Member documents are created/disabled only by the Firebase project owner
+    // in the Firestore console. Neither client can enrol an extra user.
+    function member() {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/members/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/members/$(request.auth.uid)).data.active == true;
+    }
+    match /members/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, create, update, delete: if false;
+    }
+    match /approvedFoods/{foodId} {
+      allow read: if member();
+      allow create: if member() && request.resource.data.id == foodId &&
+        request.resource.data.approved == true &&
+        request.resource.data.type in ['Food Item','Dish','Meal'] &&
+        request.resource.data.name is string && request.resource.data.name.size() > 0 &&
+        request.resource.data.keys().hasAll(['values','source']);
+      allow update: if member() && resource.data.id == foodId &&
+        request.resource.data.id == foodId && request.resource.data.approved == true &&
+        request.resource.data.type in ['Food Item','Dish','Meal'] &&
+        request.resource.data.name is string && request.resource.data.name.size() > 0;
+      allow delete: if member();
+    }
+    // Never allow a user to query or write another user's diary, weight, or water.
+    match /users/{ownerUid}/{kind}/{recordId} {
+      allow read, create, update, delete: if member() &&
+        request.auth.uid == ownerUid &&
+        kind in ['weightEntries','waterEntries','foodEntries','exerciseEntries','dailyTotals','settings'];
+    }
+    match /{path=**} { allow read, write: if false; }
+  }
+}

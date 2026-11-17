@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#fffaf2">
-  <title>Jules Berne's Pie Chart — v0.1.038</title>
+  <title>Jules Berne's Pie Chart — v0.1.039</title>
   <link rel="manifest" href="manifest.webmanifest">
   <style>
-/* Jules Berne's Pie Chart — single visual system, v0.1.038.
+/* Jules Berne's Pie Chart — single visual system, v0.1.039.
    The home screen is one eight-series chart with an integrated right legend.
    No historical overrides or per-version CSS patches. */
 :root {
@@ -1143,10 +1143,40 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
     const parsed=JSON.parse(localStorage.getItem(FOOD_DB_KEY)||'[]');
     if(Array.isArray(parsed))approvedFoods=parsed.filter(x=>x&&x.approved===true&&x.name&&nutrientKeys.every(k=>Number.isFinite(x.values?.[k])&&x.values[k]>=0));
   } catch(error) {console.warn('Unable to read device-local approved food items',error);}
-  function persistApprovedFoodItems(){
+  // Keep device-local records separate from the authenticated shared library.
+  // Shared changes are queued into Firestore's offline cache; never mirror other
+  // account members' records into this device's old unscoped localStorage key.
+  function persistApprovedFoodItems(previous=null){
+    const cloud=window.PieChartDB;
+    if(cloud?.state.mode==='connected'){
+      if(!Array.isArray(previous))return false;
+      try{cloud.saveFoodChanges(previous,approvedFoods);return true;}
+      catch(error){console.warn('Cannot queue shared food change',error);return false;}
+    }
+    if(cloud?.state.uid)return false; // signed in but membership not approved
     try {localStorage.setItem(FOOD_DB_KEY,JSON.stringify(approvedFoods));return true;}
     catch(error) {console.warn('Cannot save device-local approved food items',error);return false;}
   }
+  // Switching accounts must never leave the previous member's approved foods
+  // visible or editable, even temporarily. The signed-out fallback is the local copy.
+  let remoteLibraryShowing=false,remoteLibraryUser='';
+  function deviceLocalFoods(){
+    try{return JSON.parse(localStorage.getItem(FOOD_DB_KEY)||'[]').filter(x=>x&&x.approved===true)}
+    catch{return []}
+  }
+  window.addEventListener('piechart-db-state',e=>{
+    const state=e.detail;
+    if(state.mode==='connected'&&state.initialRemoteFoods){
+      approvedFoods=state.foods.map(food=>({...food}));
+      refreshRecipes();remoteLibraryShowing=true;remoteLibraryUser=state.uid;
+      window.dispatchEvent(new Event('piechart-foods-refreshed'));
+    }else if(remoteLibraryShowing || (state.uid && state.uid!==remoteLibraryUser)){
+      approvedFoods=state.uid?[]:deviceLocalFoods();
+      remoteLibraryShowing=false;remoteLibraryUser=state.uid;
+      window.dispatchEvent(new Event('piechart-foods-refreshed'));
+    }
+  });
+
   // Development-only snapshot transport: import only records the user already approved.
   // Never replace device-local edits, or resurrect seed items the user removed.
   const FOOD_SEED_SEEN_KEY='pieChartDevSeedProcessedIdsV1';
@@ -1758,6 +1788,9 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
     function noticeRow(message){
       const node=document.createElement('div');node.className='food-list-message';node.textContent=message;return node;
     }
+    window.addEventListener('piechart-foods-refreshed',()=>{
+      if(input.isConnected&&!browse.hidden)render();
+    });
     function render(){
       if(entryBackdrop.hidden||!input.isConnected)return;
       currentQuery=input.value.trim().toLowerCase();
@@ -1930,7 +1963,7 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
           if(itemIsUsed(existing.id)){alert.textContent='This recipe is used by another saved recipe. Remove those references first.';return;}
           if(!confirm('Remove '+existing.name+' from your approved library?'))return;
           const previous=approvedFoods.slice();approvedFoods=approvedFoods.filter(x=>x.id!==existing.id);
-          if(!persistApprovedFoodItems()){approvedFoods=previous;alert.textContent='Could not save the removal.';return;}
+          if(!persistApprovedFoodItems(previous)){approvedFoods=previous;alert.textContent='Could not save the removal.';return;}
           compose.querySelector('#recipe-back').click();
         });
       }
@@ -1972,7 +2005,7 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
           Object.assign(saved,{values:calculated.values,totalWeight:calculated.weight,estimatedWeight:calculated.estimatedWeight});
           refreshRecipes();
           if(approvedFoods.some(x=>isRecipe(x)&&x.recipeError))throw new Error('This change would break a saved recipe.');
-          if(!persistApprovedFoodItems())throw new Error('Could not save this recipe on this device.');
+          if(!persistApprovedFoodItems(previous))throw new Error('Could not save this recipe on this device.');
         }catch(error){approvedFoods=previous;refreshRecipes();alert.textContent=error.message;return;}
         compose.hidden=true;browse.hidden=false;entryHeading.textContent='Food library';
         input.value=name;render();
@@ -2159,7 +2192,7 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
         if(itemIsUsed(item.id)){document.getElementById('food-alert').textContent='This food is used in a saved Dish or Meal. Remove those references first.';return;}
         if(!confirm('Remove '+item.name+' from your approved food library?'))return;
         const before=approvedFoods.slice();approvedFoods=approvedFoods.filter(x=>x.id!==item.id);
-        if(!persistApprovedFoodItems()){approvedFoods=before;document.getElementById('food-alert').textContent='Save unavailable. Item not removed.';return;}
+        if(!persistApprovedFoodItems(before)){approvedFoods=before;document.getElementById('food-alert').textContent='Save unavailable. Item not removed.';return;}
         document.getElementById('food-back').click();
         status.textContent='Item removed from the approved food library.';
       });
@@ -2210,7 +2243,7 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
         if(isLocal)approvedFoods=approvedFoods.map(x=>x.id===item.id?saved:x);
         else approvedFoods.push(saved);
         refreshRecipes();
-        if(!persistApprovedFoodItems()){approvedFoods=previous;alert.textContent='Could not store this item in this browser. No approval saved.';return;}
+        if(!persistApprovedFoodItems(previous)){approvedFoods=previous;alert.textContent='Could not store this item in this browser. No approval saved.';return;}
         review.hidden=true;browse.hidden=false;entryHeading.textContent='Food library';
         // The newly approved item appears in local search results.
         input.value=name;barcodeMatches=[];barcodeQuery='';
@@ -2427,10 +2460,17 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
   const SETTINGS_KEY='pieChartDemoCsvOverride';
   document.querySelector('.settings-button').addEventListener('click',()=>{
     showEntry('Settings',`<div class="entry-form">
+      <div class="pie-db-account" style="display:grid;gap:7px;padding-bottom:12px;border-bottom:1px solid #dae2ef">
+        <strong>Database and account</strong>
+        <p id="pie-db-summary" class="entry-note" style="margin:0" aria-live="polite">Checking database…</p>
+        <p id="pie-db-identity" class="entry-note" style="margin:0;overflow-wrap:anywhere"></p>
+        <div id="pie-db-controls" style="display:flex;flex-wrap:wrap;gap:7px"></div>
+        <p id="pie-db-message" class="food-copy-status" style="margin:0" aria-live="polite"></p>
+      </div>
       <button type="button" class="entry-affirm" id="settings-food-library">Food library · ${approvedFoods.length} approved items</button>
       <button type="button" class="food-secondary-action food-copy-action" id="settings-copy-foods">Copy approved foods</button>
       <p class="food-copy-status" id="settings-copy-status" role="status" aria-live="polite"></p>
-      <p class="entry-note">Personal food items are device-local during development, not yet synced or backed up.</p>
+      <p class="entry-note">The chart still shows fictional demo data. Actual weight, water, and food diary records are not connected to the graph yet. Firestore synchronisation is not a historical backup.</p>
       <hr style="width:100%;border:0;border-top:1px solid #dae2ef">
       <p><strong>Demo graph data</strong></p>
       <p>Edit <strong>dummy-data.csv</strong> in a spreadsheet or text editor. Changes to the CSV on GitHub Pages are read when the app loads. You can also import it here for immediate testing.</p>
@@ -2441,6 +2481,61 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
         <p>NZ food data © Plant & Food Research / Bioeconomy Science Institute and NZ Ministry of Health (<a href="https://www.foodcomposition.co.nz/terms/" target="_blank" rel="noopener">terms</a>). Australian food data: <a href="https://www.foodstandards.gov.au/science-data/food-nutrient-databases/afcd" target="_blank" rel="noopener">FSANZ AFCD Release 3</a>, CC BY-SA 3.0 AU. USDA Foundation Foods: public-domain data. Barcode lookup: <a href="https://world.openfoodfacts.org/" target="_blank" rel="noopener">Open Food Facts</a>. Barcode nutrition may be incorrect; review before approval.</p>
       </details>
     </div>`);
+    // Settings are kept compact; database controls appear only here.
+    const dbStatus=document.getElementById('pie-db-summary');
+    const dbIdentity=document.getElementById('pie-db-identity');
+    const dbControls=document.getElementById('pie-db-controls');
+    const dbMessage=document.getElementById('pie-db-message');
+    const makeButton=(label,handler)=>{
+      const btn=document.createElement('button');btn.type='button';btn.className='food-secondary-action';
+      btn.textContent=label;btn.addEventListener('click',handler);dbControls.append(btn);return btn;
+    };
+    const updateDatabaseUI=state=>{
+      if(!dbStatus.isConnected)return;
+      dbControls.replaceChildren();dbIdentity.textContent='';
+      if(!state){dbStatus.textContent='Starting database adapter…';return;}
+      const descriptions={local:'Firebase is not configured. Local prototype mode.',connecting:'Connecting to Firebase…',
+        'signed-out':'Not signed in. Food edits remain device-local.',
+        'checking-membership':'Checking whether this account is approved…',
+        'not-authorized':'This Google account has not been added as an approved member.',
+        connected:'Connected to shared food library ('+state.foods.length+' records)'+
+          (state.foodsFromCache?' · cached/offline view':' · server connected')+
+          (state.pending?' · changes awaiting sync':'')+'.',
+        error:'Database connection error.'};
+      dbStatus.textContent=descriptions[state.mode]||state.mode;
+      if(state.error)dbMessage.textContent=state.error;
+      if(state.uid){
+        dbIdentity.textContent=(state.displayName||state.email||'Google account')+' · User ID: '+state.uid;
+      }
+      if(['signed-out'].includes(state.mode))makeButton('Sign in with Google',async()=>{
+        dbMessage.textContent='';
+        try{await window.PieChartDB.signIn()}catch(e){dbMessage.textContent=e.message;}
+      });
+      if(state.uid)makeButton('Sign out',async()=>{
+        try{await window.PieChartDB.signOut()}catch(e){dbMessage.textContent=e.message;}
+      });
+      if(state.mode==='connected'){
+        makeButton('Transfer local approved foods',()=>{
+          const local=deviceLocalFoods();
+          if(!local.length){dbMessage.textContent='There are no local approved foods to transfer.';return;}
+          if(state.foodsFromCache){dbMessage.textContent='Connect to the server before transferring local foods.';return;}
+          if(!confirm('Copy up to '+local.length+' device-local approved foods into the shared library? Matching records will not be overwritten. Local copies will be retained.'))return;
+          try{
+            const result=window.PieChartDB.uploadLocalFoods(local);
+            dbMessage.textContent='Queued '+result.queued+' new shared records; skipped '+result.skipped+' existing.'+
+              (result.blocked.length?' Not transferred: '+result.blocked.join(', '):'')+
+              ' This does not create an independent backup.';
+          }catch(e){dbMessage.textContent=e.message}
+        });
+      }
+      if(state.mode==='local')dbIdentity.textContent='Add your Firebase web-app settings to firebase-config.js; see FIREBASE_SETUP.md.';
+    };
+    if(window.PieChartDB)window.PieChartDB.subscribe(updateDatabaseUI);
+    else{
+      updateDatabaseUI(null);
+      // The module loads after the existing inline application script.
+      window.addEventListener('piechart-db-state',e=>updateDatabaseUI(e.detail));
+    }
     document.getElementById('settings-food-library').addEventListener('click',openFoodLibrary);
     document.getElementById('settings-copy-foods').addEventListener('click',async()=>{
       const status=document.getElementById('settings-copy-status');
@@ -2493,5 +2588,7 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
   draw();
   loadPackagedCsv();
 })();
-</script></body>
+</script>
+<script type="module" src="piechart-db.js?v=0.1.039"></script>
+</body>
 </html>
