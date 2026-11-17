@@ -1,7 +1,7 @@
 # Jules Berne’s Pie Chart — Project Specification
 
 **Status:** Agreed product requirements, with implementation status noted separately below.  
-**Current prototype:** v0.1.037  
+**Current prototype:** v0.1.038  
 **Project/package name:** `PieChart`
 
 ## 1. Purpose and approach
@@ -12,7 +12,7 @@ Develop the web app on GitHub Pages first, then provide Android integration wher
 
 ## 2. Home screen and charts
 
-**The home screen is the graph**, with a compact title bar featuring the approved right-facing meat-pie slice on a nautical chart, the name **Jules Berne’s Pie Chart**, and settings. The installed-app icon uses the same artwork.
+**The home screen is the graph**, with a compact title bar featuring the approved right-facing meat-pie slice on a nautical chart, the name **Jules Berne’s Pie Chart**, and settings. The installed-app icon uses the same artwork. Enlarge the title, logo, and settings control to use available room **within the existing title-bar height**, without reducing graph space. The Fats metric uses a visibly fatty/oily icon, distinct from Water.
 
 Eight independent, vertically stacked chart bands appear by default, in this order: **Weight, Steps, Water, Calories, Fibre, Protein, Fats, Carbs**. Each has its own native-unit vertical scale, a distinct existing colour, fine daily marks with short downward fades, and thin full-width separators. The integrated right-hand label column shows the metric, actual reading, applicable target/budget, and a prominent percentage when a valid target exists. The far-right, 12 px colour strip has a muted full-height background and a saturated fill proportional to target achievement. Do **not** invent fat or carbohydrate targets. Weight percentage represents actual weight divided by target weight, not weight-loss progress.
 
@@ -26,6 +26,7 @@ Both portrait and landscape use the **same upright, left-to-right chart**, scale
 
 - **Weight:** Double-tap its chart label to open the existing spacious entry sheet. A single horizontal, speed-sensitive ruler starts from the previous measurement; slow swipes permit precise **0.01 kg** adjustments, and fast swipes cover more ground with momentum. The fixed full reading sits directly beneath the pointer. The screen has **Record** and **Cancel** only. Preserve irregular weigh-in history and allow corrections/deletions.
 - **Water:** Double-tap to show **five most recently used amounts** and **New amount**, displayed as a balanced 3×2 grid. Selecting a remembered amount records it immediately. New quantities become recent choices.
+- **Interaction:** A chart-label double-tap opens one intended entry sheet; neither tap may activate an action within the newly opened sheet.
 - **Food:** Search and recording will be built separately. The final entry flow should favour relevant saved Foods, Dishes, and Meals and require minimal taps; its precise screen design is not yet agreed. Existing nutrition-metric double taps currently open the **library**, not a working food diary. Recipe creation and editing are distinct from diary recording.
 - **Exercise:** Record activity type, duration/time, and intensity when relevant; calculate estimated energy use, rather than requiring manually supplied calories burned. Support favourite activities. Avoid double-counting exercise and steps.
 - **Diary:** Recorded intake appears as a straightforward chronological list. No compulsory breakfast/lunch/dinner categories or meal times. Historical entries can be corrected.
