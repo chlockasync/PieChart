@@ -1,49 +1,34 @@
-# Jules Berne’s Pie Chart — v0.1.050
+# Jules Berne’s Pie Chart — v0.1.051
 
-**Change-only patch over v0.1.049.** Upload and replace these **four files only** in the GitHub Pages repository (keep all unchanged files and configured Firebase files):
+**Change-only patch over v0.1.050.** Replace these **four files** in the existing GitHub Pages repository; leave all other files, including your `firebase-config.js`, unchanged:
 
-- `index.html` — connects the updated calorie engine to the Calories chart and future private activity feed.
-- `calorie-budget.js` — replaces v0.1.049's formula with the evidence-based, activity-ready daily calculation.
-- `PROJECT_SPEC.md` — authoritative current methods, choices, boundaries, and work still outstanding.
-- `README.md` — patch instructions and integration contract.
+- `index.html` — Steps-label double-tap opens Activity log; entry, editing, deletion, and Steps-band activity markers.
+- `piechart-db.js` — Firestore real-time owner-private activity log and write/delete validation, offline-queue compatible.
+- `PROJECT_SPEC.md` — authoritative current requirements and implementation status.
+- `README.md` — installation notes and data model.
 
-No Firebase rules, configuration, credentials, or data migrations. `index.html` deliberately still loads `piechart-db.js?v=0.1.048`, the working version of the saved-details validator.
+`calorie-budget.js` remains **unchanged from v0.1.050**; do not replace it. The HTML continues to load `calorie-budget.js?v=0.1.050` and now loads `piechart-db.js?v=0.1.051` to avoid stale cached API versions.
 
-## What changes in calculations
+No Firebase Security Rules, project configuration, permissions, or data migration are required **if your deployed rules still match the previously supplied rules**, which already permit the owner-private `exerciseEntries` collection. The two member accounts remain separate. No manual steps or sample exercises are created.
 
-The **2023 National Academies adult EER equations** (as published by Health Canada) replace Mifflin–St Jeor ×1.2. These estimate *total* energy requirements, including activity of daily living and digestion. Calories are adjusted by your **Goal intensity**, without a target date or near-goal calorie/kg taper:
+## Using the Activity log
 
-| Direction | Gentle | Moderate | Strong |
-|---|---|---|---|
-| Loss | 5–10% below maintenance | 10–15% below | 15–20% below |
-| Gain | 2–5% above maintenance | 5–8% above | 8–11% above |
-| At goal (±0.25 kg) | ±2.5% maintenance | ±2.5% | ±2.5% |
+Double-tap **Steps** in the right-hand graph labels (or focus Steps and press Enter). Choose **Date**, **Duration (minutes)**, **Activity**, and **Effort** (Light, Moderate, Vigorous), then **Record**. Use the Recorded activities list to Edit or Delete. Multiple records on one day are supported, including past dates. No calorie amount or future/planned activity is requested.
 
-The *width* varies with the uncertainty and variability of activity. With **no private step data**, it spans an inactive-to-low-active EER scenario and remains prominently provisional. With at least three completed recent days, the calculator uses actual recorded activity from today plus a 21-day lookback to estimate the unknown remainder, not an input for planned activity. Once today's steps are marked complete, it stops extrapolating those steps. Previously recorded exercise is never added again today. The engine uses ACSM-inspired **net** walking energy above a 3,000-step reference and **net** MET activity expenditure; step-overlapping exercise is explicitly offset so it is not counted twice. The conversion thresholds, intensity bands, and flexible-width logic are product heuristics, **not individually validated predictions or statistical confidence intervals**.
+The checkbox **“Steps from this activity are included in automatic step counting”** indicates whether the exercise would otherwise be counted in steps. It defaults on for Walking, Running, and Hiking, and off for other activities; you can change it. For step-based exercise, an estimated step count from duration/cadence is recorded to limit double-counting **when automatic step data eventually arrives**; those estimates are NOT recorded as daily step totals. Other checked activities use the calculator's conservative overlap behaviour.
 
-**Safety:** Adult estimator age 19+. No automatic loss goal if actual/target BMI is below 18.5. If the calculated lower target would be below 1,200 kcal/day, display a review message instead of silently clipping the target. These rules are not personal clinical safety assessments; this app does not screen for pregnancy, breastfeeding, or medical conditions. No automatic calibration or NIH dynamic-weight model is claimed.
+The activity/effort MET examples are approximate (drawing on the [2024 Adult Compendium](https://pacompendium.com/adult-compendium/)), not individual energy measurements. The energy engine uses **net MET expenditure above resting**. Yesterday’s exercise cannot be added a second time to today’s calorie estimate. The calorie range remains provisional because Health Connect steps are not integrated yet.
 
-## Plugging in real activity later
+## Graph presentation
 
-The existing signed-in chart adapter reads optional private account-state arrays. The upcoming steps/exercise provider should deliver:
+Days with recorded activities receive a distinct **coral vertical capsule** over the purple Steps graph. All activities recorded for a single date combine into one marker, whose length follows total **net MET-minutes** (duration × intensity), with a square-root display scaling to avoid very large markers. Each capsule stays within its own day column and is clipped to the Steps band, normally centred on the steps goal line, otherwise at band centre. Today's unfinished day is not displayed as a completed chart column; its recorded exercise still feeds today's calorie estimate.
 
-```js
-state.stepDays = [
-  { date: '2026-11-16', steps: 8500, complete: true },
-  { date: '2026-11-18', steps: 3650, complete: false }
-];
-state.activityDays = [
-  { date: '2026-11-18', minutes: 40, mets: 6.8, stepOverlap: false }, // cycling
-  { date: '2026-11-18', minutes: 30, mets: 8, stepOverlap: true, stepsIncluded: 4000 } // running
-];
-```
+## Quick verification
 
-A private step record is *not* a public CSV value. Missing days are unknown, **never zero**. Include `complete:true` only for a genuinely completed day; include step overlap information for exercises. If overlap is unknown, the engine omits that exercise rather than risk double-counting. The module can be tested directly in Node or the browser with `PieChartCalorieBudget.calculate({date,dateOfBirth,heightCm,sex,weightKg,goalWeightKg,goalIntensity,stepDays,activities,weightHistory,dayProgress})`.
+1. Install the four replacement files and refresh GitHub Pages. Ensure saved Details & Targets can still be edited.
+2. Double-tap **Steps**, record a 30-minute activity for **yesterday**, and check that a single coral marker appears on yesterday's column. Record a second activity that same date; its marker should get longer, not multiply into two columns.
+3. Edit the duration, then delete one record; confirm the history list and graph update. Test Back and the close button.
+4. Confirm the Calories target for **today** responds to an activity logged today, but *not* to yesterday's activity alone. Exercise cannot create an invented daily step count.
+5. Check a second account sees none of the first account's private exercises. Check offline recording and subsequent sync on actual devices.
 
-The current `piechart-db.js` does **not** yet fetch or save these arrays. No new activity forms or permissions were introduced. Today’s visible range will therefore change to the new EER baseline immediately, but will only respond to steps once the actual private activity source is added.
-
-## Smoke checks
-
-After replacing the four files, sign in with your existing account and open **Details & Targets**. A private weight entry, date of birth, height, sex, and weight goal are required for a calculated calorie range; demo weights cannot supply them. Check Gentle, Moderate, and Strong; saved details and food records must remain unchanged. Make sure the Calories label now says a range based on the new equation. No steps should appear without actual private step records. Continue to test on your own devices.
-
-**Local verification:** Node regression tests covered NASEM coefficients, age, all goal directions, partial/completed/historical step histories, exercise overlap, weight trend, and low-intake suppression; a mobile Chromium browser integration test covered private-data isolation, step-feed injection, input/display, and intensity changes. Live Firebase/Health Connect tests remain outstanding.
+**Local verification:** JavaScript syntax and browser interaction tests pass for record, edit, delete, Steps-band geometry, and calendar-day recalculation, using a local simulated private-state adapter. Actual Firebase/phone/offline synchronisation remains untested and must be verified before production use.
