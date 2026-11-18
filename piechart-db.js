@@ -1,4 +1,4 @@
-/* PieChart v0.1.053 — owner-private exercise log and companion step sync alongside food, weight, water and targets.
+/* PieChart v0.1.055 — owner-private exercise log and companion step sync alongside food, weight, water and targets.
    Firestore uses owner-private personal collections and a member-only approved food library.
    No private key belongs in a GitHub Pages app. An administrator manually provisions
    the initial two membership documents through Firebase Console. */
@@ -255,6 +255,32 @@ function recordWeight(date,kg){return createPrivateEntry('weightEntries',{date,k
 function recordFood(date,entry){
   return createPrivateEntry('foodEntries',{date,...entry});
 }
+// Correct an existing owner-private diary entry without recalculating it from
+// a potentially edited shared Food Item, Dish, or Meal. The original nutrient
+// snapshot, item identity, and audit timestamp remain attached to the record.
+function updateFoodEntry(id,changes){
+  requireMembership();
+  if(typeof id!=='string'||!/^[a-zA-Z0-9_-]{5,128}$/.test(id))
+    throw new Error('Invalid food entry identifier.');
+  const previous=state.foodEntries.find(entry=>entry.id===id);
+  if(!previous)throw new Error('This food entry is not available in your account.');
+  if(!changes||Object.keys(changes).some(k=>!['date','quantity','waterMl','nutrition'].includes(k)))
+    throw new Error('Invalid food entry changes.');
+  const date=changes.date;
+  const now=new Date(),today=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  if(typeof date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(date)||
+     !Number.isFinite(Date.parse(date+'T00:00:00Z'))||date>today)
+    throw new Error('Invalid food entry date.');
+  if(!Number.isFinite(changes.quantity)||changes.quantity<=0||changes.quantity>100000||
+     !Number.isFinite(changes.waterMl)||changes.waterMl<0||changes.waterMl>100000||
+     !['calories','protein','carbs','fats','fibre','energyKj'].every(k=>
+       Number.isFinite(changes.nutrition?.[k])&&changes.nutrition[k]>=0))
+    throw new Error('Invalid recorded quantity or nutrition.');
+  const patch={...changes,updatedAt:new Date().toISOString()};
+  sdkStore.updateDoc(sdkStore.doc(db,'users',state.uid,'foodEntries',id),patch)
+    .catch(error=>{state.error=friendly(error);broadcast()});
+  return true;
+}
 function recordWater(date,ml,waterFood){
   if(!Number.isInteger(ml)||ml<=0||ml>10000)throw new Error('Invalid water amount.');
   if(!waterFood||waterFood.type!=='Food Item'||String(waterFood.name).trim().toLowerCase()!=='water')
@@ -371,6 +397,6 @@ function saveTargets(values){
 }
 window.addEventListener('online',()=>{state.online=true;broadcast()});
 window.addEventListener('offline',()=>{state.online=false;broadcast()});
-window.PieChartDB={apiRevision:2,state,subscribe,signIn,signOut,saveFoodChanges,uploadLocalFoods,recordWeight,recordWater,recordFood,saveActivity,deleteActivity,saveTargets,saveDetailsAndTargets};
+window.PieChartDB={apiRevision:2,state,subscribe,signIn,signOut,saveFoodChanges,uploadLocalFoods,recordWeight,recordWater,recordFood,updateFoodEntry,saveActivity,deleteActivity,saveTargets,saveDetailsAndTargets};
 broadcast();
 if(configured)initialize();
