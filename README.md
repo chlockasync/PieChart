@@ -1,7 +1,21 @@
-# PieChart v0.1.053 — companion steps bridge (delta patch)
+# PieChart v0.1.054 — chart, search, and field interactions (delta patch)
 
-**Apply over v0.1.052** on GitHub Pages. Replace only `index.html`, `piechart-db.js`, `PROJECT_SPEC.md`, and `README.md`; retain all other files. The cache version of `piechart-db.js` is updated to 0.1.053.
+**Install over v0.1.053.** Replace only `index.html`, `PROJECT_SPEC.md`, and `README.md`. Keep all other files, especially `piechart-db.js` (still version 0.1.053), `calorie-budget.js`, `dummy-data.csv`, `firebase-config.js`, and the existing three bundled reference datasets. No Firebase rule or schema changes are needed. Do not apply this web update to the separate Android companion repository.
 
-The web app now listens to private Firestore `users/{uid}/dailyTotals` records produced by the new Android companion project. Steps appear on the Steps chart and feed the existing calorie-range calculation. Missing days are unknown, not zero. The record schema and validation are documented in `PROJECT_SPEC.md`. No Firestore rule changes are required because `dailyTotals` was already owner-only and allowed.
+## Changes
 
-The separately delivered `PieChartCompanion` source archive contains the Android Studio application. It needs an Android app registration in the same Firebase project, SHA-1/SHA-256 fingerprint(s), `google-services.json`, a local Android build, and tests on both phones before an APK can be distributed. No secret keys or machine-specific credentials are embedded in the source distribution.
+- Each graph metric independently switches from CSV sample history to private recordings. A backdated Activity no longer hides the unrelated Food, Water, Weight, or Steps sample readings. Real private data takes precedence for its own metric.
+- Every band now plots through **today** on the same timeline. Today can be incomplete; a missing measurement stays blank rather than being fabricated.
+- All text and numeric fields in entry sheets select current contents on focus. Finger drag vertically on numeric fields to adjust: upwards increases, downwards decreases, with field-specific increments and acceleration. Tap-to-type is unchanged; the horizontal Weight ruler retains its own controls.
+- Before typing in the shared Food Library search, show only favourite and recently saved/edited/recorded library items (Food Items, Dishes, and Meals), plus the two recipe-creation actions. Food Items now also have a Favourite checkbox.
+- Saving a Food Item, Dish, or Meal from the library returns to an empty, focused search; saving an ingredient from inside a draft recipe instead returns to that unfinished recipe and inserts the item.
+- Open Food Facts barcode requests now prefer its English product name. When the source language is not English and no English name exists, the review form uses a barcode placeholder and clearly asks for a checked name, rather than treating a foreign-language name as suitable for the library. Barcode data remains manually reviewed.
+
+## Barcode providers reviewed
+
+- **Currently integrated:** Open Food Facts live barcode lookup, free/public and multilingual but crowdsourced; label review is essential.
+- **Possible future source:** FoodSwitch (NZ/Australia branded records); programmatic access/licensing needs verification.
+- **Possible supplementary source:** USDA FoodData Central Branded Foods API, with GTIN/UPC and API key, US-centric; require exact barcode equality on results.
+- **Not currently usable as a free live source:** FSANZ Australian Branded Food Database (not public). The bundled AFCD, NZ Concise, and USDA Foundation indexes are **name searches**, not a second barcode provider.
+
+Local headless-browser tests of the navigation, source-data handover, today-ended graph, focus, and swipe behaviour passed using a mocked private Firestore state. Live-phone/Firebase validation is still required. No APK was built or changed by this patch.

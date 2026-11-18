@@ -213,6 +213,12 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 .targets-form .details-section:first-child {margin-top:0}
 .targets-form .target-actions {display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:3px}
 .targets-form p {margin:2px 0!important}
+/* A Food Item can be favourited just like a Dish or Meal. */
+.food-item-favourite {display:flex;align-items:center;gap:9px;margin:7px 0 0;font-weight:750;font-size:13px;color:var(--ink)}
+.food-item-favourite input {width:18px;height:18px;flex:none}
+/* Numeric fields support a deliberately vertical finger drag. Other form areas
+   remain normal scrolling targets; tapping still opens the keyboard. */
+.entry-sheet input[type="number"] {touch-action:none}
 /* Food lookup: one uncluttered source-labelled result list, no grouped headings or cards. */
 .food-library-panel {display:block}
 .food-browse {display:flex;flex-direction:column;min-height:0}
@@ -503,8 +509,15 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
     const dates=[...weightsByDate.keys(),...waterByDate.keys(),...foodByDate.keys(),
       ...privateStepsByDate.keys(),...activityByDate.keys()].sort();
     const firstRecorded=dates[0]||null;
-    const cutoff=firstRecorded||today;
-    const samples=(demoHistory||[]).filter(d=>validDate(d.date)&&d.date<cutoff&&!d.partial);
+    // A logged activity does not erase unrelated sample weight, water, steps,
+    // or food history. Each recorded stream has its own independent handover.
+    const streamStart={
+      weight:[...weightsByDate.keys()].sort()[0]||today,
+      water:[...waterByDate.keys()].sort()[0]||today,
+      steps:[...privateStepsByDate.keys()].sort()[0]||today,
+      food:[...foodByDate.keys()].sort()[0]||today
+    };
+    const samples=(demoHistory||[]).filter(d=>validDate(d.date)&&d.date<today&&!d.partial);
     const sampleByDate=new Map(samples.map(d=>[d.date,d]));
     const todayMs=dayUTC(today);
     const firstSample=samples[0]?.date;
@@ -524,12 +537,12 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
     DATA=Array.from({length:numberOfDays},(_,i)=>{
       const date=new Date(first+i*86400000).toISOString().slice(0,10);
       const sample=sampleByDate.get(date);
+      const historical=field=>sample&&date<streamStart[field]?sample:null;
+      const sampleWeight=historical('weight');
+      const sampleWater=historical('water');
+      const sampleSteps=historical('steps');
+      const sampleFood=historical('food');
       if(weightsByDate.has(date))mostRecentPrivateWeight=weightsByDate.get(date);
-      if(sample){return {...sample,
-        targetWeight:goals.weight??null,
-        waterGoal:Number.isFinite(goals.water)?Math.round(goals.water*1000):null,
-        stepsGoal:goals.steps??null,proteinGoal:goals.protein??null,fibreGoal:goals.fibre??null,
-        sample:true,partial:false};}
       const totals=foodByDate.get(date)||{};
       const estimate=state.targetsLoaded&&window.PieChartCalorieBudget?.calculate({
         date,dateOfBirth:details.dateOfBirth,heightCm:details.heightCm,sex:details.sex,
@@ -538,22 +551,29 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
         weightHistory:realWeights,stepDays,activities,
         dayProgress:date===today?dayProgress:1
       });
-      return {date,weight:weightsByDate.get(date)??null,water:waterByDate.get(date)??(date===today?0:null),
+      return {date,
+        weight:weightsByDate.get(date)??sampleWeight?.weight??null,
+        water:waterByDate.get(date)??sampleWater?.water??(date===today?0:null),
         targetWeight:goals.weight??null,waterGoal:Number.isFinite(goals.water)?Math.round(goals.water*1000):null,
         stepsGoal:goals.steps??null,proteinGoal:goals.protein??null,fibreGoal:goals.fibre??null,
-        steps:privateStepsByDate.get(date)??null,activityLoad:activityByDate.get(date)?.load??null,
+        steps:privateStepsByDate.get(date)??sampleSteps?.steps??null,
+        activityLoad:activityByDate.get(date)?.load??null,
         activityMinutes:activityByDate.get(date)?.minutes??0,activityCount:activityByDate.get(date)?.count??0,
-        calories:totals.calories??null,protein:totals.protein??null,fibre:totals.fibre??null,
-        carbs:totals.carbs??null,fats:totals.fats??null,
-        budgetLow:Number.isFinite(estimate?.low)?estimate.low:null,
-        budgetHigh:Number.isFinite(estimate?.high)?estimate.high:null,
-        budget:Number.isFinite(estimate?.midpoint)?estimate.midpoint:null,
+        calories:totals.calories??sampleFood?.calories??null,
+        protein:totals.protein??sampleFood?.protein??null,
+        fibre:totals.fibre??sampleFood?.fibre??null,
+        carbs:totals.carbs??sampleFood?.carbs??null,
+        fats:totals.fats??sampleFood?.fats??null,
+        budgetLow:Number.isFinite(estimate?.low)?estimate.low:sampleWeight?.budgetLow??null,
+        budgetHigh:Number.isFinite(estimate?.high)?estimate.high:sampleWeight?.budgetHigh??null,
+        budget:Number.isFinite(estimate?.midpoint)?estimate.midpoint:sampleWeight?.budget??null,
         budgetProvisional:!!estimate?.provisional,
         budgetReason:estimate?.reason||null,
         budgetGuardLimited:!!estimate?.guardLimited,
         budgetActivityBasis:estimate?.activityBasis||null,
         budgetMaintenance:estimate?.maintenance??null,
-        partial:date===today,sample:false};
+        partial:date===today,
+        sample:!!(sampleWeight||sampleWater||sampleSteps||sampleFood)};
     });
     weighed=DATA.filter(d=>Number.isFinite(d.weight)).map(d=>({t:dayUTC(d.date),weight:d.weight}));
     daysVisible=Math.max(MIN_DAYS,Math.min(daysVisible,DATA.length));
@@ -592,10 +612,9 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
     return a[l]*(h-n)+a[h]*(n-l);
   }
   function rangeData(){
-    const completed=DATA.filter(d=>!d.partial);
-    const daily=completed.slice(-Math.max(MIN_DAYS,Math.min(completed.length,Math.round(daysVisible))));
-    // Always keep literal daily records. Do not aggregate or summarise multiple days.
-    return daily;
+    // Draw through today for every metric. Missing readings remain blank; a
+    // partial day is plotted as the genuine amount recorded so far.
+    return DATA.slice(-Math.max(MIN_DAYS,Math.min(DATA.length,Math.round(daysVisible))));
   }
   function metricScales(rows){
     const visible=keys.filter(shown), n=visible.length, out={};
@@ -603,7 +622,7 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
     const band=1/n;
     visible.forEach((k,index)=>{
       const centre=1-(index+.5)*band;
-      const vals=rows.filter(r=>!r.partial).map(r=>valueFor(k,r)).filter(Number.isFinite);
+      const vals=rows.map(r=>valueFor(k,r)).filter(Number.isFinite);
       if(['steps','water','protein','fibre'].includes(k))vals.push(...rows.map(r=>goalFor(k,r)).filter(Number.isFinite));
       if(k==='calories')vals.push(...rows.flatMap(r=>[r.budgetLow,r.budgetHigh]).filter(Number.isFinite));
       if(k==='weight')vals.push(...extremaForWeight(rows).flatMap(r=>[r.lo,r.hi]).filter(Number.isFinite));
@@ -760,8 +779,8 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
     }
   }
   function recentReference(k,rows){
-    return [...rows].reverse().find(d=>!d.partial&&Number.isFinite(valueFor(k,d)))
-       || [...DATA].reverse().find(d=>!d.partial&&Number.isFinite(valueFor(k,d)));
+    return [...rows].reverse().find(d=>Number.isFinite(valueFor(k,d)))
+       || [...DATA].reverse().find(d=>Number.isFinite(valueFor(k,d)));
   }
   function dayMarks(group,k,rows,x,y,pw,ph,emphasis=1){
     if(!shown(k))return;
@@ -867,10 +886,10 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
     panel.classList.toggle('compact-series',on.length>=7);
     panel.style.setProperty('--axis-y',(geometry.mt+geometry.ph+1)+'px');
     const tickBaseline=geometry.mt+geometry.ph+clamp(geometry.mb*.63,15,23);
-    const latestCompleted=[...DATA].reverse().find(d=>!d.partial)||DATA.at(-1);
+    const lastDay=DATA.at(-1);
     const yesterday=document.getElementById('axis-yesterday');
-    yesterday.textContent=niceDate(latestCompleted.date);
-    // x is the CENTRE of the latest completed day's bar, not the far edge of the legend.
+    yesterday.textContent=lastDay.date===localDay()?'Today':niceDate(lastDay.date);
+    // x is the CENTRE of today's bar, not the far edge of the legend.
     yesterday.style.left=(geometry.x(current.length-1))+'px';
     yesterday.style.top=(tickBaseline-11)+'px';
     for(const node of panel.querySelectorAll('.metric-divider'))node.remove();
@@ -1182,7 +1201,7 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
   function appendTimelineDates(group,days,g,labelY){
     // Calendar-aligned month markers, then years as the history grows.
     // This moves during the swipe preview; individual days are never grouped.
-    const last=[...DATA].reverse().find(d=>!d.partial)||DATA.at(-1);
+    const last=DATA.at(-1);
     const lastDay=Date.parse(last.date+'T00:00:00Z')/MS_DAY;
     const firstDay=lastDay-days+1;
     const earliest=new Date(firstDay*MS_DAY),latest=new Date(lastDay*MS_DAY);
@@ -1471,8 +1490,9 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
     const baseUnit=pack&&(['ml','l'].includes(packUnit))?'mL':'g';
     const packAmount=pack?Number(pack[1].replace(',','.'))*(['kg','l'].includes(packUnit)?1000:1):null;
     return {
-      name:String(product.product_name||'').trim(), brand:String(product.brands||'').trim(),
+      name:String(product.product_name_en||((!product.lang||product.lang==='en')&&product.product_name)||('Barcode '+product.code)).trim(), brand:String(product.brands||'').trim(),
       barcode:String(product.code||'').trim(),baseUnit,values:vals,origins,
+      nameNeedsReview:!String(product.product_name_en||'').trim()&&product.lang&&product.lang!=='en',
       source:'Open Food Facts',sourceUrl:product.code?'https://world.openfoodfacts.org/product/'+encodeURIComponent(product.code):'',
       measures:packAmount>0?[{label:'1 pack',amount:packAmount}]:[],recents:[]
     };
@@ -1719,11 +1739,11 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),11000);
     try{
       // Only barcodes use Open Food Facts, as an expressly labelled fallback.
-      const url='https://world.openfoodfacts.org/api/v2/product/'+encodeURIComponent(code)+'.json?fields=code,product_name,brands,quantity,nutriments';
+      const url='https://world.openfoodfacts.org/api/v2/product/'+encodeURIComponent(code)+'.json?fields=code,product_name,product_name_en,lang,brands,quantity,nutriments';
       const res=await fetch(url,{signal:controller.signal,headers:{Accept:'application/json'}});
       if(!res.ok)throw new Error('HTTP '+res.status);
       const data=await res.json();
-      return data.status===1&&data.product?.product_name?[providerFood({...data.product,code:data.product.code||code})]:[];
+      return data.status===1&&data.product?[providerFood({...data.product,code:data.product.code||code})]:[];
     } finally {clearTimeout(timer);}
   }
   // Label OCR is a convenience for the *review form*, never a source of automatic approval.
@@ -2036,8 +2056,25 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
     function findFoodMatches(query,accept=()=>true){
       const q=String(query||'').trim().toLowerCase();
       const numeric=/^\d{7,14}$/.test(q);
-      const local=approvedFoods.filter(item=>accept(item)&&foodMatchScore(item,q)>0)
-        .sort((a,b)=>foodMatchScore(b,q)-foodMatchScore(a,q)||a.name.localeCompare(b.name)).slice(0,35);
+      const usage=new Map();
+      for(const record of (liveDbState?.foodEntries||[])){
+        if(!record.itemId)continue;
+        const when=Date.parse(record.createdAt||record.date||'')||0;
+        usage.set(record.itemId,Math.max(when,usage.get(record.itemId)||0));
+      }
+      // Up to eight recently recorded or edited items, alongside all favourites.
+      // Recent consumption is private to the current account; favourites belong
+      // to the shared library. No external database entries before a search.
+      const recentlyUsedIds=new Set(approvedFoods.filter(accept).slice().sort((a,b)=>
+        Math.max(usage.get(b.id)||0,Date.parse(b.savedAt)||0)-
+        Math.max(usage.get(a.id)||0,Date.parse(a.savedAt)||0)).slice(0,8)
+        .filter(item=>Math.max(usage.get(item.id)||0,Date.parse(item.savedAt)||0)>0).map(x=>x.id));
+      const local=approvedFoods.filter(item=>accept(item)&&(
+        q?foodMatchScore(item,q)>0:!!item.favorite||recentlyUsedIds.has(item.id)))
+        .sort((a,b)=>q?foodMatchScore(b,q)-foodMatchScore(a,q)||a.name.localeCompare(b.name):
+          Number(!!b.favorite)-Number(!!a.favorite)||
+          Math.max(usage.get(b.id)||0,Date.parse(b.savedAt)||0)-
+          Math.max(usage.get(a.id)||0,Date.parse(a.savedAt)||0)||a.name.localeCompare(b.name)).slice(0,35);
       const sourceIds=new Set(approvedFoods.filter(x=>x.referenceId&&x.source).map(x=>x.source+'|'+x.referenceId));
       const external=records=>q.length>=2&&!/^\d+$/.test(q)?records
         .filter(item=>foodMatchScore(item,q)>0&&!sourceIds.has(item.source+'|'+item.referenceId))
@@ -2153,7 +2190,7 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
         resultContainer.hidden=false;
         if(statusNode)statusNode.textContent=numeric?
           (barcodeState==='loading'?'Looking up barcode.':barcodeState==='error'?'Barcode lookup unavailable.':barcodeState==='none'?'No barcode record found.':'Barcode results ready.'):
-          found+' matching food'+(found===1?'':'s')+'.';
+          (q?found+' matching food'+(found===1?'':'s')+'.':local.length+' favourite or recent item'+(local.length===1?'':'s')+'.');
       }
       async function lookupBarcode(){
         const code=searchInput.value.trim();if(!/^\d{7,14}$/.test(code))return;
@@ -2210,6 +2247,25 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
       onPick:(item,kind)=>kind==='local'&&isRecipe(item)?openRecipeEditor(item.type,item):openFoodReview(item,kind==='local'),
       onCreate:item=>openFoodReview(item,false)});
     function render(){mainSearch.render();}
+    // Saving a complete Food Item, Dish, or Meal resets the one shared search.
+    // Creating an ingredient inside an unfinished recipe uses its onSaved
+    // callback instead, preserving the parent recipe's existing draft.
+    function readyForNextFoodSearch(){
+      stopBarcodeScan();clearTimeout(foodSearchTimer);foodFetchGeneration++;
+      libraryViews.length=0;
+      for(const [key,panel] of Object.entries(panelByName))panel.hidden=key!=='browse';
+      activeLibraryView='browse';
+      compose.onsubmit=null;review.onsubmit=null;
+      compose.replaceChildren();review.replaceChildren();
+      entryHeading.textContent='Food library';entryContent.scrollTop=0;
+      mainSearch.clear();render();
+      requestAnimationFrame(()=>{
+        if(input.isConnected&&!entryBackdrop.hidden){
+          input.focus({preventScroll:true});
+          entryContent.scrollTop=0;
+        }
+      });
+    }
     function openRecipeEditor(type,existing=null,variationOf=null,initialRows=null){
       clearTimeout(foodSearchTimer);foodFetchGeneration++;stopBarcodeScan();
       enterLibraryView('compose', 'Make '+type);
@@ -2353,8 +2409,7 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
           if(approvedFoods.some(x=>isRecipe(x)&&x.recipeError))throw new Error('This change would break a saved recipe.');
           if(!persistApprovedFoodItems(previous))throw new Error('Could not save this recipe on this device.');
         }catch(error){approvedFoods=previous;refreshRecipes();alert.textContent=error.message;return;}
-        backLibraryView();
-        if(activeLibraryView==='browse'){input.value=name;render();}
+        readyForNextFoodSearch();
       };
       renderLines();
       recipeSearch.render();
@@ -2380,6 +2435,7 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
       }
       enterLibraryView('review',isLocal?'Edit Food Item':'Review Food Item');
       const src=isLocal?item.source:item.source||'Manual entry';
+      const reviewNameWarning=item.nameNeedsReview?'<p class="food-list-message">This barcode record has no English product name. Check the name against the package before saving.</p>':'';
       // Concise NZ-label-style nutrition rows. Keep origins in data, not repetitive field notes.
       const nutritionOrder=['protein','fats','carbs','fibre'];
       const valueInput=k=>`<div class="food-nutrient-row ${item.origins?.[k]==='estimated'||item.origins?.[k]==='missing'?'is-estimated':''}" id="food-row-${k}">
@@ -2390,6 +2446,8 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
           <div class="food-field"><label for="food-barcode">Barcode</label><input id="food-barcode" maxlength="40" value="${safe(item.barcode||'')}"></div>
           <div class="food-field wide"><label for="food-base-unit">Values per 100</label><select id="food-base-unit"><option value="g">g</option><option value="mL">mL</option></select></div>
         </div>
+        ${reviewNameWarning}
+        <label class="food-item-favourite"><input type="checkbox" id="food-favourite" ${item.favorite?'checked':''}> Favourite</label>
         <div class="food-nutrition" aria-label="Nutrition information per 100 grams or millilitres">
           <div class="food-nutrient-row" id="food-row-calories"><label for="food-energy-kj">Energy</label>
             <div class="food-energy-fields"><div class="food-unit-input"><input id="food-energy-kj" aria-label="Energy in kilojoules" type="number" min="0" step="any" inputmode="decimal" value="${Number.isFinite(item.values?.energyKj)?roundFood(item.values.energyKj):Number.isFinite(item.values?.calories)?roundFood(item.values.calories*4.184):''}"><span class="unit">kJ</span></div>
@@ -2650,6 +2708,7 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
         const saved={...item,id:isLocal?item.id:(crypto.randomUUID?.()||'f-'+Date.now()+'-'+Math.random().toString(36).slice(2)),
           approved:true,type:item.type||'Food Item',name,brand,barcode,baseUnit:document.getElementById('food-base-unit').value,
           values,origins,source,measures,recents:item.recents||[],
+          favorite:!!document.getElementById('food-favourite').checked,
           waterRemainderPercent,carbsIncludeFibre:item.carbsIncludeFibre??/^USDA\b/i.test(source),
           savedAt:new Date().toISOString()};
         saved.waterMlPer100=waterFromFood(saved);
@@ -2658,13 +2717,10 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
         else approvedFoods.push(saved);
         refreshRecipes();
         if(!persistApprovedFoodItems(previous)){approvedFoods=previous;alert.textContent='Could not save this item to the library.';return;}
-        backLibraryView();
-        if(onSaved)onSaved(saved);
-        else if(activeLibraryView==='browse'){
-          input.value=name;
-          status.textContent=(isLocal?'Changes saved.':'Added to your food library.');
-          render();
-        }
+        if(onSaved){
+          backLibraryView();
+          onSaved(saved);
+        }else readyForNextFoodSearch();
       };
     }
     render();
@@ -2712,11 +2768,82 @@ window.DEMO_DATA=[{"date":"2023-09-15","weight":70.0,"targetWeight":60,"calories
   window.visualViewport?.addEventListener('resize',fitEntryToVisibleViewport);
   window.visualViewport?.addEventListener('scroll',fitEntryToVisibleViewport);
   window.addEventListener('resize',fitEntryToVisibleViewport);
-  entryContent.addEventListener('focusin',()=>{
+  function selectFocusedContents(field){
+    if(field?.matches('input:not([type=checkbox]):not([type=radio]):not([type=date]):not([type=file]):not([type=hidden]), textarea') &&
+      !field.readOnly && !field.disabled){
+      try{field.select();}catch{} // Some Android versions do not support numeric selection.
+    }
+  }
+  entryContent.addEventListener('focusin',e=>{
+    const field=e.target;
+    selectFocusedContents(field);
     requestAnimationFrame(scrollFocusedField);
     // The keyboard animates after focus, especially in installed Android PWAs.
     setTimeout(fitEntryToVisibleViewport,250);
   });
+  // Swipe upwards to increase, downwards to decrease a numeric field. Precision
+  // depends on the field's purpose, with gradual acceleration for longer swipes.
+  // This is not used on the existing weight ruler (which has its own gestures).
+  function numberSwipeStep(field){
+    const id=field.id||'';
+    if(/steps/i.test(id))return 100;
+    if(/water-new-amount/.test(id))return 25;
+    if(/target-water/.test(id))return .05;
+    if(/target-weight/.test(id))return .05;
+    if(/detail-height/.test(id))return .5;
+    if(/activity-minutes/.test(id))return 5;
+    if(/food-energy-kj/.test(id))return 20;
+    if(/food-n-calories/.test(id))return 5;
+    if(/food-water-percent/.test(id))return 1;
+    if(/food-n-(protein|carbs|fats|fibre)/.test(id))return .1;
+    if(/target-(protein|fibre)/.test(id))return 1;
+    if(/food-record-quantity|measure-grams|recipe.*quantity/i.test(id+' '+field.className))return 5;
+    const declared=Number(field.step);
+    return Number.isFinite(declared)&&declared>0?declared:1;
+  }
+  let numberSwipe=null;
+  entryContent.addEventListener('pointerdown',e=>{
+    const field=e.target.closest?.('input[type="number"]');
+    if(!field||!e.isPrimary||!['touch','pen'].includes(e.pointerType))return;
+    const start=Number(field.value);
+    if(!Number.isFinite(start))return;
+    numberSwipe={field,id:e.pointerId,y:e.clientY,x:e.clientX,start,
+      increment:numberSwipeStep(field),moved:false};
+    try{field.setPointerCapture(e.pointerId)}catch{}
+    // On a tap, we focus on pointerup. A swipe should not open the keyboard.
+    e.preventDefault();
+  });
+  entryContent.addEventListener('pointermove',e=>{
+    const g=numberSwipe;
+    if(!g||g.id!==e.pointerId||!g.field.isConnected)return;
+    const dy=g.y-e.clientY,dx=e.clientX-g.x;
+    if(!g.moved){if(Math.abs(dy)<9||Math.abs(dy)<Math.abs(dx)*1.15)return;g.moved=true;}
+    e.preventDefault();
+    const units=Math.abs(dy)/18,excess=Math.max(0,units-4);
+    const adjusted=(Math.min(4,units)+excess*(1+excess*.085))*Math.sign(dy);
+    const value=g.start+Math.round(adjusted)*g.increment;
+    const min=g.field.min===''?-Infinity:Number(g.field.min);
+    const max=g.field.max===''?Infinity:Number(g.field.max);
+    const fixed=Math.max(min,Math.min(max,value));
+    const rounded=Number(fixed.toFixed(4));
+    if(Number(g.field.value)!==rounded){
+      g.field.value=String(rounded);
+      g.field.dispatchEvent(new Event('input',{bubbles:true}));
+    }
+  });
+  const endNumberSwipe=e=>{
+    const g=numberSwipe;if(!g||g.id!==e.pointerId)return;
+    numberSwipe=null;
+    try{g.field.releasePointerCapture(e.pointerId)}catch{}
+    if(!g.field.isConnected)return;
+    if(!g.moved && e.type==='pointerup'){
+      g.field.focus();selectFocusedContents(g.field);
+    }else if(g.moved){
+      e.preventDefault();g.field.dispatchEvent(new Event('change',{bubbles:true}));
+    }
+  };
+  entryContent.addEventListener('pointerup',endNumberSwipe);
+  entryContent.addEventListener('pointercancel',endNumberSwipe);
   function showEntry(kind,html){
     // Opening a sub-screen preserves the prior screen, field contents, and listeners.
     if(!entryBackdrop.hidden){
