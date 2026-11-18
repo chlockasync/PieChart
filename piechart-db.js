@@ -1,4 +1,4 @@
-/* PieChart v0.1.051 — owner-private exercise log alongside food, weight, water and targets.
+/* PieChart v0.1.053 — owner-private exercise log and companion step sync alongside food, weight, water and targets.
    Firestore uses owner-private personal collections and a member-only approved food library.
    No private key belongs in a GitHub Pages app. An administrator manually provisions
    the initial two membership documents through Firebase Console. */
@@ -7,11 +7,11 @@ import {firebaseConfig} from './firebase-config.js';
 const listeners=new Set();
 const state={mode:'local',configured:false,uid:'',displayName:'',email:'',error:'',
   foods:[],foodsFromCache:false,pending:false,online:navigator.onLine,
-  weights:[],waters:[],foodEntries:[],activityDays:[],targets:{},details:{},targetsLoaded:false,targetsFromCache:true,
-  weightsLoaded:false,watersLoaded:false,foodEntriesLoaded:false,activityDaysLoaded:false,privateFromCache:true,privatePending:false,
-  weightsPending:false,watersPending:false,foodEntriesPending:false,activityDaysPending:false,targetsPending:false,initialRemoteFoods:false};
+  weights:[],waters:[],foodEntries:[],activityDays:[],stepDays:[],targets:{},details:{},targetsLoaded:false,targetsFromCache:true,
+  weightsLoaded:false,watersLoaded:false,foodEntriesLoaded:false,activityDaysLoaded:false,stepDaysLoaded:false,privateFromCache:true,privatePending:false,
+  weightsPending:false,watersPending:false,foodEntriesPending:false,activityDaysPending:false,stepDaysPending:false,targetsPending:false,initialRemoteFoods:false};
 let app,auth,db,sdkAuth,sdkStore;
-let stopMember=null,stopFoods=null,stopWeights=null,stopWaters=null,stopFoodEntries=null,stopActivities=null,stopTargets=null;
+let stopMember=null,stopFoods=null,stopWeights=null,stopWaters=null,stopFoodEntries=null,stopActivities=null,stopSteps=null,stopTargets=null;
 let authEpoch=0;
 
 function broadcast(){
@@ -20,14 +20,14 @@ function broadcast(){
 }
 function setMode(mode,error=''){state.mode=mode;state.error=error;broadcast();}
 function stopSubscriptions(){
-  for(const stop of [stopMember,stopFoods,stopWeights,stopWaters,stopFoodEntries,stopActivities,stopTargets])try{stop?.()}catch{}
-  stopMember=stopFoods=stopWeights=stopWaters=stopFoodEntries=stopActivities=stopTargets=null;
+  for(const stop of [stopMember,stopFoods,stopWeights,stopWaters,stopFoodEntries,stopActivities,stopSteps,stopTargets])try{stop?.()}catch{}
+  stopMember=stopFoods=stopWeights=stopWaters=stopFoodEntries=stopActivities=stopSteps=stopTargets=null;
 }
 function clearAccount(){
   state.uid='';state.displayName='';state.email='';state.foods=[];state.weights=[];
-  state.waters=[];state.foodEntries=[];state.activityDays=[];state.targets={};state.details={};state.targetsLoaded=false;state.targetsFromCache=true;
-  state.weightsLoaded=false;state.watersLoaded=false;state.foodEntriesLoaded=false;state.activityDaysLoaded=false;state.privatePending=false;
-  state.weightsPending=false;state.watersPending=false;state.foodEntriesPending=false;state.activityDaysPending=false;state.targetsPending=false;
+  state.waters=[];state.foodEntries=[];state.activityDays=[];state.stepDays=[];state.targets={};state.details={};state.targetsLoaded=false;state.targetsFromCache=true;
+  state.weightsLoaded=false;state.watersLoaded=false;state.foodEntriesLoaded=false;state.activityDaysLoaded=false;state.stepDaysLoaded=false;state.privatePending=false;
+  state.weightsPending=false;state.watersPending=false;state.foodEntriesPending=false;state.activityDaysPending=false;state.stepDaysPending=false;state.targetsPending=false;
   state.initialRemoteFoods=false;state.pending=false;state.privateFromCache=true;
 }
 function friendly(error){
@@ -125,18 +125,26 @@ function uploadLocalFoods(localItems){
 }
 
 function watchPersonal(uid,epoch){
-  const collections=[['weightEntries','weights'],['waterEntries','waters'],['foodEntries','foodEntries'],['exerciseEntries','activityDays']];
+  const collections=[['weightEntries','weights'],['waterEntries','waters'],['foodEntries','foodEntries'],['exerciseEntries','activityDays'],['dailyTotals','stepDays']];
   for(const [name,key] of collections){
     const stop=sdkStore.onSnapshot(sdkStore.collection(db,'users',uid,name),{includeMetadataChanges:true},snapshot=>{
       if(epoch!==authEpoch)return;
-      state[key]=snapshot.docs.map(x=>({id:x.id,...x.data()}));
+      // dailyTotals is an owner-private collection shared with future daily summaries.
+      // Accept only genuine, explicit Health Connect step records. An absent day is
+      // unknown, not zero. Never infer a step count from sample history.
+      state[key]=name==='dailyTotals'
+        ?snapshot.docs.map(x=>({id:x.id,...x.data()})).filter(row=>
+          /^\d{4}-\d{2}-\d{2}$/.test(row.date||'')&&
+          Number.isInteger(row.steps)&&row.steps>=0&&row.steps<=100000&&
+          row.source==='health_connect'&&typeof row.complete==='boolean')
+        :snapshot.docs.map(x=>({id:x.id,...x.data()}));
       state[key+'Loaded']=true;
       state.privateFromCache=snapshot.metadata.fromCache;
       state[key+'Pending']=snapshot.metadata.hasPendingWrites;
-      state.privatePending=state.weightsPending||state.watersPending||state.foodEntriesPending||state.activityDaysPending||state.targetsPending;
+      state.privatePending=state.weightsPending||state.watersPending||state.foodEntriesPending||state.activityDaysPending||state.stepDaysPending||state.targetsPending;
       broadcast();
     },error=>{if(epoch===authEpoch){state.error=friendly(error);broadcast();}});
-    if(name==='weightEntries')stopWeights=stop;else if(name==='waterEntries')stopWaters=stop;else if(name==='foodEntries')stopFoodEntries=stop;else stopActivities=stop;
+    if(name==='weightEntries')stopWeights=stop;else if(name==='waterEntries')stopWaters=stop;else if(name==='foodEntries')stopFoodEntries=stop;else if(name==='exerciseEntries')stopActivities=stop;else stopSteps=stop;
   }
   stopTargets=sdkStore.onSnapshot(sdkStore.doc(db,'users',uid,'settings','targets'),
     {includeMetadataChanges:true},snapshot=>{
@@ -159,7 +167,7 @@ function watchPersonal(uid,epoch){
       state.targetsLoaded=snapshot.exists()||!snapshot.metadata.fromCache;
       state.targetsFromCache=snapshot.metadata.fromCache;
       state.targetsPending=snapshot.metadata.hasPendingWrites;
-      state.privatePending=state.weightsPending||state.watersPending||state.foodEntriesPending||state.activityDaysPending||state.targetsPending;
+      state.privatePending=state.weightsPending||state.watersPending||state.foodEntriesPending||state.activityDaysPending||state.stepDaysPending||state.targetsPending;
       broadcast();
     },error=>{if(epoch===authEpoch){state.error=friendly(error);broadcast();}});
 }
@@ -201,7 +209,7 @@ async function initialize(){
           if(stopTargets){stopTargets();stopTargets=null;}
           if(stopFoodEntries){stopFoodEntries();stopFoodEntries=null;}
           if(stopActivities){stopActivities();stopActivities=null;}
-          state.foods=[];state.weights=[];state.waters=[];state.foodEntries=[];state.activityDays=[];state.targets={};state.details={};state.targetsLoaded=false;
+          state.foods=[];state.weights=[];state.waters=[];state.foodEntries=[];state.activityDays=[];state.stepDays=[];state.targets={};state.details={};state.targetsLoaded=false;
           state.weightsLoaded=false;state.watersLoaded=false;state.foodEntriesLoaded=false;state.activityDaysLoaded=false;
           setMode(membership.metadata.fromCache?'checking-membership':'not-authorized');return;
         }

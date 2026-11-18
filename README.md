@@ -1,11 +1,7 @@
-# Jules Berne’s Pie Chart — v0.1.052
+# PieChart v0.1.053 — companion steps bridge (delta patch)
 
-**Change-only patch over v0.1.051.** Replace these **three files** in your existing GitHub Pages repository; keep all other files unchanged:
+**Apply over v0.1.052** on GitHub Pages. Replace only `index.html`, `piechart-db.js`, `PROJECT_SPEC.md`, and `README.md`; retain all other files. The cache version of `piechart-db.js` is updated to 0.1.053.
 
-- `index.html` — The large right-hand Fats and Carbs values now use whole grams and have no space before `g` (for example, `74g` rather than `74.25 g`). Both signed-in and sample views use the same format. Underlying nutrient data, food-entry precision, and calculations are unchanged.
-- `PROJECT_SPEC.md` — Current specification reflects the display rule and release version.
-- `README.md` — These patch instructions.
+The web app now listens to private Firestore `users/{uid}/dailyTotals` records produced by the new Android companion project. Steps appear on the Steps chart and feed the existing calorie-range calculation. Missing days are unknown, not zero. The record schema and validation are documented in `PROJECT_SPEC.md`. No Firestore rule changes are required because `dailyTotals` was already owner-only and allowed.
 
-Keep the existing `piechart-db.js`, `calorie-budget.js`, `firebase-config.js`, and all other files; no Firebase changes or migrations. `index.html` continues to request the **unchanged** `piechart-db.js?v=0.1.051` and `calorie-budget.js?v=0.1.050` because their contents did not change.
-
-**Check:** After deploying and refreshing, show Fats and Carbs in the graph legend: labels should read, for example, `74g` and `230g`. Food review/edit values should still permit up to two decimal places.
+The separately delivered `PieChartCompanion` source archive contains the Android Studio application. It needs an Android app registration in the same Firebase project, SHA-1/SHA-256 fingerprint(s), `google-services.json`, a local Android build, and tests on both phones before an APK can be distributed. No secret keys or machine-specific credentials are embedded in the source distribution.
