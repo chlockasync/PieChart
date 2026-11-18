@@ -1,63 +1,170 @@
-/* PieChart calorie-target estimator v0.1.049.
-   Mifflin–St Jeor REE (Mifflin et al., Am J Clin Nutr 1990).
-   Until measured activity is available, 1.2 is a deliberately provisional,
-   sedentary TDEE multiplier inclusive of incidental activity and digestion.
-   This is not the NIH Body Weight Planner or a validated dynamic prediction.
-   Goal-intensity energy adjustments and ±150 kcal flexibility are explicit
-   product parameters, not medical prescriptions or confidence intervals.
-   This module makes no Firestore writes and never uses sample history. */
+/* PieChart v0.1.050 — no IO or data storage.
+ * NASEM 2023 adult EER coefficients: Health Canada Dietary Reference Intakes.
+ * Step energy: ACSM level-walking net O2 cost 0.1 ml/kg/m (~5 kcal/L O2).
+ * Step category, stride length, flexible activity bounds, and intensity tiers
+ * are disclosed product heuristics, not validated personalised predictions.
+ * EER includes resting energy, ordinary life and digestion. Do NOT add TEF.
+ */
 (function(root){
-  'use strict';
-  const INTENSITY={gentle:150,moderate:300,strong:450};
-  const HALF_WIDTH=150;
-  const SEDENTARY_MULTIPLIER=1.2;
-  const ROUND_TO=25;
-  const round25=v=>Math.round(v/ROUND_TO)*ROUND_TO;
-  function ageOn(dateOfBirth,date){
-    if(typeof dateOfBirth!=='string'||!/^(?:19|20)\d\d-\d\d-\d\d$/.test(dateOfBirth)||
-       typeof date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(date))return null;
-    const [y,m,d]=dateOfBirth.split('-').map(Number),[Y,M,D]=date.split('-').map(Number);
-    const born=new Date(Date.UTC(y,m-1,d)),asOf=new Date(Date.UTC(Y,M-1,D));
-    if(born.getUTCFullYear()!==y||born.getUTCMonth()+1!==m||born.getUTCDate()!==d||
-       asOf.getUTCFullYear()!==Y||asOf.getUTCMonth()+1!==M||asOf.getUTCDate()!==D||asOf<born)return null;
-    return Y-y-((M<m||(M===m&&D<d))?1:0);
+'use strict';
+const DAY=86400000,REFERENCE_STEPS=3000,ROUND=25;
+const CO={
+ male:{inactive:[753.07,-10.83,6.50,14.10],lowActive:[581.47,-10.83,8.30,14.94],active:[1004.82,-10.83,6.52,15.91],veryActive:[-517.88,-10.83,15.61,19.11]},
+ female:{inactive:[584.90,-7.01,5.72,11.71],lowActive:[575.77,-7.01,6.60,12.14],active:[710.25,-7.01,6.54,12.34],veryActive:[511.83,-7.01,9.07,12.56]}
+};
+const RATE={
+ lose:{gentle:[.05,.10],moderate:[.10,.15],strong:[.15,.20]},
+ gain:{gentle:[.02,.05],moderate:[.05,.08],strong:[.08,.11]},
+ maintain:{gentle:[-.025,.025],moderate:[-.025,.025],strong:[-.025,.025]}
+};
+const finite=Number.isFinite;
+const clamp=(n,l,h)=>Math.min(h,Math.max(l,n));
+function dateValue(s){
+ if(typeof s!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s))return NaN;
+ const n=Date.parse(s+'T00:00:00Z');
+ return finite(n)&&new Date(n).toISOString().slice(0,10)===s?n:NaN;
+}
+function ageOn(birth,date){
+ if(!finite(dateValue(birth))||!finite(dateValue(date))||dateValue(birth)>dateValue(date))return null;
+ const [y,m,d]=birth.split('-').map(Number),[Y,M,D]=date.split('-').map(Number);
+ return Y-y-((M<m||(M===m&&D<d))?1:0);
+}
+function eer({age,heightCm,weightKg,sex},category='inactive'){
+ const p=CO[sex]?.[category];
+ return p?p[0]+p[1]*age+p[2]*heightCm+p[3]*weightKg:null;
+}
+function quantile(sorted,p){
+ if(!sorted.length)return null;
+ const i=(sorted.length-1)*p,k=Math.floor(i);
+ return sorted[k]+(sorted[Math.min(sorted.length-1,k+1)]-sorted[k])*(i-k);
+}
+function collectSteps(rows,date){
+ const d=dateValue(date),found=new Map();
+ for(const row of Array.isArray(rows)?rows:[]){
+  const t=dateValue(row?.date);
+  if(!finite(t)||t>d||t<d-21*DAY||!Number.isInteger(row.steps)||row.steps<0||row.steps>100000)continue;
+  found.set(row.date,{date:row.date,steps:row.steps,complete:row.complete===true});
+ }
+ const recent=[...found.values()].filter(s=>s.date<date&&s.complete).sort((a,b)=>a.date.localeCompare(b.date)).slice(-14);
+ const sorted=recent.map(s=>s.steps).sort((a,b)=>a-b);
+ return {today:found.get(date)||null,count:sorted.length,p20:quantile(sorted,.2),median:quantile(sorted,.5),p80:quantile(sorted,.8)};
+}
+function walkingNetKcal(steps,weightKg,heightCm){
+ if(!finite(steps)||!finite(weightKg)||!finite(heightCm))return 0;
+ const strideM=heightCm/100*.415;
+ return Math.max(0,steps-REFERENCE_STEPS)*strideM*weightKg*.0005;
+}
+function exerciseNetKcal(activity,weightKg){
+ if(!activity||!finite(activity.minutes)||activity.minutes<=0||activity.minutes>1440||
+    !finite(activity.mets)||activity.mets<1||activity.mets>23)return null;
+ return (activity.mets-1)*weightKg*activity.minutes/60;
+}
+function exerciseExtra(rows,date,weightKg,stepEnergy,perStep){
+ let independent=0,overlap=0,overlapSteps=0,unknown=false;
+ for(const a of Array.isArray(rows)?rows:[]){
+  if(a?.date!==date)continue;
+  const kcal=exerciseNetKcal(a,weightKg);
+  if(kcal===null)continue;
+  if(a.stepOverlap===false)independent+=kcal;
+  else if(a.stepOverlap===true){
+   overlap+=kcal;
+   if(Number.isInteger(a.stepsIncluded)&&a.stepsIncluded>=0)overlapSteps+=a.stepsIncluded;
+   else unknown=true;
   }
-  function calculate(input){
-    const {date,dateOfBirth,heightCm,sex,weightKg,goalWeightKg,goalIntensity='moderate'}=input||{};
-    if(!Number.isFinite(goalWeightKg)||goalWeightKg<20||goalWeightKg>400)return {reason:'goal'};
-    if(!Number.isFinite(weightKg)||weightKg<20||weightKg>400)return {reason:'weight'};
-    const age=ageOn(dateOfBirth,date);
-    if(!Number.isFinite(age)||!Number.isFinite(heightCm)||heightCm<80||heightCm>250||
-       !['female','male'].includes(sex))return {reason:'details'};
-    if(age<18)return {reason:'age'};
-    if(age>110)return {reason:'details'};
-    const metres=heightCm/100,bodyMassIndex=weightKg/(metres*metres);
-    const goalBmi=goalWeightKg/(metres*metres);
-    const difference=goalWeightKg-weightKg;
-    // A general-purpose calorie deficit is inappropriate for an underweight
-    // current or target BMI. Suppress rather than display a low target.
-    if(difference<-.10&&(bodyMassIndex<18.5||goalBmi<18.5))return {reason:'underweight'};
-    const resting=10*weightKg+6.25*heightCm-5*age+(sex==='male'?5:-161);
-    if(!Number.isFinite(resting)||resting<500)return {reason:'details'};
-    const maintenance=resting*SEDENTARY_MULTIPLIER;
-    // Moderate, gentle, and strong set the intended pace. Taper smoothly
-    // during the last ~1–2 kg, avoiding an abrupt jump at the goal.
-    const adjustment=Math.sign(difference)*Math.min(
-      INTENSITY[goalIntensity]||INTENSITY.moderate,Math.abs(difference)*200,
-      maintenance*(difference<0?.20:.15));
-    const midpoint=maintenance+adjustment;
-    // Conservative planning guardrails are heuristic and MUST NOT be marketed
-    // as a universally adequate intake threshold.
-    const lowerPlanningGuard=sex==='male'?1500:1200;
-    if(difference<-.10&&midpoint<=lowerPlanningGuard)return {reason:'lowEnergy'};
-    const low=round25(Math.max(lowerPlanningGuard,midpoint-HALF_WIDTH));
-    const high=Math.max(low+ROUND_TO*2,round25(Math.max(lowerPlanningGuard+ROUND_TO*2,midpoint+HALF_WIDTH)));
-    return {low,high,resting:Math.round(resting),maintenance:Math.round(maintenance),
-      midpoint:Math.round(midpoint),adjustment:Math.round(adjustment),
-      guardLimited:midpoint-HALF_WIDTH<lowerPlanningGuard,
-      provisional:true,activityBasis:'Sedentary baseline; steps and exercise not yet connected',
-      intensity:goalIntensity,direction:Math.abs(difference)<=.10?'maintain':difference>0?'gain':'lose',age};
-  }
-  root.PieChartCalorieBudget={calculate,ageOn};
-  if(typeof module==='object'&&module.exports)module.exports=root.PieChartCalorieBudget;
+  // Unclassified activities are deliberately ignored to prevent double-counting.
+ }
+ const covered=unknown?stepEnergy:Math.min(stepEnergy,overlapSteps*perStep);
+ return {kcal:independent+Math.max(0,overlap-covered),unknownOverlap:unknown};
+}
+function trendWeight(rows,date){
+ const d=dateValue(date),vals=(Array.isArray(rows)?rows:[]).filter(r=>
+    finite(dateValue(r?.date))&&dateValue(r.date)<=d&&dateValue(r.date)>=d-14*DAY&&
+    finite(r.weightKg)&&r.weightKg>=20&&r.weightKg<=400)
+  .map(r=>r.weightKg).sort((a,b)=>a-b);
+ return vals.length>=3?quantile(vals,.5):null;
+}
+function calculate(input){
+ const {date,dateOfBirth,heightCm,sex,weightKg,goalWeightKg,goalIntensity='moderate',
+   stepDays=[],activities=[],weightHistory=[],dayProgress=1}=input||{};
+ if(!finite(dateValue(date)))return {reason:'details'};
+ if(!finite(goalWeightKg)||goalWeightKg<20||goalWeightKg>400)return {reason:'goal'};
+ if(!finite(weightKg)||weightKg<20||weightKg>400)return {reason:'weight'};
+ const age=ageOn(dateOfBirth,date);
+ if(age===null||!finite(heightCm)||heightCm<80||heightCm>250||!CO[sex])return {reason:'details'};
+ if(age<19)return {reason:'age'};
+ if(age>110)return {reason:'details'};
+ const bmi=weightKg/(heightCm/100)**2,goalBmi=goalWeightKg/(heightCm/100)**2;
+ const measuredTrend=trendWeight(weightHistory,date);
+ const difference=goalWeightKg-(measuredTrend??weightKg);
+ const direction=Math.abs(difference)<=.25?'maintain':difference>0?'gain':'lose';
+ if((direction==='lose'&&(bmi<18.5||goalBmi<18.5))||
+    (direction==='maintain'&&bmi<18.5))return {reason:'underweight'};
+ const base={age,heightCm,weightKg,sex};
+ const inactive=eer(base,'inactive'),lowActive=eer(base,'lowActive');
+ if(!finite(inactive)||!finite(lowActive)||inactive<500)return {reason:'details'};
+ const recent=collectSteps(stepDays,date),current=recent.today;
+ const frac=clamp(finite(dayProgress)?dayProgress:1,0,1);
+ let stepsMid,stepsLo,stepsHi,activityCoverage='unknown',activityBasis;
+ if(current?.complete){
+  stepsMid=stepsLo=stepsHi=current.steps;
+  activityCoverage='complete';
+  activityBasis='Completed step count for this day; other activity may be unrecorded.';
+ }else if(recent.count>=3){
+  const seen=current?.steps??0,left=current?1-frac:1;
+  stepsMid=seen+recent.median*left;
+  stepsLo=seen+recent.p20*left;
+  stepsHi=seen+recent.p80*left;
+  activityCoverage=current?'partial':'history-only';
+  activityBasis='Recorded steps plus previous 21 days of completed step counts for the unrecorded portion.';
+ }else if(current){
+  const left=1-frac;
+  stepsMid=current.steps+REFERENCE_STEPS*left;
+  stepsLo=current.steps;
+  stepsHi=current.steps+8000*left;
+  activityCoverage='partial-sparse-history';
+  activityBasis='Recorded steps; very little completed-day activity history.';
+ }else{
+  // Unknown activity is represented as a wide INACTIVE-to-LOW-ACTIVE EER
+  // envelope, not an invented step reading or a claim of daily activity.
+  stepsMid=stepsLo=stepsHi=REFERENCE_STEPS;
+  activityBasis='No private step data: inactive-to-low-active energy envelope.';
+ }
+ const walk=s=>walkingNetKcal(s,weightKg,heightCm);
+ const walkMid=walk(stepsMid),perStep=heightCm/100*.415*weightKg*.0005;
+ const exercise=exerciseExtra(activities,date,weightKg,walkMid,perStep);
+ const exerciseLo=exerciseExtra(activities,date,weightKg,walk(stepsLo),perStep);
+ const exerciseHi=exerciseExtra(activities,date,weightKg,walk(stepsHi),perStep);
+ const maintainCentre=inactive+walkMid+exercise.kcal;
+ const maintainLow=inactive+walk(stepsLo)+exerciseLo.kcal;
+ const maintainHigh=inactive+walk(stepsHi)+exerciseHi.kcal+
+    (activityCoverage==='unknown'?Math.max(0,lowActive-inactive):0);
+ const bands=RATE[direction],rates=bands[goalIntensity]||bands.moderate;
+ let low,high,preferred;
+ if(direction==='lose'){
+  low=maintainLow*(1-rates[1]);high=maintainHigh*(1-rates[0]);
+  preferred=maintainCentre*(1-(rates[0]+rates[1])/2);
+ }else if(direction==='gain'){
+  low=maintainLow*(1+rates[0]);high=maintainHigh*(1+rates[1]);
+  preferred=maintainCentre*(1+(rates[0]+rates[1])/2);
+ }else{
+  low=maintainLow*(1-.025);high=maintainHigh*(1+.025);
+  preferred=maintainCentre;
+ }
+ // NICE: <1200 kcal/d is a low-energy diet needing specialist support.
+ // Block rather than silently clip or shift the calculated range.
+ if(low<1200)return {reason:'lowEnergy',estimatedLow:Math.round(low)};
+ const displayLow=Math.floor(low/ROUND)*ROUND,displayHigh=Math.ceil(high/ROUND)*ROUND;
+ return {low:displayLow,high:displayHigh,midpoint:Math.round((displayLow+displayHigh)/2),
+   goalCentre:Math.round(preferred),adjustment:Math.round(preferred-maintainCentre),
+   maintenance:Math.round(maintainCentre),maintenanceLow:Math.round(maintainLow),
+   maintenanceHigh:Math.round(maintainHigh),inactiveEer:Math.round(inactive),
+   provisional:true,activityBasis,activityCoverage,historyDays:recent.count,
+   stepsEstimated:current||recent.count>=3?Math.round(stepsMid):null,
+   stepExtraKcal:Math.round(walkMid),exerciseExtraKcal:Math.round(exercise.kcal),
+   direction,intensity:goalIntensity,age,trendWeight:measuredTrend,
+   source:'NASEM-2023-EER',calibrationApplied:false,guardLimited:false,
+   assumptions:{referenceSteps:REFERENCE_STEPS,rateBand:rates,roundingKcal:ROUND}};
+}
+root.PieChartCalorieBudget={calculate,ageOn,eer,walkingNetKcal,exerciseNetKcal,collectSteps};
+if(typeof module==='object'&&module.exports)module.exports=root.PieChartCalorieBudget;
 })(typeof window==='object'?window:globalThis);
