@@ -28,6 +28,21 @@ service cloud.firestore {
         request.resource.data.name is string && request.resource.data.name.size() > 0;
       allow delete: if member();
     }
+    // Reusable named Activity Library entries are shared by both members.
+    // Only those two members may read/write this catalogue; private activity
+    // recordings remain in each owner’s exerciseEntries subcollection.
+    match /approvedActivities/{activityId} {
+      allow read: if member();
+      allow create, update: if member() &&
+        request.resource.data.id == activityId &&
+        request.resource.data.name is string && request.resource.data.name.size() > 0 &&
+        request.resource.data.name.size() <= 160 &&
+        request.resource.data.type in ['Walking','Running','Cycling','Swimming','Weights','Gardening','Housework','Hiking','Yoga','Sport','Other'] &&
+        request.resource.data.favorite is bool &&
+        request.resource.data.keys().hasAll(['minutes','distanceKm','steps','intensity','savedAt']) &&
+        request.resource.data.keys().hasOnly(['id','name','type','favorite','minutes','distanceKm','steps','intensity','savedAt']);
+      allow delete: if member();
+    }
     // Never allow a user to query or write another user's diary, weight, or water.
     match /users/{ownerUid}/{kind}/{recordId} {
       allow read, create, update, delete: if member() &&

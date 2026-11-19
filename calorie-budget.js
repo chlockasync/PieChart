@@ -1,4 +1,4 @@
-/* PieChart v0.1.050 — no IO or data storage.
+/* PieChart v0.1.067 — no IO or data storage.
  * NASEM 2023 adult EER coefficients: Health Canada Dietary Reference Intakes.
  * Step energy: ACSM level-walking net O2 cost 0.1 ml/kg/m (~5 kcal/L O2).
  * Step category, stride length, flexible activity bounds, and intensity tiers
@@ -55,7 +55,13 @@ function walkingNetKcal(steps,weightKg,heightCm){
  return Math.max(0,steps-REFERENCE_STEPS)*strideM*weightKg*.0005;
 }
 function exerciseNetKcal(activity,weightKg){
- if(!activity||!finite(activity.minutes)||activity.minutes<=0||activity.minutes>1440||
+ if(!activity||!finite(weightKg)||weightKg<=0)return null;
+ // New distance/pace/step events store a single net-energy estimate per kg.
+ // This is independent of whether duration was supplied. Older entries retain
+ // the previous MET × minutes calculation for backward compatibility.
+ if(finite(activity.netKcalPerKg)&&activity.netKcalPerKg>=0&&activity.netKcalPerKg<=2000)
+    return activity.netKcalPerKg*weightKg;
+ if(!finite(activity.minutes)||activity.minutes<=0||activity.minutes>1440||
     !finite(activity.mets)||activity.mets<1||activity.mets>23)return null;
  return (activity.mets-1)*weightKg*activity.minutes/60;
 }

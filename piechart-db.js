@@ -1,17 +1,17 @@
-/* PieChart v0.1.055 — owner-private exercise log and companion step sync alongside food, weight, water and targets.
-   Firestore uses owner-private personal collections and a member-only approved food library.
+/* PieChart v0.1.067 — shared Activity Library, private activity records and step sync alongside food, weight, water, and targets.
+   Firestore uses owner-private personal collections and member-only approved food and activity libraries.
    No private key belongs in a GitHub Pages app. An administrator manually provisions
    the initial two membership documents through Firebase Console. */
 import {firebaseConfig} from './firebase-config.js';
 
 const listeners=new Set();
 const state={mode:'local',configured:false,uid:'',displayName:'',email:'',error:'',
-  foods:[],foodsFromCache:false,pending:false,online:navigator.onLine,
+  foods:[],activityLibrary:[],activityLibraryLoaded:false,activityLibraryFromCache:true,activityLibraryPending:false,foodsFromCache:false,pending:false,online:navigator.onLine,
   weights:[],waters:[],foodEntries:[],activityDays:[],stepDays:[],targets:{},details:{},targetsLoaded:false,targetsFromCache:true,
   weightsLoaded:false,watersLoaded:false,foodEntriesLoaded:false,activityDaysLoaded:false,stepDaysLoaded:false,privateFromCache:true,privatePending:false,
   weightsPending:false,watersPending:false,foodEntriesPending:false,activityDaysPending:false,stepDaysPending:false,targetsPending:false,initialRemoteFoods:false};
 let app,auth,db,sdkAuth,sdkStore;
-let stopMember=null,stopFoods=null,stopWeights=null,stopWaters=null,stopFoodEntries=null,stopActivities=null,stopSteps=null,stopTargets=null;
+let stopMember=null,stopFoods=null,stopActivityLibrary=null,stopWeights=null,stopWaters=null,stopFoodEntries=null,stopActivities=null,stopSteps=null,stopTargets=null;
 let authEpoch=0;
 
 function broadcast(){
@@ -20,11 +20,11 @@ function broadcast(){
 }
 function setMode(mode,error=''){state.mode=mode;state.error=error;broadcast();}
 function stopSubscriptions(){
-  for(const stop of [stopMember,stopFoods,stopWeights,stopWaters,stopFoodEntries,stopActivities,stopSteps,stopTargets])try{stop?.()}catch{}
-  stopMember=stopFoods=stopWeights=stopWaters=stopFoodEntries=stopActivities=stopSteps=stopTargets=null;
+  for(const stop of [stopMember,stopFoods,stopActivityLibrary,stopWeights,stopWaters,stopFoodEntries,stopActivities,stopSteps,stopTargets])try{stop?.()}catch{}
+  stopMember=stopFoods=stopActivityLibrary=stopWeights=stopWaters=stopFoodEntries=stopActivities=stopSteps=stopTargets=null;
 }
 function clearAccount(){
-  state.uid='';state.displayName='';state.email='';state.foods=[];state.weights=[];
+  state.uid='';state.displayName='';state.email='';state.foods=[];state.activityLibrary=[];state.activityLibraryLoaded=false;state.activityLibraryFromCache=true;state.activityLibraryPending=false;state.weights=[];
   state.waters=[];state.foodEntries=[];state.activityDays=[];state.stepDays=[];state.targets={};state.details={};state.targetsLoaded=false;state.targetsFromCache=true;
   state.weightsLoaded=false;state.watersLoaded=false;state.foodEntriesLoaded=false;state.activityDaysLoaded=false;state.stepDaysLoaded=false;state.privatePending=false;
   state.weightsPending=false;state.watersPending=false;state.foodEntriesPending=false;state.activityDaysPending=false;state.stepDaysPending=false;state.targetsPending=false;
@@ -81,6 +81,41 @@ function saveFoodChanges(previous,next){
   // Firestore immediately applies queued writes to its persistent offline cache.
   // commit() only resolves after server acknowledgment, so do not await it in UI.
   batch.commit().catch(error=>setMode('connected',friendly(error)));
+}
+// Activity Library is shared by the same two authorised members as approved foods.
+// It contains reusable, named activity instances; recorded events remain owner-private.
+const LIBRARY_ACTIVITY_TYPES=['Walking','Running','Cycling','Swimming','Weights','Gardening','Housework','Hiking','Yoga','Sport','Other'];
+function validOptionalNumber(value,min,max){return value===null||value===undefined||(Number.isFinite(value)&&value>=min&&value<=max);}
+function safeLibraryActivity(input){
+  if(!input||typeof input!=='object'||typeof input.id!=='string'||!/^[a-zA-Z0-9_-]{5,128}$/.test(input.id)||
+     typeof input.name!=='string'||!input.name.trim()||input.name.length>160||!LIBRARY_ACTIVITY_TYPES.includes(input.type)||
+     !validOptionalNumber(input.minutes,1,720)||!validOptionalNumber(input.distanceKm,.01,1000)||
+     !validOptionalNumber(input.steps,1,100000)||!['light','moderate','vigorous'].includes(input.intensity||'moderate'))
+    throw new Error('Check the activity name, type, and measurements.');
+  const copy={id:input.id,name:input.name.trim(),type:input.type,
+    minutes:input.minutes??null,distanceKm:input.distanceKm??null,steps:input.steps??null,
+    intensity:input.intensity||'moderate',favorite:input.favorite===true,
+    savedAt:typeof input.savedAt==='string'?input.savedAt:new Date().toISOString()};
+  if(copy.minutes===null&&copy.distanceKm===null&&copy.steps===null)
+    throw new Error('Save at least one of duration, distance, or steps.');
+  return copy;
+}
+function saveActivityLibraryChanges(previous,next){
+  requireMembership();
+  const before=new Map((previous||[]).map(x=>[x.id,x])),after=new Map((next||[]).map(x=>[x.id,x]));
+  const changes=[];
+  for(const [id,item] of after){
+    const clean=safeLibraryActivity(item);
+    if(!before.has(id)||JSON.stringify(safeLibraryActivity(before.get(id)))!==JSON.stringify(clean))changes.push(['put',id,clean]);
+  }
+  for(const id of before.keys())if(!after.has(id))changes.push(['delete',id]);
+  if(!changes.length)return false;
+  if(changes.length>400)throw new Error('Too many activity library changes at once.');
+  const batch=sdkStore.writeBatch(db);
+  for(const [action,id,item] of changes){const ref=sdkStore.doc(db,'approvedActivities',id);
+    if(action==='put')batch.set(ref,item);else batch.delete(ref);}
+  batch.commit().catch(error=>{state.error=friendly(error);broadcast()});
+  return true;
 }
 function normalize(text){return String(text||'').trim().toLocaleLowerCase('en-NZ');}
 function uploadLocalFoods(localItems){
@@ -181,6 +216,14 @@ function watchFoods(uid,epoch){
     if(state.mode!=='connected')state.mode='connected';
     broadcast();
   },error=>{if(epoch===authEpoch)setMode('error',friendly(error));});
+  stopActivityLibrary=sdkStore.onSnapshot(sdkStore.collection(db,'approvedActivities'),{includeMetadataChanges:true},snapshot=>{
+    if(epoch!==authEpoch)return;
+    state.activityLibrary=snapshot.docs.map(x=>({...x.data(),id:x.id}));
+    state.activityLibraryLoaded=true;
+    state.activityLibraryFromCache=snapshot.metadata.fromCache;
+    state.activityLibraryPending=snapshot.metadata.hasPendingWrites;
+    broadcast();
+  },error=>{if(epoch===authEpoch){state.error=friendly(error);broadcast();}});
   watchPersonal(uid,epoch);
 }
 async function initialize(){
@@ -204,12 +247,13 @@ async function initialize(){
         if(epoch!==authEpoch)return;
         if(!membership.exists()||membership.data().active!==true){
           if(stopFoods){stopFoods();stopFoods=null;}
+          if(stopActivityLibrary){stopActivityLibrary();stopActivityLibrary=null;}
           if(stopWeights){stopWeights();stopWeights=null;}
           if(stopWaters){stopWaters();stopWaters=null;}
           if(stopTargets){stopTargets();stopTargets=null;}
           if(stopFoodEntries){stopFoodEntries();stopFoodEntries=null;}
           if(stopActivities){stopActivities();stopActivities=null;}
-          state.foods=[];state.weights=[];state.waters=[];state.foodEntries=[];state.activityDays=[];state.stepDays=[];state.targets={};state.details={};state.targetsLoaded=false;
+          state.foods=[];state.activityLibrary=[];state.activityLibraryLoaded=false;state.weights=[];state.waters=[];state.foodEntries=[];state.activityDays=[];state.stepDays=[];state.targets={};state.details={};state.targetsLoaded=false;
           state.weightsLoaded=false;state.watersLoaded=false;state.foodEntriesLoaded=false;state.activityDaysLoaded=false;
           setMode(membership.metadata.fromCache?'checking-membership':'not-authorized');return;
         }
@@ -225,7 +269,7 @@ async function signIn(){
   catch(error){state.error=friendly(error);broadcast();throw new Error(state.error);}
 }
 async function signOut(){
-  if(state.pending||state.privatePending)throw new Error('Changes are waiting to sync. Reconnect before signing out.');
+  if(state.pending||state.activityLibraryPending||state.privatePending)throw new Error('Changes are waiting to sync. Reconnect before signing out.');
   if(auth)await sdkAuth.signOut(auth);
 }
 function createPrivateEntry(collection,record){
@@ -250,36 +294,24 @@ function createPrivateEntry(collection,record){
   return id;
 }
 function recordWeight(date,kg){return createPrivateEntry('weightEntries',{date,kg});}
+function deleteWeight(id){
+  requireMembership();
+  if(typeof id!=='string'||!state.weights.some(e=>e.id===id))throw new Error('Weight record not found.');
+  sdkStore.deleteDoc(sdkStore.doc(db,'users',state.uid,'weightEntries',id))
+    .catch(error=>{state.error=friendly(error);broadcast()});
+  return true;
+}
+function deleteFoodEntry(id){
+  requireMembership();
+  if(typeof id!=='string'||!state.foodEntries.some(e=>e.id===id))throw new Error('Food entry not found.');
+  sdkStore.deleteDoc(sdkStore.doc(db,'users',state.uid,'foodEntries',id))
+    .catch(error=>{state.error=friendly(error);broadcast()});
+  return true;
+}
 // Each newly-recorded glass of water is a Food Item consumption, not a second
 // independent water counter. Old waterEntries are read-only history and remain counted.
 function recordFood(date,entry){
   return createPrivateEntry('foodEntries',{date,...entry});
-}
-// Correct an existing owner-private diary entry without recalculating it from
-// a potentially edited shared Food Item, Dish, or Meal. The original nutrient
-// snapshot, item identity, and audit timestamp remain attached to the record.
-function updateFoodEntry(id,changes){
-  requireMembership();
-  if(typeof id!=='string'||!/^[a-zA-Z0-9_-]{5,128}$/.test(id))
-    throw new Error('Invalid food entry identifier.');
-  const previous=state.foodEntries.find(entry=>entry.id===id);
-  if(!previous)throw new Error('This food entry is not available in your account.');
-  if(!changes||Object.keys(changes).some(k=>!['date','quantity','waterMl','nutrition'].includes(k)))
-    throw new Error('Invalid food entry changes.');
-  const date=changes.date;
-  const now=new Date(),today=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-  if(typeof date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(date)||
-     !Number.isFinite(Date.parse(date+'T00:00:00Z'))||date>today)
-    throw new Error('Invalid food entry date.');
-  if(!Number.isFinite(changes.quantity)||changes.quantity<=0||changes.quantity>100000||
-     !Number.isFinite(changes.waterMl)||changes.waterMl<0||changes.waterMl>100000||
-     !['calories','protein','carbs','fats','fibre','energyKj'].every(k=>
-       Number.isFinite(changes.nutrition?.[k])&&changes.nutrition[k]>=0))
-    throw new Error('Invalid recorded quantity or nutrition.');
-  const patch={...changes,updatedAt:new Date().toISOString()};
-  sdkStore.updateDoc(sdkStore.doc(db,'users',state.uid,'foodEntries',id),patch)
-    .catch(error=>{state.error=friendly(error);broadcast()});
-  return true;
 }
 function recordWater(date,ml,waterFood){
   if(!Number.isInteger(ml)||ml<=0||ml>10000)throw new Error('Invalid water amount.');
@@ -299,20 +331,32 @@ function recordWater(date,ml,waterFood){
 // users/{uid}/exerciseEntries; no rule or data migration is needed.
 const ACTIVITY_TYPES=['Walking','Running','Cycling','Swimming','Weights','Gardening','Housework','Hiking','Yoga','Sport','Other'];
 function checkActivityEntry(input){
-  if(!input||typeof input!=='object'||!ACTIVITY_TYPES.includes(input.type)||
-     !['light','moderate','vigorous'].includes(input.intensity)||
-     !Number.isInteger(input.minutes)||input.minutes<1||input.minutes>720||
-     !Number.isFinite(input.mets)||input.mets<1.5||input.mets>23||
-     typeof input.stepOverlap!=='boolean'||
-     !/^\d{4}-\d{2}-\d{2}$/.test(input.date)||
+  if(!input||typeof input!=='object'||!LIBRARY_ACTIVITY_TYPES.includes(input.type)||
+     typeof input.date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(input.date)||
      !Number.isFinite(Date.parse(input.date+'T00:00:00Z'))||
      new Date(input.date+'T00:00:00Z').toISOString().slice(0,10)!==input.date||
-     input.date>new Date().toLocaleDateString('sv-SE')||
-     !Number.isInteger(input.stepsIncluded)||input.stepsIncluded<0||input.stepsIncluded>100000)
-    throw new Error('Check the activity, date, duration, effort, and steps overlap.');
-  if(!input.stepOverlap&&input.stepsIncluded!==0)throw new Error('Steps cannot overlap a non-step activity.');
-  return {date:input.date,type:input.type,intensity:input.intensity,
-    minutes:input.minutes,mets:input.mets,stepOverlap:input.stepOverlap,stepsIncluded:input.stepsIncluded};
+     input.date>new Date().toLocaleDateString('sv-SE'))throw new Error('Check the activity date and type.');
+  const minutes=input.minutes??null,distanceKm=input.distanceKm??null,stepsCount=input.stepsCount??null;
+  if(!validOptionalNumber(minutes,1,720)||!validOptionalNumber(distanceKm,.01,1000)||
+     !validOptionalNumber(stepsCount,1,100000)||
+     (minutes===null&&distanceKm===null&&stepsCount===null)||
+     !Number.isFinite(input.mets)||input.mets<1||input.mets>23||
+     !validOptionalNumber(input.netKcalPerKg,0,2000)||
+     !['light','moderate','vigorous'].includes(input.intensity||'moderate'))
+      throw new Error('Enter valid time, distance, or steps.');
+  const origin=input.stepOrigin||'none',relation=input.stepRelation||'none';
+  if(!['none','manual','estimated'].includes(origin)||!['none','included','additional'].includes(relation)||
+     !Number.isInteger(input.stepsIncluded)||input.stepsIncluded<0||input.stepsIncluded>100000||
+     (origin==='none'&&relation!=='none')||(origin!=='none'&&relation==='none')||
+     (relation==='none'&&input.stepsIncluded!==0)||
+     (relation!=='none'&&input.stepsIncluded<=0))throw new Error('Confirm whether activity steps are additional to Health Connect.');
+  return {date:input.date,type:input.type,name:String(input.name||input.type).trim().slice(0,160),
+    libraryId:typeof input.libraryId==='string'?input.libraryId:'',
+    minutes,distanceKm,stepsCount,
+    intensity:input.intensity||'moderate',mets:input.mets,
+    netKcalPerKg:input.netKcalPerKg??null,
+    stepOrigin:origin,stepRelation:relation,
+    stepOverlap:relation!=='none',stepsIncluded:input.stepsIncluded};
 }
 function saveActivity(input,id=null){
   requireMembership();
@@ -397,6 +441,6 @@ function saveTargets(values){
 }
 window.addEventListener('online',()=>{state.online=true;broadcast()});
 window.addEventListener('offline',()=>{state.online=false;broadcast()});
-window.PieChartDB={apiRevision:2,state,subscribe,signIn,signOut,saveFoodChanges,uploadLocalFoods,recordWeight,recordWater,recordFood,updateFoodEntry,saveActivity,deleteActivity,saveTargets,saveDetailsAndTargets};
+window.PieChartDB={apiRevision:2,state,subscribe,signIn,signOut,saveFoodChanges,saveActivityLibraryChanges,uploadLocalFoods,recordWeight,deleteWeight,recordWater,recordFood,deleteFoodEntry,saveActivity,deleteActivity,saveTargets,saveDetailsAndTargets};
 broadcast();
 if(configured)initialize();
