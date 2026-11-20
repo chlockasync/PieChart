@@ -1,4 +1,4 @@
-# Jules Berne’s Pie Chart — v0.1.078
+# Jules Berne’s Pie Chart — v0.1.079
 
 Phone-first PWA for weight, nutrition, water, steps, and activity tracking. Hosted on GitHub Pages with Google sign-in, shared Food and Activity Libraries, and owner-private history.
 
@@ -22,6 +22,10 @@ See `FIREBASE_SETUP.md` for current Firebase access and security details.
 
 ## Android scanner connection test
 
-Apply the companion v0.2.006 patch and install its signed APK over the old version. On Android HTTPS PieChart, **Scan nutrition panel** in an unsaved Food Item opens a temporary companion screen, not the camera. It can return five fixed dummy readings or Cancel. Keep/edit non-nutrient draft fields first, then check they survive even if Android reopens PieChart in a new window. **Save and Record serving are blocked while test values are present**; select **Restore previous nutrient values** to continue editing. **Use photograph instead** preserves the previous Tesseract reader.
+Apply the companion v0.2.006 patch and install its signed APK over the old version. On Android HTTPS PieChart, **Scan nutrition panel** in an unsaved Food Item opens a temporary companion screen, not the camera. It can return five fixed dummy readings or Cancel. Keep/edit non-nutrient draft fields first, then check they survive even if Android reopens PieChart in a new window. The first phone trial returned to the Today's Food browse screen, indicating the Food Item editor was not restored; the current PWA patch now waits for the database module before recovering the editor and retries after a foreground return. The phone retest remains outstanding. **Save and Record serving are blocked while test values are present**; select **Restore previous nutrient values** to continue editing. **Use photograph instead** preserves the previous Tesseract reader.
 
 The current native test bridge accepts returns to `chlockasync.github.io` paths ending in `/index.html`. Verify that this is the PieChart host; a different host requires adjusting the companion allowlist before rebuilding. This is a test of Android app switching and form preservation, not evidence of successful OCR or a seamless transition yet.
+
+## Stage 1 phone retest after v0.1.079
+
+Only PieChart's GitHub Pages files need updating; the installed companion v0.2.006 remains unchanged. From Today's Food, open or create a Food Item, change its fields without saving, launch the companion, and tap **Return five TEST values**. Expected: the same Food Item editor reopens, all other field values and familiar measures are preserved, five fixed test numbers are visible, and **Restore previous nutrient values** is available. If Android resumes the PWA but does not deliver the callback, PieChart should still reopen the draft and explicitly say no scanner results were received. Test **Cancel without changes** as well. If it still opens only Today's Food, note whether the PWA was launched from its home-screen icon or from Chrome; do not save dummy numbers.
