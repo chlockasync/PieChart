@@ -1,4 +1,4 @@
-/* PieChart v0.1.067 — shared Activity Library, private activity records and step sync alongside food, weight, water, and targets.
+/* PieChart v0.1.073 — shared libraries with personal favourites, private activity records and step sync.
    Firestore uses owner-private personal collections and member-only approved food and activity libraries.
    No private key belongs in a GitHub Pages app. An administrator manually provisions
    the initial two membership documents through Firebase Console. */
@@ -6,13 +6,77 @@ import {firebaseConfig} from './firebase-config.js';
 
 const listeners=new Set();
 const state={mode:'local',configured:false,uid:'',displayName:'',email:'',error:'',
-  foods:[],activityLibrary:[],activityLibraryLoaded:false,activityLibraryFromCache:true,activityLibraryPending:false,foodsFromCache:false,pending:false,online:navigator.onLine,
+  foods:[],activityLibrary:[],favorites:{foods:{},activities:{}},favoritesLoaded:false,favoritesFromCache:true,activityLibraryLoaded:false,activityLibraryFromCache:true,activityLibraryPending:false,foodsFromCache:false,pending:false,online:navigator.onLine,
   weights:[],waters:[],foodEntries:[],activityDays:[],stepDays:[],targets:{},details:{},targetsLoaded:false,targetsFromCache:true,
   weightsLoaded:false,watersLoaded:false,foodEntriesLoaded:false,activityDaysLoaded:false,stepDaysLoaded:false,privateFromCache:true,privatePending:false,
   weightsPending:false,watersPending:false,foodEntriesPending:false,activityDaysPending:false,stepDaysPending:false,targetsPending:false,initialRemoteFoods:false};
 let app,auth,db,sdkAuth,sdkStore;
-let stopMember=null,stopFoods=null,stopActivityLibrary=null,stopWeights=null,stopWaters=null,stopFoodEntries=null,stopActivities=null,stopSteps=null,stopTargets=null;
+let stopMember=null,stopFoods=null,stopActivityLibrary=null,stopFavorites=null,stopWeights=null,stopWaters=null,stopFoodEntries=null,stopActivities=null,stopSteps=null,stopTargets=null;
 let authEpoch=0;
+// The original favourites were on shared library documents. During migration,
+// seed each member's new private favourites once, then disregard those flags.
+let sharedFoods=[],sharedActivities=[];
+let gotRemoteFoods=false,gotRemoteActivities=false,needsFavoriteMigration=false,favoriteMigrationPending=false;
+function favouriteFlags(value){
+  if(!value||typeof value!=='object'||Array.isArray(value))return {};
+  return Object.fromEntries(Object.entries(value).filter(([id,on])=>/^[a-zA-Z0-9_-]{5,128}$/.test(id)&&on===true));
+}
+function overlayPrivateFavorites(){
+  state.foods=sharedFoods.map(item=>({...item,favorite:state.favoritesLoaded&&state.favorites.foods[item.id]===true}));
+  state.activityLibrary=sharedActivities.map(item=>({...item,favorite:state.favoritesLoaded&&state.favorites.activities[item.id]===true}));
+}
+function maybeMigrateFavourites(uid,epoch){
+  if(epoch!==authEpoch||!needsFavoriteMigration||favoriteMigrationPending||!gotRemoteFoods||!gotRemoteActivities||!state.uid)return;
+  favoriteMigrationPending=true;
+  // Copy only the old flags visible at the first authenticated read. This is a
+  // one-time starting point; each member's selections diverge independently.
+  const foods=Object.fromEntries(sharedFoods.filter(x=>x.favorite===true).map(x=>[x.id,true]));
+  const activities=Object.fromEntries(sharedActivities.filter(x=>x.favorite===true).map(x=>[x.id,true]));
+  const ref=sdkStore.doc(db,'users',uid,'settings','favorites');
+  sdkStore.runTransaction(db,async transaction=>{
+    const current=await transaction.get(ref);
+    if(!current.exists())transaction.set(ref,{foods,activities,initialized:true});
+  }).catch(error=>{if(epoch===authEpoch){favoriteMigrationPending=false;state.error=friendly(error);broadcast();}});
+}
+function watchFavorites(uid,epoch){
+  stopFavorites=sdkStore.onSnapshot(sdkStore.doc(db,'users',uid,'settings','favorites'),{includeMetadataChanges:true},snapshot=>{
+    if(epoch!==authEpoch)return;
+    state.favoritesFromCache=snapshot.metadata.fromCache;
+    if(snapshot.exists()){
+      const data=snapshot.data()||{};
+      state.favorites={foods:favouriteFlags(data.foods),activities:favouriteFlags(data.activities)};
+      state.favoritesLoaded=true;needsFavoriteMigration=false;favoriteMigrationPending=false;
+    }else if(!snapshot.metadata.fromCache){
+      // Don't treat missing offline cache data as an empty personal selection.
+      needsFavoriteMigration=true;
+      maybeMigrateFavourites(uid,epoch);
+    }
+    overlayPrivateFavorites();broadcast();
+  },error=>{if(epoch===authEpoch){state.error=friendly(error);broadcast();}});
+}
+function saveFavorite(kind,id,on,{silent=false}={}){
+  requireMembership();
+  if(!state.favoritesLoaded)throw new Error('Your personal favourites have not finished loading.');
+  if(!['foods','activities'].includes(kind)||typeof id!=='string'||!/^[a-zA-Z0-9_-]{5,128}$/.test(id))throw new Error('Invalid favourite item.');
+  if(on===true)state.favorites[kind][id]=true;else delete state.favorites[kind][id];
+  overlayPrivateFavorites();if(!silent)broadcast();
+  const ref=sdkStore.doc(db,'users',state.uid,'settings','favorites');
+  // Merge only this ID, rather than replacing the list and racing another tab.
+  const change=on===true?true:sdkStore.deleteField();
+  sdkStore.setDoc(ref,{[kind]:{[id]:change}},{merge:true})
+    .catch(error=>{state.error=friendly(error);broadcast()});
+  return true;
+}
+function saveFavouriteDifferences(previous,next,kind){
+  const prior=new Map((previous||[]).map(x=>[x.id,x]));
+  for(const item of next||[]){
+    const old=prior.get(item.id);
+    if(!!old?.favorite!==!!item.favorite)saveFavorite(kind,item.id,!!item.favorite,{silent:true});
+    prior.delete(item.id);
+  }
+  // Remove personal flags when the shared library item is deleted.
+  for(const old of prior.values())if(old.favorite)saveFavorite(kind,old.id,false,{silent:true});
+}
 
 function broadcast(){
   window.dispatchEvent(new CustomEvent('piechart-db-state',{detail:state}));
@@ -20,11 +84,12 @@ function broadcast(){
 }
 function setMode(mode,error=''){state.mode=mode;state.error=error;broadcast();}
 function stopSubscriptions(){
-  for(const stop of [stopMember,stopFoods,stopActivityLibrary,stopWeights,stopWaters,stopFoodEntries,stopActivities,stopSteps,stopTargets])try{stop?.()}catch{}
-  stopMember=stopFoods=stopActivityLibrary=stopWeights=stopWaters=stopFoodEntries=stopActivities=stopSteps=stopTargets=null;
+  for(const stop of [stopMember,stopFoods,stopActivityLibrary,stopFavorites,stopWeights,stopWaters,stopFoodEntries,stopActivities,stopSteps,stopTargets])try{stop?.()}catch{}
+  stopMember=stopFoods=stopActivityLibrary=stopFavorites=stopWeights=stopWaters=stopFoodEntries=stopActivities=stopSteps=stopTargets=null;
 }
 function clearAccount(){
-  state.uid='';state.displayName='';state.email='';state.foods=[];state.activityLibrary=[];state.activityLibraryLoaded=false;state.activityLibraryFromCache=true;state.activityLibraryPending=false;state.weights=[];
+  sharedFoods=[];sharedActivities=[];gotRemoteFoods=gotRemoteActivities=false;needsFavoriteMigration=favoriteMigrationPending=false;
+  state.uid='';state.displayName='';state.email='';state.foods=[];state.activityLibrary=[];state.favorites={foods:{},activities:{}};state.favoritesLoaded=false;state.favoritesFromCache=true;state.activityLibraryLoaded=false;state.activityLibraryFromCache=true;state.activityLibraryPending=false;state.weights=[];
   state.waters=[];state.foodEntries=[];state.activityDays=[];state.stepDays=[];state.targets={};state.details={};state.targetsLoaded=false;state.targetsFromCache=true;
   state.weightsLoaded=false;state.watersLoaded=false;state.foodEntriesLoaded=false;state.activityDaysLoaded=false;state.stepDaysLoaded=false;state.privatePending=false;
   state.weightsPending=false;state.watersPending=false;state.foodEntriesPending=false;state.activityDaysPending=false;state.stepDaysPending=false;state.targetsPending=false;
@@ -58,6 +123,7 @@ function safeFood(food){
   if(!['calories','protein','carbs','fats','fibre'].every(k=>typeof values[k]==='number'&&Number.isFinite(values[k])&&values[k]>=0))
     throw new Error('Food Items require all five nutrients.');
   const copy=JSON.parse(JSON.stringify({...food,type:food.type||'Food Item'}));
+  delete copy.favorite; // Never store an individual's selection in shared Foods.
   if(JSON.stringify(copy).length>40000)throw new Error('Food record is too large.');
   return copy;
 }
@@ -68,9 +134,16 @@ function saveFoodChanges(previous,next){
   const changes=[];
   for(const [id,item] of now){
     const before=was.get(id);
-    if(!before||JSON.stringify(before)!==JSON.stringify(item))changes.push(['put',id,safeFood(item)]);
+    const beforeShared=before?safeFood(before):null,afterShared=safeFood(item);
+    // A favourite-only edit may update savedAt in the editor; don't make it a
+    // shared edit or change another member's Recents ordering.
+    const sameExceptTimestamp=beforeShared&&(()=>{
+      const b={...beforeShared},a={...afterShared};delete b.savedAt;delete a.savedAt;
+      return JSON.stringify(b)===JSON.stringify(a);})();
+    if(!before||!sameExceptTimestamp)changes.push(['put',id,afterShared]);
   }
   for(const id of was.keys())if(!now.has(id))changes.push(['delete',id]);
+  saveFavouriteDifferences(previous,next,'foods');
   if(!changes.length)return;
   if(changes.length>400)throw new Error('Too many changes in a single save.');
   const batch=sdkStore.writeBatch(db);
@@ -94,7 +167,7 @@ function safeLibraryActivity(input){
     throw new Error('Check the activity name, type, and measurements.');
   const copy={id:input.id,name:input.name.trim(),type:input.type,
     minutes:input.minutes??null,distanceKm:input.distanceKm??null,steps:input.steps??null,
-    intensity:input.intensity||'moderate',favorite:input.favorite===true,
+    intensity:input.intensity||'moderate',favorite:false, // Required by existing rules; never a shared personal preference.
     savedAt:typeof input.savedAt==='string'?input.savedAt:new Date().toISOString()};
   if(copy.minutes===null&&copy.distanceKm===null&&copy.steps===null)
     throw new Error('Save at least one of duration, distance, or steps.');
@@ -106,9 +179,12 @@ function saveActivityLibraryChanges(previous,next){
   const changes=[];
   for(const [id,item] of after){
     const clean=safeLibraryActivity(item);
-    if(!before.has(id)||JSON.stringify(safeLibraryActivity(before.get(id)))!==JSON.stringify(clean))changes.push(['put',id,clean]);
+    const prior=before.has(id)?safeLibraryActivity(before.get(id)):null;
+    const sameExceptTimestamp=prior&&(()=>{const b={...prior},a={...clean};delete b.savedAt;delete a.savedAt;return JSON.stringify(b)===JSON.stringify(a);})();
+    if(!prior||!sameExceptTimestamp)changes.push(['put',id,clean]);
   }
   for(const id of before.keys())if(!after.has(id))changes.push(['delete',id]);
+  saveFavouriteDifferences(previous,next,'activities');
   if(!changes.length)return false;
   if(changes.length>400)throw new Error('Too many activity library changes at once.');
   const batch=sdkStore.writeBatch(db);
@@ -209,7 +285,10 @@ function watchPersonal(uid,epoch){
 function watchFoods(uid,epoch){
   stopFoods=sdkStore.onSnapshot(sdkStore.collection(db,'approvedFoods'),{includeMetadataChanges:true},snapshot=>{
     if(epoch!==authEpoch)return;
-    state.foods=snapshot.docs.map(x=>({...x.data(),id:x.id}));
+    sharedFoods=snapshot.docs.map(x=>({...x.data(),id:x.id}));
+    gotRemoteFoods=!snapshot.metadata.fromCache;
+    overlayPrivateFavorites();
+    maybeMigrateFavourites(uid,epoch);
     state.foodsFromCache=snapshot.metadata.fromCache;
     state.pending=snapshot.metadata.hasPendingWrites;
     state.initialRemoteFoods=true;
@@ -218,13 +297,17 @@ function watchFoods(uid,epoch){
   },error=>{if(epoch===authEpoch)setMode('error',friendly(error));});
   stopActivityLibrary=sdkStore.onSnapshot(sdkStore.collection(db,'approvedActivities'),{includeMetadataChanges:true},snapshot=>{
     if(epoch!==authEpoch)return;
-    state.activityLibrary=snapshot.docs.map(x=>({...x.data(),id:x.id}));
+    sharedActivities=snapshot.docs.map(x=>({...x.data(),id:x.id}));
+    gotRemoteActivities=!snapshot.metadata.fromCache;
+    overlayPrivateFavorites();
+    maybeMigrateFavourites(uid,epoch);
     state.activityLibraryLoaded=true;
     state.activityLibraryFromCache=snapshot.metadata.fromCache;
     state.activityLibraryPending=snapshot.metadata.hasPendingWrites;
     broadcast();
   },error=>{if(epoch===authEpoch){state.error=friendly(error);broadcast();}});
   watchPersonal(uid,epoch);
+  watchFavorites(uid,epoch);
 }
 async function initialize(){
   setMode('connecting');
@@ -248,12 +331,13 @@ async function initialize(){
         if(!membership.exists()||membership.data().active!==true){
           if(stopFoods){stopFoods();stopFoods=null;}
           if(stopActivityLibrary){stopActivityLibrary();stopActivityLibrary=null;}
+          if(stopFavorites){stopFavorites();stopFavorites=null;}
           if(stopWeights){stopWeights();stopWeights=null;}
           if(stopWaters){stopWaters();stopWaters=null;}
           if(stopTargets){stopTargets();stopTargets=null;}
           if(stopFoodEntries){stopFoodEntries();stopFoodEntries=null;}
           if(stopActivities){stopActivities();stopActivities=null;}
-          state.foods=[];state.activityLibrary=[];state.activityLibraryLoaded=false;state.weights=[];state.waters=[];state.foodEntries=[];state.activityDays=[];state.stepDays=[];state.targets={};state.details={};state.targetsLoaded=false;
+          state.foods=[];state.activityLibrary=[];state.favorites={foods:{},activities:{}};state.favoritesLoaded=false;state.activityLibraryLoaded=false;state.weights=[];state.waters=[];state.foodEntries=[];state.activityDays=[];state.stepDays=[];state.targets={};state.details={};state.targetsLoaded=false;
           state.weightsLoaded=false;state.watersLoaded=false;state.foodEntriesLoaded=false;state.activityDaysLoaded=false;
           setMode(membership.metadata.fromCache?'checking-membership':'not-authorized');return;
         }
@@ -441,6 +525,6 @@ function saveTargets(values){
 }
 window.addEventListener('online',()=>{state.online=true;broadcast()});
 window.addEventListener('offline',()=>{state.online=false;broadcast()});
-window.PieChartDB={apiRevision:2,state,subscribe,signIn,signOut,saveFoodChanges,saveActivityLibraryChanges,uploadLocalFoods,recordWeight,deleteWeight,recordWater,recordFood,deleteFoodEntry,saveActivity,deleteActivity,saveTargets,saveDetailsAndTargets};
+window.PieChartDB={apiRevision:3,state,subscribe,signIn,signOut,saveFavorite,saveFoodChanges,saveActivityLibraryChanges,uploadLocalFoods,recordWeight,deleteWeight,recordWater,recordFood,deleteFoodEntry,saveActivity,deleteActivity,saveTargets,saveDetailsAndTargets};
 broadcast();
 if(configured)initialize();
