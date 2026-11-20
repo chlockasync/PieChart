@@ -86,15 +86,6 @@ function estimateActivity(input,{heightCm=null}={}){
      (steps!==null&&distanceKm===null)?stride:null
  };
 }
-function extraStepsForDate(activities,date){
- const result={measured:0,estimated:0};
- for(const a of Array.isArray(activities)?activities:[]){
-   if(a?.date!==date||a.stepRelation!=='additional'||!Number.isInteger(a.stepsIncluded)||a.stepsIncluded<=0)continue;
-   if(a.stepOrigin==='estimated')result.estimated+=a.stepsIncluded;
-   else result.measured+=a.stepsIncluded;
- }
- return result;
-}
 function augmentStepDays(stepDays,activities){
  const dayMap=new Map();
  for(const s of Array.isArray(stepDays)?stepDays:[]){
@@ -109,7 +100,7 @@ function augmentStepDays(stepDays,activities){
  }
  return [...dayMap.values()].sort((a,b)=>a.date.localeCompare(b.date));
 }
-const api={TYPES,estimateActivity,extraStepsForDate,augmentStepDays,strideMetres,interpolatedMets};
+const api={TYPES,estimateActivity,augmentStepDays,strideMetres,interpolatedMets};
 root.PieChartActivityMath=api;
 if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window==='object'?window:globalThis);

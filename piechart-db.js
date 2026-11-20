@@ -1,4 +1,4 @@
-/* PieChart v0.1.074 — shared libraries with personal favourites, private activity records and step sync.
+/* PieChart v0.1.075 — shared libraries with personal favourites, private activity records and step sync.
    Firestore uses owner-private personal collections and member-only approved food and activity libraries.
    No private key belongs in a GitHub Pages app. An administrator manually provisions
    the initial two membership documents through Firebase Console. */
@@ -189,48 +189,6 @@ function saveActivityLibraryChanges(previous,next){
     errorLimit:'Too many activity library changes at once.'
   });
 }
-function normalize(text){return String(text||'').trim().toLocaleLowerCase('en-NZ');}
-function uploadLocalFoods(localItems){
-  requireMembership();
-  if(state.foodsFromCache||!state.initialRemoteFoods)throw new Error('Connect to the server before transferring local foods.');
-  const remote=state.foods;
-  const knownIds=new Set(remote.map(x=>x.id));
-  const matches=remote.slice();
-  const accepted=[],skipped=[],blocked=[];
-  for(const input of localItems||[]){
-    let item;
-    try{item=safeFood(input);}catch{blocked.push(String(input?.name||'Unknown item'));continue;}
-    const duplicate=matches.some(x=>x.id===item.id||
-      (item.barcode&&x.barcode&&normalize(item.barcode)===normalize(x.barcode))||
-      (normalize(item.name)===normalize(x.name)&&normalize(item.brand)===normalize(x.brand)&&x.type===item.type));
-    if(duplicate){skipped.push(item.name);continue;}
-    accepted.push(item);matches.push(item);knownIds.add(item.id);
-  }
-  // Never import a recipe whose ingredient or parent was skipped/renamed and
-  // therefore would point to a missing ID. No automatic ID rewrites or substitutions.
-  let changed=true;
-  while(changed){
-    changed=false;
-    for(let i=accepted.length-1;i>=0;i--){
-      const food=accepted[i];if(food.type==='Food Item')continue;
-      const dependencies=[...(food.components||[]),...(food.additions||[]),...Object.values(food.overrides||{}).filter(Boolean)]
-        .map(row=>row.itemId).filter(Boolean);
-      if(food.parentId)dependencies.push(food.parentId);
-      if(dependencies.some(id=>!knownIds.has(id))){
-        blocked.push(food.name+' (missing linked ingredient)');knownIds.delete(food.id);
-        accepted.splice(i,1);changed=true;
-      }
-    }
-  }
-  if(accepted.length>400)throw new Error('Transfer in groups of fewer than 400 foods.');
-  if(accepted.length){
-    const batch=sdkStore.writeBatch(db);
-    for(const item of accepted)batch.set(sdkStore.doc(db,'approvedFoods',item.id),item);
-    batch.commit().catch(error=>setMode('connected',friendly(error)));
-  }
-  return {queued:accepted.length,skipped:skipped.length,blocked};
-}
-
 function watchPersonal(uid,epoch){
   const collections=[['weightEntries','weights'],['waterEntries','waters'],['foodEntries','foodEntries'],['exerciseEntries','activityDays'],['dailyTotals','stepDays']];
   for(const [name,key] of collections){
@@ -525,16 +483,8 @@ function saveDetailsAndTargets(values){
   return true;
 }
 
-function saveTargets(values){
-  requireMembership();
-  if(!state.targetsLoaded)throw new Error('Targets have not finished loading. Reconnect before editing them.');
-  const clean=cleanTargets(values);
-  const task=sdkStore.setDoc(sdkStore.doc(db,'users',state.uid,'settings','targets'),clean,{merge:true});
-  task.catch(error=>{state.error=friendly(error);broadcast()});
-  return true; // queued locally; server acknowledgement may follow when back online
-}
 window.addEventListener('online',()=>{state.online=true;broadcast()});
 window.addEventListener('offline',()=>{state.online=false;broadcast()});
-window.PieChartDB={apiRevision:3,state,subscribe,signIn,signOut,saveFavorite,saveFoodChanges,saveActivityLibraryChanges,uploadLocalFoods,recordWeight,deleteWeight,recordWater,recordFood,updateFoodEntry,deleteFoodEntry,saveActivity,deleteActivity,saveTargets,saveDetailsAndTargets};
+window.PieChartDB={state,subscribe,signIn,signOut,saveFavorite,saveFoodChanges,saveActivityLibraryChanges,recordWeight,deleteWeight,recordWater,recordFood,updateFoodEntry,deleteFoodEntry,saveActivity,deleteActivity,saveDetailsAndTargets};
 broadcast();
 if(configured)initialize();

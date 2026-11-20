@@ -1,43 +1,20 @@
-# PieChart v0.1.039 — Firebase setup
+# PieChart — Firebase configuration (v0.1.075)
 
-This patch **prepares** the Firebase connection; it cannot activate your database without a Firebase project and its web-app configuration. The app remains usable as a local prototype until configured. The graph is still **fictional demo data** in this version.
+The shared Firebase project for PieChart is `julesvernespiechart`. The app runs on GitHub Pages, not Firebase Hosting, and uses the public web-app config in `firebase-config.js`. Do not commit private keys, OAuth client secrets, or service-account credentials.
 
-## Create the project (no billing required to start)
+## Current access model
 
-1. In [Firebase Console](https://console.firebase.google.com/), create a **separate** Firebase project for PieChart, for example `PieChart`, on the **Spark (no-cost)** plan. **Do not reuse the Firebase project for ListsForTheShop:** replacing its Firestore rules with PieChart’s rules would break that app’s access. Google Analytics is optional and not needed.
-2. In **Project settings → Your apps**, register a **Web** app. Hosting remains on **GitHub Pages**; do not enable Firebase Hosting. Copy the web app's configuration into `firebase-config.js`, preserving the exported object. The four fields required here are `apiKey`, `authDomain`, `projectId`, and `appId`. These values are public app identifiers; **never** put a service-account JSON, API secret, private key, OAuth client secret, or credential in GitHub.
-3. In **Build → Authentication → Sign-in method**, enable **Google**. In **Authentication → Settings → Authorized domains**, add the hostname that actually serves PieChart (for GitHub Pages, `USERNAME.github.io` without `https://`, path, or slash; for a custom domain, use that hostname). Do not add unnecessary domains.
-4. In **Build → Firestore Database**, create the **default database**, in **Production mode**. Choose an appropriate nearby region; the database location cannot be changed later. Do not enable permissive Test mode for real personal records.
-5. In **Firestore Database → Rules**, replace the rules with the entire contents of `firestore.rules`, then **Publish**. These rules prevent signed-in strangers from reading or changing the data; creating a Google login alone does not make someone a member.
-6. Commit/deploy the changed `index.html` and the three files `piechart-db.js`, `firebase-config.js`, and `firestore.rules` plus `PROJECT_SPEC.md` and this guide as desired. Only the HTML and JavaScript files need to be web-served. Keep all your existing files.
-7. Open the deployed PieChart URL over HTTPS, then **Settings → Sign in with Google**. Google uses a pop-up, not redirect, because redirect authentication has known third-party-storage problems on GitHub Pages. Allow pop-ups if the browser blocks them. The account will initially show as **not authorised**. Copy the **User ID** shown in Settings.
-8. In **Firestore Database → Data**, create a top-level collection `members`, and a document whose **document ID exactly matches that User ID**, with a Boolean field `active` set to `true`. Do **not** create a field named `uid` as a substitute for the document ID. Reopen/refresh the app. It will now show Connected. Repeat sign-in and membership creation for the second Google account. **Only add the two approved users.** To revoke an account, change `active` to `false` or delete its member document.
-9. On the device containing the approved local food records, use **Settings → Transfer local approved foods** **once** while connected. Existing matches are skipped; cloud records are never automatically overwritten. Local records remain in the old device-local storage as a safety copy. If the app reports any blocked linked recipes, resolve those individually before treating migration as complete.
+1. **Google Authentication:** enable Google sign-in, and authorise the actual GitHub Pages domain.
+2. **Members:** add the two authorised user UIDs as `members/{uid}` documents with `{active:true}` in Firestore. Authentication alone does not confer membership.
+3. **Security rules:** publish `firestore.rules` in Firebase Console → Firestore Database → Rules. Uploading a `.rules` file to GitHub does **not** publish it. Retain the active `approvedActivities` rule, introduced in v0.1.067, as well as the Food Library and owner-only account rules.
+4. **Shared libraries:** `approvedFoods/{foodId}` stores Food Items, Dishes, and Meals; `approvedActivities/{activityId}` stores Activity Library items. Both members can use these libraries.
+5. **Personal selections:** `users/{uid}/settings/favorites` stores each member's own FDM and Activity favourites; do not store personal favourites in shared items.
+6. **Personal history:** under each `users/{uid}` are `weightEntries`, `waterEntries`, `foodEntries`, `exerciseEntries`, `dailyTotals` (Health Connect steps), and `settings` (including targets). These records must be accessible only to their owner.
 
-## Database structure
+## Deployment and recovery
 
-- `members/{uid}` — **admin-created** access allowlist; `{active: true}`. Each person can read only their own member status. No browser can create a membership.
-- `approvedFoods/{foodId}` — shared approved Food Items, Dishes, and Meals. Existing item IDs, source/provenance, measures, ingredient IDs, and link/variation fields are preserved. All active members can read and edit the shared library.
-- `users/{uid}/weightEntries/{entryId}` — reserved for private weigh-in events, for example `{id, date, kg, createdAt}`.
-- `users/{uid}/waterEntries/{entryId}` — reserved for private individual drink events, for example `{id, date, ml, createdAt}`.
-- `users/{uid}/foodEntries/{entryId}`, `exerciseEntries`, `dailyTotals`, and `settings` — reserved for the next stages. Each member can access only their own UID branch.
+Use GitHub Pages over HTTPS, and deploy delta ZIPs by replacing only the supplied changed files. v0.1.075 requires **no rules changes** or data migration. Keep the currently published rules in Firebase; they remain authoritative unless specifically updated.
 
-The app uses Firebase JavaScript SDK **13.3.0**, loading signed modular modules from `gstatic.com` after configuration. A first online load is required before the offline cache works. Subsequent cached reads and writes should work on supported browsers, and pending changes sync when reconnected. Shared edits to **the same** Firestore document are last-write-wins; this is not conflict-free multi-user editing. Avoid editing the same recipe simultaneously from both devices.
+Google sign-in can open a popup. First online use loads the Firebase SDK; offline operation depends on the browser's cache. Shared Firestore changes can overwrite one another if both people edit the same item concurrently. Firestore synchronisation and browser caching are **not historical backups**. An automatic, off-device, versioned backup mechanism is still outstanding.
 
-## Important limitations
-
-- **This version connects and synchronises the shared Food/Dish/Meal library. It does not yet record weight or water to Firestore from the existing entry sheets, or replace the fictional graph with actual records.** The adapter includes private weight/water entry paths for that next milestone.
-- Firestore sync and browser cache are **not historical backups**. Accidentally deleting a document will synchronise the deletion. Keep the existing local-approved-food export until recovery and migration are verified. Native Firestore backup/restore operations require billing; we have **not** enabled a paid backup service or claimed that backups are solved. We must agree a reliable, no-cost, automatic off-device backup design before treating data as irreplaceable.
-- The app currently loads the Firebase SDK from the internet; after a first successful page load, a browser may cache it, but this is not a guarantee of full offline app startup. Offline-first installation and browser testing remain required.
-- The Firebase client configuration is **not** a security mechanism. The `firestore.rules` and membership allowlist protect data. After any changes to those rules, publish the new rules in Firebase Console; merely uploading the `.rules` file to GitHub Pages does nothing.
-- On an untrusted or shared device, sign out when finished. Firestore persistent browser cache can remain on disk even after signing out; do not enable a personal account on a device you do not control.
-- The Firestore Spark tier currently provides free quotas (including 1 GiB stored, 50,000 reads/day, and 20,000 writes/day). Usage may vary; stay on Spark and monitor usage. The Firebase Console and source documentation are authoritative for current free limits.
-
-## Quick connection checks
-
-1. Unconfigured app: Settings says “Firebase is not configured”; local approved foods remain editable and none are automatically uploaded.
-2. Sign in as an unauthorised Google account: Settings shows not authorised; Firestore reads/writes are blocked by rules.
-3. Add that user's `members/{uid}` document and refresh: Settings shows Connected. Its private records live only under `users/{uid}`.
-4. Add or edit an approved food, then open PieChart as the other authorised member: the shared library should update automatically. Both users must have their membership documents.
-5. Turn off network after at least one successful authenticated online session, edit a shared food, and reconnect: a cached/offline or pending state appears, then synchronises after reconnection. Check that unsynced changes are not lost.
-6. Check an unauthorised account can neither read `approvedFoods` nor read `users/{anyUid}/...`. Check one authorised user cannot read the other user's private data. A browser login does **not** grant Firebase Console access.
+No unused code cleanup should erase existing Firestore data or delete the IndexedDB reference store from a browser.
