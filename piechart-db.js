@@ -1,4 +1,4 @@
-/* PieChart v0.1.073 — shared libraries with personal favourites, private activity records and step sync.
+/* PieChart v0.1.074 — shared libraries with personal favourites, private activity records and step sync.
    Firestore uses owner-private personal collections and member-only approved food and activity libraries.
    No private key belongs in a GitHub Pages app. An administrator manually provisions
    the initial two membership documents through Firebase Console. */
@@ -127,33 +127,43 @@ function safeFood(food){
   if(JSON.stringify(copy).length>40000)throw new Error('Food record is too large.');
   return copy;
 }
-function saveFoodChanges(previous,next){
+// Shared-library persistence is identical for Foods and Activities: sanitise
+// records, ignore timestamp-only edits, write changed records in one batch,
+// and keep each member's favourites exclusively in their own settings.
+function saveSharedLibraryChanges(previous,next,{collection,kind,cleanRecord,errorLimit}){
   requireMembership();
-  const was=new Map((previous||[]).map(item=>[item.id,item]));
-  const now=new Map((next||[]).map(item=>[item.id,item]));
+  const before=new Map((previous||[]).map(item=>[item.id,item]));
+  const after=new Map((next||[]).map(item=>[item.id,item]));
   const changes=[];
-  for(const [id,item] of now){
-    const before=was.get(id);
-    const beforeShared=before?safeFood(before):null,afterShared=safeFood(item);
-    // A favourite-only edit may update savedAt in the editor; don't make it a
-    // shared edit or change another member's Recents ordering.
-    const sameExceptTimestamp=beforeShared&&(()=>{
-      const b={...beforeShared},a={...afterShared};delete b.savedAt;delete a.savedAt;
-      return JSON.stringify(b)===JSON.stringify(a);})();
-    if(!before||!sameExceptTimestamp)changes.push(['put',id,afterShared]);
+  for(const [id,item] of after){
+    const clean=cleanRecord(item);
+    const prior=before.has(id)?cleanRecord(before.get(id)):null;
+    if(!prior||!sameExceptSavedAt(prior,clean))changes.push(['put',id,clean]);
   }
-  for(const id of was.keys())if(!now.has(id))changes.push(['delete',id]);
-  saveFavouriteDifferences(previous,next,'foods');
-  if(!changes.length)return;
-  if(changes.length>400)throw new Error('Too many changes in a single save.');
+  for(const id of before.keys())if(!after.has(id))changes.push(['delete',id]);
+  if(changes.length>400)throw new Error(errorLimit);
+  saveFavouriteDifferences(previous,next,kind);
+  if(!changes.length)return false;
   const batch=sdkStore.writeBatch(db);
   for(const [action,id,item] of changes){
-    const reference=sdkStore.doc(db,'approvedFoods',id);
-    if(action==='put')batch.set(reference,item);else batch.delete(reference);
+    const ref=sdkStore.doc(db,collection,id);
+    if(action==='put')batch.set(ref,item);else batch.delete(ref);
   }
-  // Firestore immediately applies queued writes to its persistent offline cache.
-  // commit() only resolves after server acknowledgment, so do not await it in UI.
-  batch.commit().catch(error=>setMode('connected',friendly(error)));
+  // Offline writes are queued by Firestore immediately. Show later rejection
+  // without blocking the editor waiting for the server to acknowledge the batch.
+  batch.commit().catch(error=>{state.error=friendly(error);broadcast();});
+  return true;
+}
+function sameExceptSavedAt(before,after){
+  const b={...before},a={...after};
+  delete b.savedAt;delete a.savedAt;
+  return JSON.stringify(b)===JSON.stringify(a);
+}
+function saveFoodChanges(previous,next){
+  return saveSharedLibraryChanges(previous,next,{
+    collection:'approvedFoods',kind:'foods',cleanRecord:safeFood,
+    errorLimit:'Too many changes in a single save.'
+  });
 }
 // Activity Library is shared by the same two authorised members as approved foods.
 // It contains reusable, named activity instances; recorded events remain owner-private.
@@ -174,24 +184,10 @@ function safeLibraryActivity(input){
   return copy;
 }
 function saveActivityLibraryChanges(previous,next){
-  requireMembership();
-  const before=new Map((previous||[]).map(x=>[x.id,x])),after=new Map((next||[]).map(x=>[x.id,x]));
-  const changes=[];
-  for(const [id,item] of after){
-    const clean=safeLibraryActivity(item);
-    const prior=before.has(id)?safeLibraryActivity(before.get(id)):null;
-    const sameExceptTimestamp=prior&&(()=>{const b={...prior},a={...clean};delete b.savedAt;delete a.savedAt;return JSON.stringify(b)===JSON.stringify(a);})();
-    if(!prior||!sameExceptTimestamp)changes.push(['put',id,clean]);
-  }
-  for(const id of before.keys())if(!after.has(id))changes.push(['delete',id]);
-  saveFavouriteDifferences(previous,next,'activities');
-  if(!changes.length)return false;
-  if(changes.length>400)throw new Error('Too many activity library changes at once.');
-  const batch=sdkStore.writeBatch(db);
-  for(const [action,id,item] of changes){const ref=sdkStore.doc(db,'approvedActivities',id);
-    if(action==='put')batch.set(ref,item);else batch.delete(ref);}
-  batch.commit().catch(error=>{state.error=friendly(error);broadcast()});
-  return true;
+  return saveSharedLibraryChanges(previous,next,{
+    collection:'approvedActivities',kind:'activities',cleanRecord:safeLibraryActivity,
+    errorLimit:'Too many activity library changes at once.'
+  });
 }
 function normalize(text){return String(text||'').trim().toLocaleLowerCase('en-NZ');}
 function uploadLocalFoods(localItems){
@@ -356,6 +352,15 @@ async function signOut(){
   if(state.pending||state.activityLibraryPending||state.privatePending)throw new Error('Changes are waiting to sync. Reconnect before signing out.');
   if(auth)await sdkAuth.signOut(auth);
 }
+function validateFoodEntry(payload){
+  if(typeof payload.itemId!=='string'||!payload.itemId||typeof payload.name!=='string'||!payload.name||
+     !Number.isFinite(payload.quantity)||payload.quantity<=0||payload.quantity>100000||
+     !Number.isFinite(payload.waterMl)||payload.waterMl<0||payload.waterMl>100000||
+     !['Food Item','Dish','Meal'].includes(payload.type)||
+     !['g','mL','whole'].includes(payload.unit)||
+     !['calories','protein','carbs','fats','fibre','energyKj'].every(k=>Number.isFinite(payload.nutrition?.[k])&&payload.nutrition[k]>=0))
+    throw new Error('Invalid food record.');
+}
 function createPrivateEntry(collection,record){
   requireMembership();
   if(!['weightEntries','waterEntries','foodEntries'].includes(collection))throw new Error('Unsupported private record.');
@@ -364,38 +369,48 @@ function createPrivateEntry(collection,record){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(payload.date))throw new Error('Invalid local record date.');
   if(collection==='weightEntries'&&(!Number.isFinite(payload.kg)||payload.kg<20||payload.kg>400))throw new Error('Invalid weight.');
   if(collection==='waterEntries'&&(!Number.isInteger(payload.ml)||payload.ml<=0||payload.ml>10000))throw new Error('Invalid water amount.');
-  if(collection==='foodEntries'){
-    if(typeof payload.itemId!=='string'||!payload.itemId||typeof payload.name!=='string'||!payload.name||
-       !Number.isFinite(payload.quantity)||payload.quantity<=0||payload.quantity>100000||
-       !Number.isFinite(payload.waterMl)||payload.waterMl<0||payload.waterMl>100000||
-       !['Food Item','Dish','Meal'].includes(payload.type)||
-       !['g','mL','whole'].includes(payload.unit)||
-       !['calories','protein','carbs','fats','fibre','energyKj'].every(k=>Number.isFinite(payload.nutrition?.[k])&&payload.nutrition[k]>=0))
-      throw new Error('Invalid food record.');
-  }
+  if(collection==='foodEntries')validateFoodEntry(payload);
   const task=sdkStore.setDoc(sdkStore.doc(db,'users',state.uid,collection,id),payload);
   task.catch(error=>{state.error=friendly(error);broadcast()});
   return id;
 }
 function recordWeight(date,kg){return createPrivateEntry('weightEntries',{date,kg});}
-function deleteWeight(id){
+// Private-event deletion is the same owner-only operation for recorded food,
+// weight, and activity. Keep each public wrapper for a stable UI API.
+function deletePrivateEntry(collection,key,id,label){
   requireMembership();
-  if(typeof id!=='string'||!state.weights.some(e=>e.id===id))throw new Error('Weight record not found.');
-  sdkStore.deleteDoc(sdkStore.doc(db,'users',state.uid,'weightEntries',id))
-    .catch(error=>{state.error=friendly(error);broadcast()});
+  if(typeof id!=='string'||!state[key].some(e=>e.id===id))
+    throw new Error(label+' record not found.');
+  sdkStore.deleteDoc(sdkStore.doc(db,'users',state.uid,collection,id))
+    .catch(error=>{state.error=friendly(error);broadcast();});
   return true;
 }
-function deleteFoodEntry(id){
-  requireMembership();
-  if(typeof id!=='string'||!state.foodEntries.some(e=>e.id===id))throw new Error('Food entry not found.');
-  sdkStore.deleteDoc(sdkStore.doc(db,'users',state.uid,'foodEntries',id))
-    .catch(error=>{state.error=friendly(error);broadcast()});
-  return true;
-}
+function deleteWeight(id){return deletePrivateEntry('weightEntries','weights',id,'Weight');}
+function deleteFoodEntry(id){return deletePrivateEntry('foodEntries','foodEntries',id,'Food entry');}
 // Each newly-recorded glass of water is a Food Item consumption, not a second
 // independent water counter. Old waterEntries are read-only history and remain counted.
 function recordFood(date,entry){
   return createPrivateEntry('foodEntries',{date,...entry});
+}
+// Edit the original private diary record, preserving its nutrition snapshot,
+// identity and creation timestamp. The same validation applies as on recording.
+function updateFoodEntry(id,changes){
+  requireMembership();
+  const entry=state.foodEntries.find(e=>e.id===id);
+  if(!entry)throw new Error('Food entry not found in this account.');
+  if(!changes||Object.keys(changes).some(k=>!['date','quantity','nutrition','waterMl'].includes(k)))
+    throw new Error('Only date, quantity, nutrition and water can be edited.');
+  const updated={...entry,...changes};
+  if(typeof updated.date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(updated.date)||
+     !Number.isFinite(Date.parse(updated.date+'T00:00:00Z'))||
+     new Date(updated.date+'T00:00:00Z').toISOString().slice(0,10)!==updated.date)
+    throw new Error('Invalid food entry date.');
+  validateFoodEntry(updated);
+  const task=sdkStore.updateDoc(sdkStore.doc(db,'users',state.uid,'foodEntries',id),{
+    ...changes,updatedAt:new Date().toISOString()
+  });
+  task.catch(error=>{state.error=friendly(error);broadcast();});
+  return true;
 }
 function recordWater(date,ml,waterFood){
   if(!Number.isInteger(ml)||ml<=0||ml>10000)throw new Error('Invalid water amount.');
@@ -413,7 +428,6 @@ function recordWater(date,ml,waterFood){
 }
 // Owner-private logged exercise. Existing deployed Firestore rules already allow
 // users/{uid}/exerciseEntries; no rule or data migration is needed.
-const ACTIVITY_TYPES=['Walking','Running','Cycling','Swimming','Weights','Gardening','Housework','Hiking','Yoga','Sport','Other'];
 function checkActivityEntry(input){
   if(!input||typeof input!=='object'||!LIBRARY_ACTIVITY_TYPES.includes(input.type)||
      typeof input.date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(input.date)||
@@ -456,12 +470,8 @@ function saveActivity(input,id=null){
   return identifier;
 }
 function deleteActivity(id){
-  requireMembership();
-  if(typeof id!=='string'||!/^[a-zA-Z0-9_-]{5,128}$/.test(id)||!state.activityDays.some(r=>r.id===id))
-    throw new Error('Activity not found in this account.');
-  sdkStore.deleteDoc(sdkStore.doc(db,'users',state.uid,'exerciseEntries',id))
-    .catch(error=>{state.error=friendly(error);broadcast()});
-  return true;
+  if(typeof id!=='string'||!/^[a-zA-Z0-9_-]{5,128}$/.test(id))throw new Error('Activity not found in this account.');
+  return deletePrivateEntry('exerciseEntries','activityDays',id,'Activity');
 }
 const TARGET_LIMITS={weight:[20,400],water:[.1,15],steps:[1,100000],protein:[1,1000],fibre:[1,300]};
 // Date of birth and stature are stored in the account-private settings document.
@@ -525,6 +535,6 @@ function saveTargets(values){
 }
 window.addEventListener('online',()=>{state.online=true;broadcast()});
 window.addEventListener('offline',()=>{state.online=false;broadcast()});
-window.PieChartDB={apiRevision:3,state,subscribe,signIn,signOut,saveFavorite,saveFoodChanges,saveActivityLibraryChanges,uploadLocalFoods,recordWeight,deleteWeight,recordWater,recordFood,deleteFoodEntry,saveActivity,deleteActivity,saveTargets,saveDetailsAndTargets};
+window.PieChartDB={apiRevision:3,state,subscribe,signIn,signOut,saveFavorite,saveFoodChanges,saveActivityLibraryChanges,uploadLocalFoods,recordWeight,deleteWeight,recordWater,recordFood,updateFoodEntry,deleteFoodEntry,saveActivity,deleteActivity,saveTargets,saveDetailsAndTargets};
 broadcast();
 if(configured)initialize();

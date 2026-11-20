@@ -1,4 +1,4 @@
-/* PieChart v0.1.067 — no IO or data storage.
+/* PieChart v0.1.074 — no IO or data storage.
  * NASEM 2023 adult EER coefficients: Health Canada Dietary Reference Intakes.
  * Step energy: ACSM level-walking net O2 cost 0.1 ml/kg/m (~5 kcal/L O2).
  * Step category, stride length, flexible activity bounds, and intensity tiers
@@ -18,6 +18,9 @@ const RATE={
  maintain:{gentle:[-.025,.025],moderate:[-.025,.025],strong:[-.025,.025]}
 };
 const finite=Number.isFinite;
+// Reuse the Activity Library's walking-stride estimate. Both the daily budget
+// and recorded activities must interpret the same steps identically.
+const walkingStrideMetres=heightCm=>root.PieChartActivityMath.strideMetres(heightCm,'Walking');
 const clamp=(n,l,h)=>Math.min(h,Math.max(l,n));
 function dateValue(s){
  if(typeof s!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s))return NaN;
@@ -51,7 +54,7 @@ function collectSteps(rows,date){
 }
 function walkingNetKcal(steps,weightKg,heightCm){
  if(!finite(steps)||!finite(weightKg)||!finite(heightCm))return 0;
- const strideM=heightCm/100*.415;
+ const strideM=walkingStrideMetres(heightCm);
  return Math.max(0,steps-REFERENCE_STEPS)*strideM*weightKg*.0005;
 }
 function exerciseNetKcal(activity,weightKg){
@@ -136,7 +139,7 @@ function calculate(input){
   activityBasis='No private step data: inactive-to-low-active energy envelope.';
  }
  const walk=s=>walkingNetKcal(s,weightKg,heightCm);
- const walkMid=walk(stepsMid),perStep=heightCm/100*.415*weightKg*.0005;
+ const walkMid=walk(stepsMid),perStep=walkingStrideMetres(heightCm)*weightKg*.0005;
  const exercise=exerciseExtra(activities,date,weightKg,walkMid,perStep);
  const exerciseLo=exerciseExtra(activities,date,weightKg,walk(stepsLo),perStep);
  const exerciseHi=exerciseExtra(activities,date,weightKg,walk(stepsHi),perStep);
