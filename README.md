@@ -1,31 +1,33 @@
-# Jules Berne’s Pie Chart — v0.1.079
+# PieChart Companion — v0.2.012 (Android)
 
-Phone-first PWA for weight, nutrition, water, steps, and activity tracking. Hosted on GitHub Pages with Google sign-in, shared Food and Activity Libraries, and owner-private history.
+Optional Android 14+ companion to PieChart. Health Connect step synchronisation remains unchanged. The separate **Test nutrition panel scanner** uses on-device Google ML Kit. No cloud OCR, images uploaded, or companion-side nutrient calculations.
 
-## Current files
+## What is new in v0.2.012
 
-- `index.html` — chart, overlays, forms, and interactions.
-- `piechart-db.js`, `firebase-config.js`, and `firestore.rules` — Firebase integration and security rules.
-- `activity-math.js` and `calorie-budget.js` — activity and energy calculations.
-- `nz-concise-2021.js`, `au-afcd-r3.js`, `usda-foundation-2026.js` — bundled food references.
-- `dummy-data.csv` — **public sample graph history**; not personal account history. Its calorie budgets are calculated by the app, not supplied by CSV.
-- `manifest.webmanifest`, `icon-192.png`, `icon-512.png` — PWA metadata and icons.
-- `PROJECT_SPEC.md` — authoritative requirements and implementation notes.
+- **Repair the v0.2.011 matching regression:** Visible nutrient values are associated primarily using their actual OCR row in the current frame, restoring the more successful v0.2.010 behaviour. A geometrically predicted value must not steal a nearby subrow's number (e.g. gluten `0 g` instead of fat `1.4 g`).
+- **Both checks remain:** Measured geometry and independent row counting corroborate each other when sufficient observations are visible. Missing rows remain unresolved; map-only cross-frame hypotheses may be displayed as tentative but can never lock without a direct observed-row match.
+- **Retain safe locks:** Once a value passes confirmation it stays locked until the user taps it for rescan. Competing decimals and contradictory macronutrient totals remain reasons to withhold confirmation. Per-serving values are never substitutes.
+- **Version identification:** Android version **0.2.012** (code **212**); GitHub adds an NZ timestamp and run number to the APK filename and artifact ZIP, with the build identity shown in the scanner.
 
-## Updating
+**Status:** Seven pure Kotlin synthetic/regression checks passed, including a label with intermediate gluten/trans rows; the Android build and live-phone behaviour have **not** been tested. The six screenshots inform the regression cases but were not processed through the actual phone OCR engine here. Review any scanning results before relying on them.
 
-Patch ZIPs contain only changed files. Extract a patch into the existing GitHub Pages repository, replacing those filenames, preserving unchanged files, and commit. Apply patch versions in sequence when they modify different files.
+## How to install and prove the version
 
-v0.1.075 removes unused code and obsolete importer functions. It does not require new Firebase rules or change stored personal data. Previously imported NZ reference foods already stored in a device's browser remain readable, but there is no UI for importing additional reference files.
+1. Apply this **v0.2.012** delta over your existing **v0.2.011** GitHub repository (which already includes earlier patches). Each patch contains **only changed files**; retain unchanged files. Verify `app/build.gradle.kts` says `versionCode = 212`, `companionVersion = "0.2.012"`. Also check `app/src/main/java/nz/piechart/companion/LiveLabelInterpreter.kt` exists.
+2. Commit/upload the changed files; the already-updated `.github/workflows/build-apk.yml` is retained unchanged. Then open **Actions → Build private PieChart Steps APK → Run workflow**. Use the **newest successful run** on the branch with your commit.
+3. Download the artifact ZIP named something like `PieChartCompanion-v0.2.012-202611211735-NZ-run42-private-APK.zip`. The timestamp and run number will reflect **the actual GitHub build**, not that example. Its contents should include a signed `PieChartCompanion-v0.2.012-202611211735-NZ-run42.apk` and matching `.apk.sha256`; the exact names must correspond.
+4. Install **that versioned APK**, not an older `app-release.apk`. Keep the existing app installed during the update to preserve its Health Connect and Google account settings. Android may prompt for confirmation of an update, which is expected.
+5. Open Android **Settings → Apps → PieChart Companion** and check the installed version is **0.2.012**. Launch the companion from its own icon, then open **Test nutrition panel scanner**. The camera screen's top-left header must show **Scanner v0.2.012** and the **same build ID** as the APK name. The home screen also shows that build ID. If the screen does not, stop: the new APK is not the one you are running. Do not infer the version from a downloaded ZIP alone.
 
-See `FIREBASE_SETUP.md` for current Firebase access and security details.
+If GitHub's build reports `Require readable-overlay scanner source` failure, it means v0.2.009 was not fully applied to the repository: restore the missing v0.2.009+ source files, then apply v0.2.012 again. A download may acquire a Windows `(2)` suffix, which is not an Android version.
 
-## Android scanner connection test
+## Which scanner screen should you see?
 
-Apply the companion v0.2.006 patch and install its signed APK over the old version. On Android HTTPS PieChart, **Scan nutrition panel** in an unsaved Food Item opens a temporary companion screen, not the camera. It can return five fixed dummy readings or Cancel. Keep/edit non-nutrient draft fields first, then check they survive even if Android reopens PieChart in a new window. The first phone trial returned to the Today's Food browse screen, indicating the Food Item editor was not restored; the current PWA patch now waits for the database module before recovering the editor and retries after a foreground return. The phone retest remains outstanding. **Save and Record serving are blocked while test values are present**; select **Restore previous nutrient values** to continue editing. **Use photograph instead** preserves the previous Tesseract reader.
+- **Companion icon → Test nutrition panel scanner:** the current experimental **readable, target-only reconstruction overlay**. It highlights just Energy, Protein, Fat, Carbohydrate, Fibre, the verified per-100 heading, and matched per-100 values. The overlay is intended to be readable over the camera. Tap a coloured interpretation to reject it. Screenshot saves a version-labelled PNG under `Pictures/PieChart`. Debug is optional.
+- **PieChart PWA → Food Item → Scan nutrition panel:** the **separate, successfully phone-tested Stage 1 connection screen**. It still returns five clearly labelled **dummy test values**; this is intentional. The experimental camera has **not** yet been connected to the PWA return workflow.
 
-The current native test bridge accepts returns to `chlockasync.github.io` paths ending in `/index.html`. Verify that this is the PieChart host; a different host requires adjusting the companion allowlist before rebuilding. This is a test of Android app switching and form preservation, not evidence of successful OCR or a seamless transition yet.
+Both use the same installed companion APK and now display its actual version/build identity. The screenshot builds remain private and are **not** sent to Firebase.
 
-## Stage 1 phone retest after v0.1.079
+**Verification status:** APK build/signing and on-phone camera/overlay behaviour for v0.2.012 are not verified here; the private GitHub Actions run and phone test remain necessary. The app package, signing identity, and step-sync implementation were not deliberately changed. Browser-tab duplication on return to the PWA remains a separate issue.
 
-Only PieChart's GitHub Pages files need updating; the installed companion v0.2.006 remains unchanged. From Today's Food, open or create a Food Item, change its fields without saving, launch the companion, and tap **Return five TEST values**. Expected: the same Food Item editor reopens, all other field values and familiar measures are preserved, five fixed test numbers are visible, and **Restore previous nutrient values** is available. If Android resumes the PWA but does not deliver the callback, PieChart should still reopen the draft and explicitly say no scanner results were received. Test **Cancel without changes** as well. If it still opens only Today's Food, note whether the PWA was launched from its home-screen icon or from Chrome; do not save dummy numbers.
+For signing and certificate details see `SIGNING_AND_BUILD.md`. For current scanner requirements, see `PROJECT_SPEC.md`.
