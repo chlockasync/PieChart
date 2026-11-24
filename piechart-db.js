@@ -345,6 +345,7 @@ function deletePrivateEntry(collection,key,id,label){
 }
 function deleteWeight(id){return deletePrivateEntry('weightEntries','weights',id,'Weight');}
 function deleteFoodEntry(id){return deletePrivateEntry('foodEntries','foodEntries',id,'Food entry');}
+function deleteWaterEntry(id){return deletePrivateEntry('waterEntries','waters',id,'Water');}
 // Each newly-recorded glass of water is a Food Item consumption, not a second
 // independent water counter. Old waterEntries are read-only history and remain counted.
 function recordFood(date,entry){
@@ -485,6 +486,6 @@ function saveDetailsAndTargets(values){
 
 window.addEventListener('online',()=>{state.online=true;broadcast()});
 window.addEventListener('offline',()=>{state.online=false;broadcast()});
-window.PieChartDB={state,subscribe,signIn,signOut,saveFavorite,saveFoodChanges,saveActivityLibraryChanges,recordWeight,deleteWeight,recordWater,recordFood,updateFoodEntry,deleteFoodEntry,saveActivity,deleteActivity,saveDetailsAndTargets};
+window.PieChartDB={state,subscribe,signIn,signOut,saveFavorite,saveFoodChanges,saveActivityLibraryChanges,recordWeight,deleteWeight,recordWater,deleteWaterEntry,recordFood,updateFoodEntry,deleteFoodEntry,saveActivity,deleteActivity,saveDetailsAndTargets};
 broadcast();
 if(configured)initialize();
