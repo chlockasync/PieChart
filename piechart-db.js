@@ -1,4 +1,4 @@
-/* PieChart v0.1.075 — shared libraries with personal favourites, private activity records and step sync.
+/* PieChart v0.1.088 — shared libraries, owner-private records, Noom summaries, and step sync.
    Firestore uses owner-private personal collections and member-only approved food and activity libraries.
    No private key belongs in a GitHub Pages app. An administrator manually provisions
    the initial two membership documents through Firebase Console. */
@@ -7,7 +7,7 @@ import {firebaseConfig} from './firebase-config.js';
 const listeners=new Set();
 const state={mode:'local',configured:false,uid:'',displayName:'',email:'',error:'',
   foods:[],activityLibrary:[],favorites:{foods:{},activities:{}},favoritesLoaded:false,favoritesFromCache:true,activityLibraryLoaded:false,activityLibraryFromCache:true,activityLibraryPending:false,foodsFromCache:false,pending:false,online:navigator.onLine,
-  weights:[],waters:[],foodEntries:[],activityDays:[],stepDays:[],targets:{},details:{},targetsLoaded:false,targetsFromCache:true,
+  weights:[],waters:[],foodEntries:[],activityDays:[],stepDays:[],noomDays:[],targets:{},details:{},targetsLoaded:false,targetsFromCache:true,
   weightsLoaded:false,watersLoaded:false,foodEntriesLoaded:false,activityDaysLoaded:false,stepDaysLoaded:false,privateFromCache:true,privatePending:false,
   weightsPending:false,watersPending:false,foodEntriesPending:false,activityDaysPending:false,stepDaysPending:false,targetsPending:false,initialRemoteFoods:false};
 let app,auth,db,sdkAuth,sdkStore;
@@ -90,7 +90,7 @@ function stopSubscriptions(){
 function clearAccount(){
   sharedFoods=[];sharedActivities=[];gotRemoteFoods=gotRemoteActivities=false;needsFavoriteMigration=favoriteMigrationPending=false;
   state.uid='';state.displayName='';state.email='';state.foods=[];state.activityLibrary=[];state.favorites={foods:{},activities:{}};state.favoritesLoaded=false;state.favoritesFromCache=true;state.activityLibraryLoaded=false;state.activityLibraryFromCache=true;state.activityLibraryPending=false;state.weights=[];
-  state.waters=[];state.foodEntries=[];state.activityDays=[];state.stepDays=[];state.targets={};state.details={};state.targetsLoaded=false;state.targetsFromCache=true;
+  state.waters=[];state.foodEntries=[];state.activityDays=[];state.stepDays=[];state.noomDays=[];state.targets={};state.details={};state.targetsLoaded=false;state.targetsFromCache=true;
   state.weightsLoaded=false;state.watersLoaded=false;state.foodEntriesLoaded=false;state.activityDaysLoaded=false;state.stepDaysLoaded=false;state.privatePending=false;
   state.weightsPending=false;state.watersPending=false;state.foodEntriesPending=false;state.activityDaysPending=false;state.stepDaysPending=false;state.targetsPending=false;
   state.initialRemoteFoods=false;state.pending=false;state.privateFromCache=true;
@@ -194,15 +194,18 @@ function watchPersonal(uid,epoch){
   for(const [name,key] of collections){
     const stop=sdkStore.onSnapshot(sdkStore.collection(db,'users',uid,name),{includeMetadataChanges:true},snapshot=>{
       if(epoch!==authEpoch)return;
-      // dailyTotals is an owner-private collection shared with future daily summaries.
-      // Accept only genuine, explicit Health Connect step records. An absent day is
-      // unknown, not zero. Never infer a step count from sample history.
-      state[key]=name==='dailyTotals'
-        ?snapshot.docs.map(x=>({id:x.id,...x.data()})).filter(row=>
+      const documents=snapshot.docs.map(x=>({id:x.id,...x.data()}));
+      if(name==='dailyTotals'){
+        // One collection holds independent Health Connect steps and imported
+        // owner-private Noom daily summaries. Do not conflate their sources.
+        state.stepDays=documents.filter(row=>
           /^\d{4}-\d{2}-\d{2}$/.test(row.date||'')&&
           Number.isInteger(row.steps)&&row.steps>=0&&row.steps<=100000&&
-          row.source==='health_connect'&&typeof row.complete==='boolean')
-        :snapshot.docs.map(x=>({id:x.id,...x.data()}));
+          row.source==='health_connect'&&typeof row.complete==='boolean');
+        state.noomDays=documents.filter(row=>
+          /^\d{4}-\d{2}-\d{2}$/.test(row.date||'')&&
+          row.noom&&typeof row.noom==='object'&&!Array.isArray(row.noom));
+      }else state[key]=documents;
       state[key+'Loaded']=true;
       state.privateFromCache=snapshot.metadata.fromCache;
       state[key+'Pending']=snapshot.metadata.hasPendingWrites;
@@ -291,7 +294,7 @@ async function initialize(){
           if(stopTargets){stopTargets();stopTargets=null;}
           if(stopFoodEntries){stopFoodEntries();stopFoodEntries=null;}
           if(stopActivities){stopActivities();stopActivities=null;}
-          state.foods=[];state.activityLibrary=[];state.favorites={foods:{},activities:{}};state.favoritesLoaded=false;state.activityLibraryLoaded=false;state.weights=[];state.waters=[];state.foodEntries=[];state.activityDays=[];state.stepDays=[];state.targets={};state.details={};state.targetsLoaded=false;
+          state.foods=[];state.activityLibrary=[];state.favorites={foods:{},activities:{}};state.favoritesLoaded=false;state.activityLibraryLoaded=false;state.weights=[];state.waters=[];state.foodEntries=[];state.activityDays=[];state.stepDays=[];state.noomDays=[];state.targets={};state.details={};state.targetsLoaded=false;
           state.weightsLoaded=false;state.watersLoaded=false;state.foodEntriesLoaded=false;state.activityDaysLoaded=false;
           setMode(membership.metadata.fromCache?'checking-membership':'not-authorized');return;
         }
