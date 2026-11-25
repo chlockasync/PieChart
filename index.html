@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#fffaf2">
-  <title>Jules Berne's Pie Chart — v0.1.088</title>
+  <title>Jules Berne's Pie Chart — v0.1.089</title>
   <link rel="manifest" href="manifest.webmanifest">
   <style>
 /* Jules Berne's Pie Chart — single visual system, v0.1.088.
@@ -619,7 +619,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 
 <script src="activity-math.js?v=0.1.075"></script><script src="calorie-budget.js?v=0.1.074"></script>
 <script src="piechart-shared.js?v=0.1.087"></script>
-<script>/* PieChart v0.1.088 — shared diary controls and validated common helpers. */
+<script>/* PieChart v0.1.089 — shared diary controls and validated common helpers. */
 (() => {
   'use strict';
   // All chart data comes from private member records; blank days remain blank.
@@ -793,16 +793,23 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
     for(const s of stepDays)if(validDate(s.date)&&Number.isInteger(s.steps)&&s.steps>=0&&s.steps<=100000)
       mergedStepsByDate.set(s.date,s);
     const additionalStepsByDate=new Map();
+    // An activity is a recorded event even when its duration, steps, distance,
+    // and energy expenditure are unknown. Those optional measurements must
+    // never determine whether its date gets an activity marker or count badge.
     const activities=(Array.isArray(state.activityDays)?state.activityDays:[]).filter(a=>
-      validDate(a.date)&&((Number.isFinite(a.minutes)&&a.minutes>0)||Number.isFinite(a.netKcalPerKg)));
+      a&&validDate(a.date));
     const activityEventsByDate=new Map();
     const activityByDate=new Map();
     for(const a of activities){
       if(!activityEventsByDate.has(a.date))activityEventsByDate.set(a.date,[]);
       activityEventsByDate.get(a.date).push(a);
-      const daily=activityByDate.get(a.date)||{load:0,minutes:0,count:0};
-      daily.count++;daily.minutes+=Number(a.minutes)||0;
-      daily.load+=(Number.isFinite(a.netKcalPerKg)?a.netKcalPerKg:Math.max(0,(a.mets||1)-1)*a.minutes/60)*60;
+      const daily=activityByDate.get(a.date)||{load:0,minutes:0,knownDurations:0,count:0};
+      daily.count++;
+      if(Number.isFinite(a.minutes)&&a.minutes>0){daily.minutes+=a.minutes;daily.knownDurations++;}
+      // Unmeasured energy is not estimated merely to display a marker.
+      if(Number.isFinite(a.netKcalPerKg))daily.load+=a.netKcalPerKg*60;
+      else if(Number.isFinite(a.mets)&&Number.isFinite(a.minutes)&&a.minutes>0)
+        daily.load+=Math.max(0,a.mets-1)*a.minutes;
       activityByDate.set(a.date,daily);
       if(a.stepRelation==='additional'&&Number.isInteger(a.stepsIncluded)&&a.stepsIncluded>0){
         const steps=additionalStepsByDate.get(a.date)||{measured:0,estimated:0};
@@ -868,7 +875,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         stepsAdditionalMeasured:additional?.measured||0,
         stepsAdditionalEstimated:additional?.estimated||0,
         activityLoad:activity?.load??null,
-        activityMinutes:activity?.minutes??0,activityCount:activity?.count??0,
+        activityMinutes:activity?.knownDurations?activity.minutes:null,activityCount:activity?.count??0,
         calories:totals.calories??(validMeasurement(noom?.calories,100000)?noom.calories:null),
         protein:totals.protein??(validMeasurement(noom?.protein,10000)?noom.protein:null),
         fibre:totals.fibre??(validMeasurement(noom?.fibre,10000)?noom.fibre:null),
@@ -1173,7 +1180,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       const cy=stepBandTop+stepBandHeight-8;
       el('circle',{cx:xx,cy,r:Math.min(3.25,Math.max(2.3,slot*.36)),fill:'#d75b2e',stroke:'#fffaf5',
         'stroke-width':1.1,'pointer-events':'none','data-activity-date':d.date,
-        'aria-label':`${d.activityCount} activities, ${d.activityMinutes} minutes on ${d.date}`},layer);
+        'aria-label':`${d.activityCount} activities, ${Number.isFinite(d.activityMinutes)?d.activityMinutes+' recorded minutes':'duration not recorded'} on ${d.date}`},layer);
     });
   }
   function bandAtmosphere(layer,k,rows,y){
@@ -1393,7 +1400,9 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       const activityBadge=document.getElementById('step-activity-badge');
       if(activityBadge){activityBadge.hidden=!d.activityCount;
         activityBadge.textContent=d.activityCount?'● '+d.activityCount:'';
-        activityBadge.title=d.activityCount+' recorded activities, '+d.activityMinutes+' minutes on '+activeDate();}
+        activityBadge.title=d.activityCount+' recorded activities, '+
+          (Number.isFinite(d.activityMinutes)?d.activityMinutes+' recorded minutes':'duration not recorded')+
+          ' on '+activeDate();}
       for(const key of ['protein','fibre']){
         const value=d[key],goal=d[key+'Goal'];
         put(key+'-percent',pct(value,goal));
