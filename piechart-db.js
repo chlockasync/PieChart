@@ -319,7 +319,7 @@ function validateFoodEntry(payload){
      !['calories','protein','carbs','fats','fibre','energyKj'].every(k=>Number.isFinite(payload.nutrition?.[k])&&payload.nutrition[k]>=0))
     throw new Error('Invalid food record.');
 }
-function createPrivateEntry(collection,record){
+function createPrivateEntry(collection,record,{onWriteError=null}={}){
   requireMembership();
   if(!['weightEntries','waterEntries','foodEntries'].includes(collection))throw new Error('Unsupported private record.');
   const id=crypto.randomUUID();
@@ -329,7 +329,12 @@ function createPrivateEntry(collection,record){
   if(collection==='waterEntries'&&(!Number.isInteger(payload.ml)||payload.ml<=0||payload.ml>10000))throw new Error('Invalid water amount.');
   if(collection==='foodEntries')validateFoodEntry(payload);
   const task=sdkStore.setDoc(sdkStore.doc(db,'users',state.uid,collection,id),payload);
-  task.catch(error=>{state.error=friendly(error);broadcast()});
+  task.catch(error=>{
+    state.error=friendly(error);broadcast();
+    if(typeof onWriteError==='function'){
+      try{onWriteError(state.error)}catch(callbackError){console.error(callbackError)}
+    }
+  });
   return id;
 }
 function recordWeight(date,kg){return createPrivateEntry('weightEntries',{date,kg});}
@@ -348,8 +353,8 @@ function deleteFoodEntry(id){return deletePrivateEntry('foodEntries','foodEntrie
 function deleteWaterEntry(id){return deletePrivateEntry('waterEntries','waters',id,'Water');}
 // Each newly-recorded glass of water is a Food Item consumption, not a second
 // independent water counter. Old waterEntries are read-only history and remain counted.
-function recordFood(date,entry){
-  return createPrivateEntry('foodEntries',{date,...entry});
+function recordFood(date,entry,options){
+  return createPrivateEntry('foodEntries',{date,...entry},options);
 }
 // Edit the original private diary record, preserving its nutrition snapshot,
 // identity and creation timestamp. The same validation applies as on recording.
@@ -371,7 +376,7 @@ function updateFoodEntry(id,changes){
   task.catch(error=>{state.error=friendly(error);broadcast();});
   return true;
 }
-function recordWater(date,ml,waterFood){
+function recordWater(date,ml,waterFood,options){
   if(!Number.isInteger(ml)||ml<=0||ml>10000)throw new Error('Invalid water amount.');
   if(!waterFood||waterFood.type!=='Food Item'||String(waterFood.name).trim().toLowerCase()!=='water')
     throw new Error('Add a Food Item named Water to the shared library first.');
@@ -383,7 +388,7 @@ function recordWater(date,ml,waterFood){
   }
   nutrition.energyKj=Math.round((Number.isFinite(values.energyKj)?values.energyKj:values.calories*4.184)*ml)/100;
   return recordFood(date,{itemId:waterFood.id,name:waterFood.name,type:'Food Item',unit:'mL',
-    quantity:ml,waterMl:ml,nutrition,source:'water-shortcut'});
+    quantity:ml,waterMl:ml,nutrition,source:'water-shortcut'},options);
 }
 // Owner-private logged exercise. Existing deployed Firestore rules already allow
 // users/{uid}/exerciseEntries; no rule or data migration is needed.
