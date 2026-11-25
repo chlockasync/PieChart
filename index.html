@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#fffaf2">
-  <title>Jules Berne's Pie Chart — v0.1.089</title>
+  <title>Jules Berne's Pie Chart — v0.1.090</title>
   <link rel="manifest" href="manifest.webmanifest">
   <style>
 /* Jules Berne's Pie Chart — single visual system, v0.1.088.
@@ -617,9 +617,9 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 <script src="usda-foundation-2026.js?v=0.1.030"></script>
 
 
-<script src="activity-math.js?v=0.1.075"></script><script src="calorie-budget.js?v=0.1.074"></script>
+<script src="activity-math.js?v=0.1.075"></script><script src="calorie-budget.js?v=0.1.090"></script>
 <script src="piechart-shared.js?v=0.1.087"></script>
-<script>/* PieChart v0.1.089 — shared diary controls and validated common helpers. */
+<script>/* PieChart v0.1.090 — shared diary controls and validated common helpers. */
 (() => {
   'use strict';
   // All chart data comes from private member records; blank days remain blank.
@@ -858,6 +858,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         weightKg:mostRecentPrivateWeight,goalWeightKg:goals.weight,
         goalIntensity:goals.goalIntensity||'moderate',weightHistory:privateWeightWindow,
         stepDays:stepWindow,activities:activityEventsByDate.get(date)||[],
+        allowStepProjection:date===today,
         dayProgress:date===today?dayProgress:1
       });
       const activity=activityByDate.get(date);

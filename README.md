@@ -1,4 +1,4 @@
-# Jules Berne’s Pie Chart — v0.1.089
+# Jules Berne’s Pie Chart — v0.1.090
 
 Phone-first PWA for weight, nutrition, water, steps, and activity tracking. Hosted on GitHub Pages with Google sign-in, shared Food and Activity Libraries, and owner-private history.
 
@@ -21,11 +21,11 @@ See `FIREBASE_SETUP.md` for current Firebase access and security details.
 
 The graph reads genuine owner-private Firestore history only. Imported Noom numerical
 summaries are stored under `users/{uid}/dailyTotals/{YYYY-MM-DD}.noom`, and original
-Noom daily budgets are preserved. The former public `dummy-data.csv` is retired;
-**delete it from the GitHub Pages repository when applying this patch**. Missing
-measurements stay blank. For other owner-specific historical imports, prepare
-Firestore-compatible records offline and upload them separately; personal data
-is not committed to GitHub.
+Noom daily budgets are preserved. The former public `dummy-data.csv` is retired
+and should not be deployed. Missing measurements stay blank. Historical budgets
+never project missing steps from nearby days; only today may project unobserved
+steps. For other owner-specific historical imports, prepare Firestore-compatible
+records offline and upload them separately; personal data is not committed to GitHub.
 
 ## Android nutrition-panel scanner integration
 

@@ -1,4 +1,4 @@
-/* PieChart v0.1.074 — no IO or data storage.
+/* PieChart v0.1.090 — no IO or data storage.
  * NASEM 2023 adult EER coefficients: Health Canada Dietary Reference Intakes.
  * Step energy: ACSM level-walking net O2 cost 0.1 ml/kg/m (~5 kcal/L O2).
  * Step category, stride length, flexible activity bounds, and intensity tiers
@@ -94,7 +94,7 @@ function trendWeight(rows,date){
 }
 function calculate(input){
  const {date,dateOfBirth,heightCm,sex,weightKg,goalWeightKg,goalIntensity='moderate',
-   stepDays=[],activities=[],weightHistory=[],dayProgress=1}=input||{};
+   stepDays=[],activities=[],weightHistory=[],dayProgress=1,allowStepProjection=false}=input||{};
  if(!finite(dateValue(date)))return {reason:'details'};
  if(!finite(goalWeightKg)||goalWeightKg<20||goalWeightKg>400)return {reason:'goal'};
  if(!finite(weightKg)||weightKg<20||weightKg>400)return {reason:'weight'};
@@ -114,18 +114,23 @@ function calculate(input){
  const recent=collectSteps(stepDays,date),current=recent.today;
  const frac=clamp(finite(dayProgress)?dayProgress:1,0,1);
  let stepsMid,stepsLo,stepsHi,activityCoverage='unknown',activityBasis;
- if(current?.complete){
+ // Only today may project unobserved steps using earlier completed days.
+ // Historical days use their own recorded steps (including partial totals),
+ // never projections derived from the step history of nearby dates.
+ if(current?.complete||(!allowStepProjection&&current)){
   stepsMid=stepsLo=stepsHi=current.steps;
-  activityCoverage='complete';
-  activityBasis='Completed step count for this day; other activity may be unrecorded.';
- }else if(recent.count>=3){
+  activityCoverage=current.complete?'complete':'historical-recorded';
+  activityBasis=current.complete
+   ?'Completed step count for this day; other activity may be unrecorded.'
+   :'Recorded steps for this historical day only; no unrecorded steps projected.';
+ }else if(allowStepProjection&&recent.count>=3){
   const seen=current?.steps??0,left=current?1-frac:1;
   stepsMid=seen+recent.median*left;
   stepsLo=seen+recent.p20*left;
   stepsHi=seen+recent.p80*left;
   activityCoverage=current?'partial':'history-only';
   activityBasis='Recorded steps plus previous 21 days of completed step counts for the unrecorded portion.';
- }else if(current){
+ }else if(allowStepProjection&&current){
   const left=1-frac;
   stepsMid=current.steps+REFERENCE_STEPS*left;
   stepsLo=current.steps;
@@ -136,7 +141,9 @@ function calculate(input){
   // Unknown activity is represented as a wide INACTIVE-to-LOW-ACTIVE EER
   // envelope, not an invented step reading or a claim of daily activity.
   stepsMid=stepsLo=stepsHi=REFERENCE_STEPS;
-  activityBasis='No private step data: inactive-to-low-active energy envelope.';
+  activityBasis=allowStepProjection
+   ?'No private step data: inactive-to-low-active energy envelope.'
+   :'No steps recorded for this historical day; no steps projected from other dates.';
  }
  const walk=s=>walkingNetKcal(s,weightKg,heightCm);
  const walkMid=walk(stepsMid),perStep=walkingStrideMetres(heightCm)*weightKg*.0005;
@@ -168,7 +175,7 @@ function calculate(input){
    maintenance:Math.round(maintainCentre),maintenanceLow:Math.round(maintainLow),
    maintenanceHigh:Math.round(maintainHigh),inactiveEer:Math.round(inactive),
    provisional:true,activityBasis,activityCoverage,historyDays:recent.count,
-   stepsEstimated:current||recent.count>=3?Math.round(stepsMid):null,
+   stepsEstimated:(current||(allowStepProjection&&recent.count>=3))?Math.round(stepsMid):null,
    stepExtraKcal:Math.round(walkMid),exerciseExtraKcal:Math.round(exercise.kcal),
    direction,intensity:goalIntensity,age,trendWeight:measuredTrend,
    source:'NASEM-2023-EER',calibrationApplied:false,guardLimited:false,
