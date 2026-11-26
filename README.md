@@ -1,4 +1,4 @@
-# Jules Berne’s Pie Chart — v0.1.091
+# Jules Berne’s Pie Chart — v0.1.092
 
 Phone-first PWA for weight, nutrition, water, steps, and activity tracking. Hosted on GitHub Pages with Google sign-in, shared Food and Activity Libraries, and owner-private history.
 
@@ -38,3 +38,15 @@ Favourites are account-private under `users/{uid}/settings/favorites`; shared de
 ## Scanner
 
 The separate Android PieChart Companion v0.2.016 handles ML Kit per-100 nutrition scanning. PieChart preserves the unsaved Food Item draft for the app-to-app callback. See `PROJECT_SPEC.md` for current scanner requirements and remaining phone testing; there is no scanner change in this patch.
+
+## Food Library display and Food Item editing
+
+The shared Food/Dish/Meal library persists in the UI through unrelated Firebase
+notifications. The last release had a local-view clearing regression; the shared
+Firestore documents never needed reimporting. Favourites remain member-private.
+
+Today's Food places recorded entries before search/scan, followed by private
+favourites. Food Item review uses a combined brand-prefixed Food name, two inline
+toggles, Barcode / Values per 100 selectors, five colour-coded nutrient cards,
+and bottom-aligned actions. Legacy brand metadata is read for display and folded
+into the visible name on save; no Firestore migration is required.

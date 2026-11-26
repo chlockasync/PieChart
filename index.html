@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#fffaf2">
-  <title>Jules Berne's Pie Chart — v0.1.090</title>
+  <title>Jules Berne's Pie Chart — v0.1.092</title>
   <link rel="manifest" href="manifest.webmanifest">
   <style>
-/* Jules Berne's Pie Chart — single visual system, v0.1.088.
+/* Jules Berne's Pie Chart — single visual system, v0.1.092.
    The home screen is one eight-series chart with an integrated right legend.
    No historical overrides or per-version CSS patches. */
 :root {
@@ -326,6 +326,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 .food-library-panel {display:block}
 .food-browse {display:flex;flex-direction:column;min-height:0}
 .food-lookup-controls {display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:center;margin:0 0 7px}
+.food-diary-entry .food-lookup-controls {margin-top:13px}
 .food-search {min-width:0;width:100%;padding:12px 13px;border:1px solid #b6c9dd;border-radius:11px;background:#fff;font-size:16px;color:var(--ink)}
 /* 16px prevents mobile browser zoom; use a quiet, inset focus indication instead of an outer outline. */
 .food-search:focus,.food-search:focus-visible {outline:none;outline-offset:0;border-color:#719cc9;box-shadow:inset 0 0 0 1px #719cc9}
@@ -374,25 +375,40 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 .food-field {display:flex;flex-direction:column;gap:4px;min-width:0}
 .food-field label {font-size:13px;color:#435875;font-weight:900}
 .food-field input,.food-field select {width:100%;padding:11px 12px;border:1px solid #bfcede;border-radius:11px;background:#fff;color:var(--ink);font-size:16px}
-/* Nutrition information is aligned like a NZ label: one nutrient per row. */
-.food-nutrition {display:grid;gap:2px;padding:2px 0}
-.food-nutrient-row {display:grid;grid-template-columns:minmax(96px, .85fr) minmax(0,1.35fr);align-items:center;gap:9px;min-width:0;padding:3px 0}
-.food-nutrient-row > label {font-size:13px;font-weight:850;color:#344d6b}
-.food-energy-fields {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:7px}
-.food-unit-input {position:relative;min-width:0}
-.food-unit-input input {width:100%;min-width:0;min-height:42px;padding:9px 42px 9px 10px;border:1px solid #c5d4e5;border-radius:9px;background:#fff;color:var(--ink);font-size:15px;font-variant-numeric:tabular-nums}
-.food-unit-input .unit {position:absolute;right:11px;top:50%;transform:translateY(-50%);color:#77889d;font-size:11px;font-weight:800;pointer-events:none}
-.food-nutrient-row.is-estimated input {border-color:#d7b779}
-/* Fibre estimates use the bundled food-reference tables, with a visible citation. */
-.food-nutrient-row.fibre-estimate-row {grid-template-columns:minmax(0,1fr) minmax(100px,.58fr)}
-.food-fibre-heading {display:flex;align-items:center;gap:5px;min-width:0;flex-wrap:wrap}
-.food-fibre-heading label {font-size:13px;font-weight:850;color:#344d6b}
-.food-fibre-estimate-button {border:1px solid #c7d5e5;background:#f2f6fb;color:#375475;border-radius:7px;
-  padding:5px 6px;font-size:10px;font-weight:800;line-height:1.15;cursor:pointer;touch-action:manipulation}
+/* Five nutrition cards mirror the home screen's metric colours. Keep the
+   five nutrients visible across even a narrow phone viewport. */
+.food-preferences-row {display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:10px 18px}
+.food-preferences-row .food-item-favourite {margin:0;min-height:30px}
+.food-preferences-row .food-water-allocation {border:0;padding:0;gap:5px}
+.food-preferences-row .food-water-toggle {min-height:30px}
+.food-preferences-row #food-water-controls {margin-top:4px}
+.food-nutrition {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;padding:2px 0;min-width:0}
+.food-nutrient-row {--card-accent:var(--green);display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;
+  gap:3px;min-width:0;min-height:106px;padding:6px 4px 8px;border:1px solid #e0e5ed;border-top:4px solid var(--card-accent);
+  border-radius:9px;background:#fff;text-align:center}
+#food-row-calories{--card-accent:var(--orange)}
+#food-row-protein{--card-accent:var(--green)}
+#food-row-fats{--card-accent:var(--pink)}
+#food-row-carbs{--card-accent:var(--sky)}
+#food-row-fibre{--card-accent:var(--lilac)}
+.food-nutrient-row > label,.food-fibre-heading label {font-size:clamp(10px,2.65vw,13px);font-weight:850;color:var(--ink);line-height:1.2}
+.food-energy-fields {display:flex;flex-direction:column;gap:2px;min-width:0}
+.food-unit-input {display:flex;justify-content:center;align-items:baseline;gap:1px;min-width:0}
+.food-unit-input input {display:block;width:100%;min-width:0;min-height:30px;height:30px;padding:3px 0;border:0;border-radius:4px;
+  background:transparent;color:var(--ink);text-align:right;font-size:clamp(11px,2.7vw,17px);font-weight:850;font-variant-numeric:tabular-nums;
+  appearance:textfield;-moz-appearance:textfield}
+.food-unit-input input::-webkit-outer-spin-button,.food-unit-input input::-webkit-inner-spin-button {-webkit-appearance:none;margin:0}
+.food-unit-input .unit {position:static;transform:none;flex:none;color:#526981;font-size:clamp(9px,2vw,11px);font-weight:750;pointer-events:none}
+.food-nutrient-row.is-estimated input {background:#fff9ec;box-shadow:inset 0 -1px 0 #d7b779}
+.food-nutrient-row.fibre-estimate-row {display:flex}
+.food-fibre-heading {display:flex;align-items:center;justify-content:center;gap:2px;min-width:0;flex-direction:column}
+.food-fibre-estimate-button {border:1px solid #c7d5e5;background:#f2f6fb;color:#375475;border-radius:6px;
+  padding:3px 2px;font-size:9px;font-weight:800;line-height:1.1;cursor:pointer;touch-action:manipulation;order:2}
 .food-fibre-estimate-button:disabled {opacity:.55;cursor:wait}
-.food-fibre-reference {grid-column:1/-1;color:#536e86;font-size:11px;line-height:1.35;overflow-wrap:anywhere;padding:1px 2px 4px}
+.food-fibre-reference {color:#536e86;font-size:10px;line-height:1.3;overflow-wrap:anywhere;padding:2px}
 .food-fibre-reference:empty {display:none}
 .food-fibre-reference a {color:#285e9d;text-decoration:underline;text-underline-offset:2px}
+@media (max-width:395px){.food-nutrition{gap:3px}.food-nutrient-row{padding:5px 2px 7px}.food-unit-input input{font-size:12px}.food-unit-input .unit{font-size:9px}.food-preferences-row{gap:8px}}
 
 
 /* Source-supported fibre suggestions, separate from accepted Food Item values. */
@@ -407,7 +423,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 .fibre-estimate-details a {display:inline-block;margin-bottom:5px}
 .fibre-estimate-accept {margin:8px 0 3px;border:1px solid #a4bcd8;background:#e9f2fc;color:#234b72;border-radius:7px;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer}
 .food-unit-input input::placeholder {color:#9b9eaa;font-size:12px}
-@media(max-width:375px) {.food-nutrient-row {grid-template-columns:92px minmax(0,1fr);gap:6px}.food-energy-fields {gap:5px}.food-unit-input input {padding-right:35px}.food-unit-input .unit {right:6px}}
+@media(max-width:375px) {.food-nutrition{gap:2px}.food-nutrient-row{min-height:112px}}
 .food-measures {display:grid;gap:7px}
 .food-measure-row {display:grid;grid-template-columns:minmax(0,1fr) 120px 28px;gap:7px}
 .food-measure-row input {min-width:0;width:100%;border:1px solid #c5d4e5;border-radius:8px;padding:8px 10px;background:#fff}
@@ -440,8 +456,8 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 
 
 
-/* Food Item hydration allocation (optional, never assumed for ordinary food). */
-.food-water-allocation {display:grid;gap:8px;border-top:1px solid #e0e8f0;padding:10px 0 3px}
+/* Food Item hydration allocation follows its inline checkbox. */
+.food-water-allocation {display:grid;gap:5px;border:0;padding:0}
 .food-water-toggle {display:flex;align-items:center;gap:9px;font-size:13px;font-weight:800;color:#385a78;cursor:pointer}
 .food-water-toggle input {width:17px;height:17px;flex:none;accent-color:#25a9c3}
 .food-water-allocation #food-water-controls {display:grid;grid-template-columns:minmax(0,1fr) 92px;align-items:center;gap:7px 10px}
@@ -509,6 +525,9 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 }
 #entry-content :is(.entry-actions,.food-review-actions,.target-actions) > button {min-height:46px}
 #entry-content {padding-bottom:max(10px,env(safe-area-inset-bottom));scroll-padding-bottom:90px}
+/* The Food Item Save/Back bar is flush to the bottom when it is the last action. */
+.food-library-entry #entry-content:has(#food-review:not([hidden])) {padding-bottom:0}
+#food-review .food-review-actions {margin-bottom:0;padding-bottom:max(0px,env(safe-area-inset-bottom))}
 .fdm-save-dialog {max-height:calc(var(--dialog-visible-height,100dvh) - 24px)}
 .fdm-save-dialog .fdm-new-submit {position:sticky;bottom:0}
 
@@ -619,7 +638,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 
 <script src="activity-math.js?v=0.1.075"></script><script src="calorie-budget.js?v=0.1.090"></script>
 <script src="piechart-shared.js?v=0.1.087"></script>
-<script>/* PieChart v0.1.091 — shared diary controls and validated common helpers. */
+<script>/* PieChart v0.1.092 — shared diary controls and validated common helpers. */
 (() => {
   'use strict';
   // All chart data comes from private member records; blank days remain blank.
@@ -1858,12 +1877,19 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
   }
   document.getElementById('entry-day-prev').addEventListener('click',()=>shiftDailyScreen(-1));
   document.getElementById('entry-day-next').addEventListener('click',()=>shiftDailyScreen(1));
-  // Every approved food begins here, not in a bundled sample food catalogue.
-  // These records are provisional DEVICE-LOCAL data until Firebase is connected.
-  // Approved food names are consistently stored in Capital Case, including imports.
+  // Food Item names are Capital Case; genuine shared library items are loaded
+  // from Firestore without seeding local demonstration data.
   function foodCapitalCase(value){
     return String(value||'').trim().replace(/\s+/g,' ').toLocaleLowerCase('en-NZ')
       .replace(/(^|[\s\-(/])([\p{L}\p{N}])/gu,(_,boundary,letter)=>boundary+letter.toLocaleUpperCase('en-NZ'));
+  }
+  // Legacy imported barcode records may still have a brand field. Display the
+  // brand as part of the Food Item name without touching existing Firestore data.
+  function foodNameWithBrand(item){
+    const name=foodCapitalCase(item?.name||'');
+    const brand=String(item?.brand||'').trim().replace(/\s+/g,' ');
+    return brand&&!name.toLocaleLowerCase('en-NZ').startsWith((brand+' ').toLocaleLowerCase('en-NZ'))
+      ?brand+' '+name:name;
   }
   const isRecipe=item=>item&&(item.type==='Dish'||item.type==='Meal');
   // Food Items contribute to water only if explicitly allocated. Existing Water
@@ -1990,10 +2016,14 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       approvedFoods=state.foods.map(food=>({...food}));
       refreshRecipes();remoteLibraryShowing=true;remoteLibraryUser=state.uid;
       window.dispatchEvent(new Event('piechart-foods-refreshed'));
-    }else if(remoteLibraryShowing || (state.uid && state.uid!==remoteLibraryUser)){
-      approvedFoods=state.uid?[]:deviceLocalFoods();
-      remoteLibraryShowing=false;remoteLibraryUser=state.uid;lastLibraryRevision=-1;
-      window.dispatchEvent(new Event('piechart-foods-refreshed'));
+    }else if(state.mode!=='connected'||!state.initialRemoteFoods){
+      // Never clear a healthy shared library on an unchanged Firestore event.
+      // Only clear it on account changes, sign-out, or loss of authorisation.
+      if(remoteLibraryShowing||remoteLibraryUser!==state.uid){
+        approvedFoods=state.uid?[]:deviceLocalFoods();
+        remoteLibraryShowing=false;remoteLibraryUser=state.uid;lastLibraryRevision=-1;
+        window.dispatchEvent(new Event('piechart-foods-refreshed'));
+      }
     }
   });
 
@@ -2936,9 +2966,9 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
     showEntry('Food library',`<div class="food-library-panel">
       <div class="food-browse" id="food-browse">
         ${diaryDate?'<div id="food-daily-remaining" class="daily-remaining calories" aria-live="polite"></div>':''}
+        ${diaryDate?`<h3 class="food-diary-section" id="diary-records-heading">Recorded ${diaryDate===localDay()?'today':niceDate(diaryDate)}</h3><div id="diary-records" aria-label="Food recorded for selected date"></div>`:''}
         <div class="food-lookup-controls"><input class="food-search" id="food-library-search" type="search" autocomplete="off" aria-label="Search food name or barcode" placeholder="Food name or barcode" spellcheck="false"><button id="food-camera" type="button" title="Use camera to scan a barcode">Scan</button></div>
-        ${diaryDate?`<h3 class="food-diary-section" id="diary-records-heading">Recorded ${diaryDate===localDay()?'today':niceDate(diaryDate)}</h3><div id="diary-records" aria-label="Food recorded for selected date"></div>
-        <section class="diary-favourites-box" id="diary-favourites-box" aria-label="Favourite foods"><h3 class="food-diary-section favourites" id="diary-suggestions-heading">Favourites</h3><div class="food-result-groups" id="diary-favourites-results"></div></section>`:''}
+        ${diaryDate?`<section class="diary-favourites-box" id="diary-favourites-box" aria-label="Favourite foods"><h3 class="food-diary-section favourites" id="diary-suggestions-heading">Favourites</h3><div class="food-result-groups" id="diary-favourites-results"></div></section>`:''}
         <div class="food-result-groups" id="food-result-groups" aria-label="Food search results"></div>
         <p class="food-search-status" id="food-search-status" role="status" aria-live="polite"></p>
       </div>
@@ -3029,7 +3059,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       badge.className='food-source-tag '+kind+(kind==='local'?' type-'+sourceText(item,kind).toLowerCase().replace(/\s+/g,'-'):'');
       badge.textContent=sourceText(item,kind);
       badge.title=item.source||(kind==='local'?'Food in library':'');
-      return libraryResultButton({title:foodCapitalCase(item.name),secondary:item.brand||'',
+      return libraryResultButton({title:foodNameWithBrand(item),secondary:'',
         tag:badge,classes:kind==='local'?'':'external',
         onPick:()=>onChoose?onChoose(item,kind):kind==='local'&&isRecipe(item)?openRecipeEditor(item.type,item):openFoodReview(item,kind==='local')});
     }
@@ -3512,26 +3542,45 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
           item={...item,values:{...item.values,calories:kcal},origins:{...item.origins,calories:'converted'}};
         }
       }
-      enterLibraryView('review',isLocal?'Edit Food Item':'Review Food Item');
+      enterLibraryView('review','Food Item');
       review.dataset.testNutrition='false';
       const src=isLocal?item.source:item.source||'Manual entry';
       const reviewNameWarning=item.nameNeedsReview?'<p class="food-list-message">This barcode record has no English product name. Check the name against the package before saving.</p>':'';
+      const initialFoodName=foodNameWithBrand(item);
+      // Retain the original recognised brand capitalization (e.g., TCC) while
+      // converting the remainder of the Food Item name to Capital Case.
+      function reviewFoodName(value){
+        const normalized=foodCapitalCase(value);
+        const brand=String(item.brand||'').trim().replace(/\s+/g,' ');
+        return brand&&normalized.toLocaleLowerCase('en-NZ').startsWith((brand+' ').toLocaleLowerCase('en-NZ'))
+          ?brand+normalized.slice(brand.length):normalized;
+      }
       // Concise NZ-label-style nutrition rows. Keep origins in data, not repetitive field notes.
       const nutritionOrder=['protein','fats','carbs','fibre'];
       const valueInput=k=>`<div class="food-nutrient-row ${k==='fibre'?'fibre-estimate-row ':''}${item.origins?.[k]==='estimated'||item.origins?.[k]==='missing'?'is-estimated':''}" id="food-row-${k}">
-        ${k==='fibre'?'<div class="food-fibre-heading"><label for="food-n-fibre">Fibre</label><button type="button" id="food-estimate-fibre" class="food-fibre-estimate-button">Provide estimate</button></div>':`<label for="food-n-${k}">${nutrientNames[k]}</label>`}<div class="food-unit-input"><input required id="food-n-${k}" type="number" min="0" step="any" inputmode="decimal" placeholder="${item.origins?.[k]==='missing'?'Estimate':''}" value="${Number.isFinite(item.values?.[k])?roundFood(item.values[k]):''}" data-initial="${Number.isFinite(item.values?.[k])?roundFood(item.values[k]):''}"><span class="unit">g</span></div>${k==='fibre'?'<div class="food-fibre-reference" id="food-fibre-reference" role="status" aria-live="polite"></div>':''}</div>`;
-      review.innerHTML=`${isLocal?`<button class="food-record-action" id="food-record-serving" type="button">Record serving of ${safe(foodCapitalCase(item.name))}</button>`:''}<div class="food-field-grid">
-          <div class="food-field wide"><label for="food-name">Food name</label><input required id="food-name" maxlength="160" value="${safe(foodCapitalCase(item.name||''))}"></div>
-          <div class="food-field"><label for="food-brand">Brand</label><input id="food-brand" maxlength="120" value="${safe(item.brand||'')}"></div>
+        ${k==='fibre'?'<div class="food-fibre-heading"><label for="food-n-fibre">Fibre</label><button type="button" id="food-estimate-fibre" class="food-fibre-estimate-button">Provide estimate</button></div>':`<label for="food-n-${k}">${k==='carbs'?'Carbs':nutrientNames[k]}</label>`}
+        <div class="food-unit-input"><input required id="food-n-${k}" aria-label="${nutrientNames[k]} per 100" type="number" min="0" step="any" inputmode="decimal" placeholder="${item.origins?.[k]==='missing'?'Estimate':''}" value="${Number.isFinite(item.values?.[k])?roundFood(item.values[k]):''}" data-initial="${Number.isFinite(item.values?.[k])?roundFood(item.values[k]):''}"><span class="unit">g</span></div>${k==='fibre'?'<div class="food-fibre-reference" id="food-fibre-reference" role="status" aria-live="polite"></div>':''}</div>`;
+      review.innerHTML=`${isLocal?`<button class="food-record-action" id="food-record-serving" type="button">Record serving of ${safe(initialFoodName)}</button>`:''}<div class="food-field-grid">
+          <div class="food-field wide"><label for="food-name">Food name</label><input required id="food-name" maxlength="160" value="${safe(initialFoodName)}"></div>
+          <div class="food-preferences-row wide">
+            <label class="food-item-favourite"><input type="checkbox" id="food-favourite" ${item.favorite?'checked':''}> Favourite</label>
+            <div class="food-water-allocation" id="food-water-allocation">
+              <label class="food-water-toggle"><input type="checkbox" id="food-counts-as-water"> Counts towards water intake</label>
+              <div id="food-water-controls" hidden>
+                <label for="food-water-percent">Percentage of remaining mass counted as water</label>
+                <div class="food-water-number"><input type="number" id="food-water-percent" min="0" max="100" step="any" inputmode="decimal" value="100"><span>%</span></div>
+                <output id="food-water-preview" aria-live="polite"></output>
+              </div>
+            </div>
+          </div>
           <div class="food-field"><label for="food-barcode">Barcode</label><input id="food-barcode" maxlength="40" value="${safe(item.barcode||'')}"></div>
-          <div class="food-field wide"><label for="food-base-unit">Values per 100</label><select id="food-base-unit"><option value="g">g</option><option value="mL">mL</option></select></div>
+          <div class="food-field"><label for="food-base-unit">Values per 100</label><select id="food-base-unit"><option value="g">Grams</option><option value="mL">Millilitres</option></select></div>
         </div>
         ${reviewNameWarning}
-        <label class="food-item-favourite"><input type="checkbox" id="food-favourite" ${item.favorite?'checked':''}> Favourite</label>
         <div class="food-nutrition" aria-label="Nutrition information per 100 grams or millilitres">
-          <div class="food-nutrient-row" id="food-row-calories"><label for="food-energy-kj">Energy</label>
+          <div class="food-nutrient-row food-nutrient-energy" id="food-row-calories"><label for="food-energy-kj">Energy</label>
             <div class="food-energy-fields"><div class="food-unit-input"><input id="food-energy-kj" aria-label="Energy in kilojoules" type="number" min="0" step="any" inputmode="decimal" value="${Number.isFinite(item.values?.energyKj)?roundFood(item.values.energyKj):Number.isFinite(item.values?.calories)?roundFood(window.PieChartShared.kcalToKj(item.values.calories)):''}"><span class="unit">kJ</span></div>
-            <div class="food-unit-input"><input required id="food-n-calories" aria-label="Energy in kilocalories" type="number" min="0" step="any" inputmode="decimal" value="${Number.isFinite(item.values?.calories)?roundFood(item.values.calories):''}" data-initial="${Number.isFinite(item.values?.calories)?roundFood(item.values.calories):''}"><span class="unit">kcal</span></div></div>
+            <div class="food-unit-input"><input required id="food-n-calories" aria-label="Energy in kilocalories" type="number" min="0" step="any" inputmode="decimal" value="${Number.isFinite(item.values?.calories)?roundFood(item.values.calories):''}" data-initial="${Number.isFinite(item.values?.calories)?roundFood(item.values.calories):''}"><span class="unit">Cal</span></div></div>
           </div>
           ${nutritionOrder.map(valueInput).join('')}
         </div>
@@ -3547,20 +3596,12 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
             <button type="button" class="food-np-cancel" id="food-np-choice-cancel">Cancel</button>
           </div>
         </div>
-        <div class="food-water-allocation" id="food-water-allocation">
-          <label class="food-water-toggle"><input type="checkbox" id="food-counts-as-water"> Counts towards water intake</label>
-          <div id="food-water-controls" hidden>
-            <label for="food-water-percent">Percentage of remaining mass counted as water</label>
-            <div class="food-water-number"><input type="number" id="food-water-percent" min="0" max="100" step="any" inputmode="decimal" value="100"><span>%</span></div>
-            <output id="food-water-preview" aria-live="polite"></output>
-          </div>
-        </div>
         <div class="food-field"><label>Familiar measures</label><p class="food-measure-explanation">Name a unit (e.g. slice, cup, or pack), then enter how many g or mL are in ONE unit. Recording 2 slices uses twice this amount.</p><div id="food-measures" class="food-measures"></div><button type="button" id="food-add-measure" class="food-secondary-action">+ Add measure</button></div>
         <div class="food-field"><label for="food-source">Source</label><input id="food-source" value="${safe(src)}" maxlength="180" required></div>
         ${item.sourceUrl&&/^https:\/\/(?:world\.openfoodfacts\.org\/product\/|www\.foodcomposition\.co\.nz\/search\/|www\.foodstandards\.gov\.au\/science-data\/|fdc\.nal\.usda\.gov\/food-details\/)/.test(item.sourceUrl)?`<p class="food-source-credit"><a href="${safe(item.sourceUrl)}" target="_blank" rel="noopener">Original source</a></p>`:''}
         <p class="food-alert" id="food-alert" role="alert"></p>
-        <div class="food-review-actions"><button class="entry-cancel" id="food-back" type="button">Back</button><button class="entry-affirm" id="food-approve" type="submit">${isLocal?'Save changes':'Add to library'}</button></div>
-        ${isLocal?'<button class="food-secondary-action" id="food-remove" type="button">Remove from my library</button>':''}`;
+        ${isLocal?'<button class="food-secondary-action" id="food-remove" type="button">Remove from my library</button>':''}
+        <div class="food-review-actions"><button class="entry-cancel" id="food-back" type="button">Back</button><button class="entry-affirm" id="food-approve" type="submit">${isLocal?'Save changes':'Add to library'}</button></div>`;
       document.getElementById('food-base-unit').value=item.baseUnit||'g';
       document.getElementById('food-base-unit').addEventListener('change',()=>{
         const suffix=document.getElementById('food-base-unit').value;
@@ -3569,9 +3610,9 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
           row.querySelector('.measure-grams').setAttribute('aria-label',suffix+' in one familiar unit');
         });
       });
-      document.getElementById('food-name').addEventListener('blur',e=>{e.target.value=foodCapitalCase(e.target.value);});
+      document.getElementById('food-name').addEventListener('blur',e=>{e.target.value=reviewFoodName(e.target.value);});
       if(isLocal)document.getElementById('food-name').addEventListener('input',event=>{
-        document.getElementById('food-record-serving').textContent='Record serving of '+(foodCapitalCase(event.target.value)||item.name);
+        document.getElementById('food-record-serving').textContent='Record serving of '+(reviewFoodName(event.target.value)||initialFoodName);
       });
       // Percentage of the mass remaining after listed nutrients. Unchecked => zero.
       // Water itself defaults to 100% for older records or newly named Water items.
@@ -3853,7 +3894,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         if(!estimator){showFibreSource('Food-group reference data could not be loaded.');return;}
         const result=estimator.suggest({
           name:document.getElementById('food-name').value,
-          brand:document.getElementById('food-brand').value,
+          brand:'',
           baseUnit:document.getElementById('food-base-unit').value,
           groupId:fibreGroupOverride,preparation:fibrePreparationOverride
         });
@@ -3888,7 +3929,6 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         showFibreSource('Food details changed. Select Provide estimate for a new suggestion.');
       }
       document.getElementById('food-name').addEventListener('input',invalidateFibreEstimate);
-      document.getElementById('food-brand').addEventListener('input',invalidateFibreEstimate);
       document.getElementById('food-base-unit').addEventListener('change',invalidateFibreEstimate);
       for(const m of item.measures||[])appendMeasureRow(m.label,m.amount);
       document.getElementById('food-add-measure').addEventListener('click',()=>appendMeasureRow());
@@ -3932,8 +3972,8 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
           document.getElementById('food-alert').textContent='These are dummy scanner test readings. Restore your previous values before saving or recording.';
           return null;
         }
-        const name=foodCapitalCase(document.getElementById('food-name').value);
-        const brand=document.getElementById('food-brand').value.trim();
+        const name=reviewFoodName(document.getElementById('food-name').value);
+        const brand='';
         const barcode=document.getElementById('food-barcode').value.trim();
         const alert=document.getElementById('food-alert');
         if(!name){alert.textContent='Please enter the specific food name.';return null;}
@@ -3975,7 +4015,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
           if(!label||!amountText||!Number.isFinite(amount)||amount<=0){alert.textContent='Each familiar unit needs a name and the amount in one unit.';return null;}
           measures.push({label,amount});
         }
-        const duplicate=approvedFoods.find(x=>x.id!==item.id&&((barcode&&x.barcode===barcode)||(x.name.toLowerCase()===name.toLowerCase()&&x.brand.toLowerCase()===brand.toLowerCase())));
+        const duplicate=approvedFoods.find(x=>x.id!==item.id&&((barcode&&x.barcode===barcode)||foodNameWithBrand(x).toLocaleLowerCase('en-NZ')===name.toLocaleLowerCase('en-NZ')));
         if(duplicate){alert.textContent='This item is already in your library. Choose it from the library results to edit.';return null;}
         const source=document.getElementById('food-source').value.trim();
         if(!source){alert.textContent='Please identify the nutrition source, even if it is an estimate.';return null;}
@@ -4024,7 +4064,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
             onUpdate:()=>{foodSaveChoice='update';review.requestSubmit();},
             onSaveNew:newName=>{
               if(approvedFoods.some(x=>x.type==='Food Item'&&x.name.toLowerCase()===newName.toLowerCase()&&
-                (x.brand||'').toLowerCase()===(saved.brand||'').toLowerCase()))
+                !(x.brand||'')&&!(saved.brand||'')))
                 return 'A Food Item with that name and brand already exists.';
               return storeFoodDraft({...saved,id:newFoodId(),name:newName,barcode:'',savedAt:new Date().toISOString()},{asNew:true});
             }
@@ -5027,6 +5067,6 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
   handleFoodScanForeground();
 })();
 </script>
-<script type="module" src="piechart-db.js?v=0.1.091"></script>
+<script type="module" src="piechart-db.js?v=0.1.092"></script>
 </body>
 </html>
