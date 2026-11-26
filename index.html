@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#fffaf2">
-  <title>Jules Berne's Pie Chart — v0.1.092</title>
+  <title>Jules Berne's Pie Chart — v0.1.093</title>
   <link rel="manifest" href="manifest.webmanifest">
   <style>
-/* Jules Berne's Pie Chart — single visual system, v0.1.092.
+/* Jules Berne's Pie Chart — single visual system, v0.1.093.
    The home screen is one eight-series chart with an integrated right legend.
    No historical overrides or per-version CSS patches. */
 :root {
@@ -100,7 +100,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 .diary-favourites-box .activity-library-result:last-child{border-bottom:0}
 .diary-favourites-box .activity-library-results{margin-top:2px}
 
-.food-diary-section[hidden],#diary-records[hidden]{display:none}
+.food-diary-section[hidden]{display:none}
 
 .main-area {
   --legend-width:clamp(112px,calc(25.4vw + 12px),232px);
@@ -326,7 +326,12 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 .food-library-panel {display:block}
 .food-browse {display:flex;flex-direction:column;min-height:0}
 .food-lookup-controls {display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:center;margin:0 0 7px}
-.food-diary-entry .food-lookup-controls {margin-top:13px}
+/* Shared Recorded -> Search arrangement in Today's Food and Activities.
+   Both diaries use one layout helper, so spacing and ordering stay aligned. */
+.daily-recorded-search{display:flex;flex-direction:column;gap:26px;min-width:0}
+.daily-recorded-search .daily-recorded-content[hidden]{display:none}
+.daily-recorded-search .daily-search-content{min-width:0}
+.food-diary-entry .food-lookup-controls {margin-top:0}
 .food-search {min-width:0;width:100%;padding:12px 13px;border:1px solid #b6c9dd;border-radius:11px;background:#fff;font-size:16px;color:var(--ink)}
 /* 16px prevents mobile browser zoom; use a quiet, inset focus indication instead of an outer outline. */
 .food-search:focus,.food-search:focus-visible {outline:none;outline-offset:0;border-color:#719cc9;box-shadow:inset 0 0 0 1px #719cc9}
@@ -638,7 +643,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 
 <script src="activity-math.js?v=0.1.075"></script><script src="calorie-budget.js?v=0.1.090"></script>
 <script src="piechart-shared.js?v=0.1.087"></script>
-<script>/* PieChart v0.1.092 — shared diary controls and validated common helpers. */
+<script>/* PieChart v0.1.093 — shared diary controls and validated common helpers. */
 (() => {
   'use strict';
   // All chart data comes from private member records; blank days remain blank.
@@ -2958,16 +2963,28 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
     if(status)status.textContent='Unsaved Food Item draft restored after returning from the companion.';
   }
 
+  // One Recorded -> Search structure for Today's Food and Today's Activities.
+  // The domain supplies only its recorded rows and search controls; both use
+  // the same visual order, gap, and hide-on-search behaviour.
+  function dailyRecordedSearchLayout(recordedId, recordedHtml, searchHtml){
+    return `<div class="daily-recorded-search">
+      <div class="daily-recorded-content" id="${recordedId}">${recordedHtml}</div>
+      <div class="daily-search-content">${searchHtml}</div>
+    </div>`;
+  }
+
   function openFoodLibrary(scanImmediately=false,diaryMode=false,scanRestore=null){
     scanImmediately=scanImmediately===true;
     const diaryDate=diaryMode===true?activeDate():null;
     const diaryDb=diaryDate?window.PieChartDB:null;
     clearTimeout(foodSearchTimer);foodFetchGeneration++;stopBarcodeScan();
+    const foodSearchMarkup='<div class="food-lookup-controls"><input class="food-search" id="food-library-search" type="search" autocomplete="off" aria-label="Search food name or barcode" placeholder="Food name or barcode" spellcheck="false"><button id="food-camera" type="button" title="Use camera to scan a barcode">Scan</button></div>';
     showEntry('Food library',`<div class="food-library-panel">
       <div class="food-browse" id="food-browse">
         ${diaryDate?'<div id="food-daily-remaining" class="daily-remaining calories" aria-live="polite"></div>':''}
-        ${diaryDate?`<h3 class="food-diary-section" id="diary-records-heading">Recorded ${diaryDate===localDay()?'today':niceDate(diaryDate)}</h3><div id="diary-records" aria-label="Food recorded for selected date"></div>`:''}
-        <div class="food-lookup-controls"><input class="food-search" id="food-library-search" type="search" autocomplete="off" aria-label="Search food name or barcode" placeholder="Food name or barcode" spellcheck="false"><button id="food-camera" type="button" title="Use camera to scan a barcode">Scan</button></div>
+        ${diaryDate?dailyRecordedSearchLayout('diary-recorded-wrap',
+          `<h3 class="food-diary-section" id="diary-records-heading">Recorded ${diaryDate===localDay()?'today':niceDate(diaryDate)}</h3><div id="diary-records" aria-label="Food recorded for selected date"></div>`,
+          foodSearchMarkup):foodSearchMarkup}
         ${diaryDate?`<section class="diary-favourites-box" id="diary-favourites-box" aria-label="Favourite foods"><h3 class="food-diary-section favourites" id="diary-suggestions-heading">Favourites</h3><div class="food-result-groups" id="diary-favourites-results"></div></section>`:''}
         <div class="food-result-groups" id="food-result-groups" aria-label="Food search results"></div>
         <p class="food-search-status" id="food-search-status" role="status" aria-live="polite"></p>
@@ -3081,8 +3098,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
     function syncDiaryBrowse(){
       if(!diaryDate)return false;
       const searching=!!input.value.trim()||document.activeElement===input;
-      document.getElementById('diary-records-heading').hidden=searching;
-      document.getElementById('diary-records').hidden=searching;
+      document.getElementById('diary-recorded-wrap').hidden=searching;
       document.getElementById('diary-favourites-box').hidden=searching;
       return searching&&!input.value.trim();
     }
@@ -4452,13 +4468,12 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       document.getElementById('activity-close').addEventListener('click',backEntry);return;
     }
     const viewingDate=activeDate();
+    const activitySearchMarkup='<input id="activity-search" class="food-search activity-lookup" type="search" autocomplete="off" spellcheck="false" placeholder="Search activities" aria-label="Search Activity Library">';
     showEntry(diaryMode?(viewingDate===localDay()?'Today’s activities':'Activities · '+niceDate(viewingDate)):'Activity library',`<div class="activity-browse">
       ${diaryMode?'<div class="daily-remaining steps" id="activity-daily-remaining" aria-live="polite"></div>':''}
-      <input id="activity-search" class="food-search activity-lookup" type="search" autocomplete="off" spellcheck="false" placeholder="Search activities" aria-label="Search Activity Library">
-      <div id="activity-recorded-wrap" ${diaryMode?'':'hidden'}>
-        <h3 class="food-diary-section">Recorded ${viewingDate===localDay()?'today':niceDate(viewingDate)}</h3>
-        <div id="activity-today-records" class="activity-history"></div>
-      </div>
+      ${diaryMode?dailyRecordedSearchLayout('activity-recorded-wrap',
+        `<h3 class="food-diary-section">Recorded ${viewingDate===localDay()?'today':niceDate(viewingDate)}</h3><div id="activity-today-records" class="activity-history"></div>`,
+        activitySearchMarkup):activitySearchMarkup}
       ${diaryMode?'<section class="diary-favourites-box" id="activity-favourites-box" aria-label="Favourite activities"><h3 class="food-diary-section favourites" id="activity-favourites-heading">Favourites</h3><div class="activity-library-results" id="activity-favourites-results"></div></section>':'<h3 class="food-diary-section favourites" id="activity-favourites-heading">Favourites</h3>'}
       <div class="activity-library-results" id="activity-results"></div>
     </div>`);
@@ -4480,7 +4495,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       if(!search.isConnected)return;
       if(activityRemaining)requestAnimationFrame(()=>{if(activityRemaining.isConnected)paintDailyRemaining(activityRemaining,'steps',viewingDate);});
       const {q,focused}=librarySearchState(search);
-      recordWrap.hidden=!diaryMode||focused||!!q;
+      if(recordWrap)recordWrap.hidden=focused||!!q;
       heading.hidden=focused||!!q;
       const favouritesBox=document.getElementById('activity-favourites-box');
       const favouritesList=document.getElementById('activity-favourites-results');
@@ -5067,6 +5082,6 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
   handleFoodScanForeground();
 })();
 </script>
-<script type="module" src="piechart-db.js?v=0.1.092"></script>
+<script type="module" src="piechart-db.js?v=0.1.093"></script>
 </body>
 </html>

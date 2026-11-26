@@ -1,4 +1,4 @@
-# Jules Berne’s Pie Chart — v0.1.092
+# Jules Berne’s Pie Chart — v0.1.093
 
 Phone-first PWA for weight, nutrition, water, steps, and activity tracking. Hosted on GitHub Pages with Google sign-in, shared Food and Activity Libraries, and owner-private history.
 
@@ -50,3 +50,10 @@ favourites. Food Item review uses a combined brand-prefixed Food name, two inlin
 toggles, Barcode / Values per 100 selectors, five colour-coded nutrient cards,
 and bottom-aligned actions. Legacy brand metadata is read for display and folded
 into the visible name on save; no Firestore migration is required.
+
+## Daily Food and Activity layout
+
+Today's Food and Today's Activities now use the same Recorded → Search → Favourites
+arrangement with shared spacing and consistent search-state hiding. The recorded
+list has additional breathing room before the search field. The standalone Food
+and Activity Libraries retain their regular search-first layout.
