@@ -1,4 +1,4 @@
-/* PieChart v0.1.091 — shared libraries, owner-private records, Noom summaries, and step sync.
+/* PieChart v0.1.094 — shared libraries, owner-private records, Noom summaries, water, and step sync.
    Firestore uses owner-private personal collections and member-only approved food and activity libraries.
    No private key belongs in a GitHub Pages app. An administrator manually provisions
    the initial two membership documents through Firebase Console. */
@@ -397,6 +397,8 @@ function recordWater(date,ml,waterFood,options){
   if(!Number.isInteger(ml)||ml<=0||ml>10000)throw new Error('Invalid water amount.');
   if(!waterFood||waterFood.type!=='Food Item'||String(waterFood.name).trim().toLowerCase()!=='water')
     throw new Error('Add a Food Item named Water to the shared library first.');
+  if(waterFood.baseUnit&&waterFood.baseUnit!=='mL')
+    throw new Error('The Water Food Item must have Values per 100 set to Millilitres.');
   const values=waterFood.values||{};
   const nutrition={};
   for(const k of ['calories','protein','carbs','fats','fibre']){
@@ -404,8 +406,13 @@ function recordWater(date,ml,waterFood,options){
     nutrition[k]=Math.round(values[k]*ml)/100; // two decimal places for a per-100 mL quantity
   }
   nutrition.energyKj=Math.round((Number.isFinite(values.energyKj)?values.energyKj:values.calories*4.184)*ml)/100;
+  // Use the exact shared Food Item hydration rule used when recording Water as
+  // an ordinary serving. Never override an explicitly configured percentage.
+  const attributedPer100=window.PieChartShared?.waterPer100?.(waterFood);
+  if(!Number.isFinite(attributedPer100))throw new Error('Unable to calculate Water contribution.');
+  const waterMl=Math.round(attributedPer100*ml)/100;
   return recordFood(date,{itemId:waterFood.id,name:waterFood.name,type:'Food Item',unit:'mL',
-    quantity:ml,waterMl:ml,nutrition,source:'water-shortcut'},options);
+    quantity:ml,waterMl,nutrition,source:'water-shortcut'},options);
 }
 // Owner-private logged exercise. Existing deployed Firestore rules already allow
 // users/{uid}/exerciseEntries; no rule or data migration is needed.

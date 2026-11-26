@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#fffaf2">
-  <title>Jules Berne's Pie Chart — v0.1.093</title>
+  <title>Jules Berne's Pie Chart — v0.1.094</title>
   <link rel="manifest" href="manifest.webmanifest">
   <style>
-/* Jules Berne's Pie Chart — single visual system, v0.1.093.
+/* Jules Berne's Pie Chart — single visual system, v0.1.094.
    The home screen is one eight-series chart with an integrated right legend.
    No historical overrides or per-version CSS patches. */
 :root {
@@ -266,6 +266,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 .entry-affirm:disabled {opacity:.4;cursor:default}
 .entry-cancel {background:#eef3fa;color:#314d72;border:1px solid #d6e0ec}
 .entry-actions {display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%}
+.entry-actions.single-action {grid-template-columns:minmax(0,1fr)}
 .entry-note {font-size:11px!important;color:#75849a!important}
 .water-recents {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:58px;gap:10px;align-items:stretch}
 .water-recents button {width:100%;height:100%;min-height:0;margin:0;padding:4px;border-radius:13px;border:1px solid #a9e0e8;
@@ -520,10 +521,10 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 .recipe-linked input{accent-color:var(--purple);width:17px;height:17px}
 @media(max-width:375px){.recipe-line{grid-template-columns:22px minmax(0,1fr) 57px 80px 25px;gap:4px}}
 
-/* Keep form actions in the visible scroll pane when Android's soft keyboard is up.
-   The title stays fixed, content scrolls, and submit/cancel remain accessible. */
-#entry-content :is(.entry-actions,.food-review-actions,.target-actions),
-#entry-content .recent-form > .entry-affirm {
+/* Keep form actions visible above the mobile keyboard. Apply sticky paper
+   styling to the action ROW only: applying it to a purple button hides its
+   white text and makes the button itself float over other controls. */
+#entry-content :is(.entry-actions,.food-review-actions,.target-actions) {
   position:sticky;bottom:0;z-index:7;
   padding:8px 3px max(8px,env(safe-area-inset-bottom));margin-top:8px;
   background:var(--paper);box-shadow:0 -9px 13px -12px #1b325d35;
@@ -643,7 +644,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 
 <script src="activity-math.js?v=0.1.075"></script><script src="calorie-budget.js?v=0.1.090"></script>
 <script src="piechart-shared.js?v=0.1.087"></script>
-<script>/* PieChart v0.1.093 — shared diary controls and validated common helpers. */
+<script>/* PieChart v0.1.094 — shared diary controls and validated common helpers. */
 (() => {
   'use strict';
   // All chart data comes from private member records; blank days remain blank.
@@ -4742,7 +4743,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
           <label for="water-new-amount">New amount (mL)</label>
           <input id="water-new-amount" type="number" inputmode="decimal" min="1" max="10000" step="1" value="250" required>
           <p class="entry-note">Press and hold the number to adjust, or tap to type.</p>
-          <button class="entry-affirm">Record amount</button>
+          <div class="entry-actions single-action"><button class="entry-affirm" type="submit">Record amount</button></div>
         </form>
         <p id="water-record-error" class="food-copy-status" role="alert"></p>
       </div>`);
@@ -4802,7 +4803,14 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         entryCleanup=dispose;
       }
       const add=v=>{
-        v=Math.round(Number(v));if(!Number.isFinite(v)||v<=0||v>10000)return;
+        const amount=Number(v);
+        const errorNode=document.getElementById('water-record-error');
+        if(!Number.isFinite(amount)||amount<1||amount>10000){
+          if(errorNode)errorNode.textContent='Enter a water amount between 1 and 10,000 mL.';
+          return;
+        }
+        v=Math.round(amount);
+        if(errorNode)errorNode.textContent='';
         if(storeLive){
           try{
             const food=getWaterFood();
@@ -4816,14 +4824,27 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         }else today.water+=v;
         recent=[v,...recent.filter(n=>n!==v)].slice(0,5);
         try{localStorage.setItem(recentsKey,JSON.stringify(recent))}catch{}
-        dismissEntry();draw();confirmWaterRecorded();
+        dismissEntry();
+        // The Firestore listener updates the changed Water band from its local
+        // cache. A direct full draw here duplicates that work and blocks input.
+        if(!storeLive)draw();
+        confirmWaterRecorded();
       };
       const row=document.getElementById('water-recents');
       for(const v of recent){const b=document.createElement('button');b.type='button';
         b.textContent=v>=1000?(v/1000).toFixed(v%1000?2:1)+' L':v+' mL';
         b.addEventListener('click',()=>add(v));row.append(b)}
       const newBtn=document.createElement('button');newBtn.type='button';newBtn.className='new-amount';newBtn.textContent='+ New amount';row.append(newBtn);
-      newBtn.addEventListener('click',()=>{document.getElementById('water-new-form').hidden=false;});
+      newBtn.addEventListener('click',()=>{
+        const form=document.getElementById('water-new-form');form.hidden=false;
+        // Reveal the form without opening the phone's keyboard or moving focus.
+        requestAnimationFrame(()=>{
+          if(!form.isConnected||entryBackdrop.hidden)return;
+          const bottom=form.getBoundingClientRect().bottom;
+          const paneBottom=entryContent.getBoundingClientRect().bottom;
+          if(bottom>paneBottom-10)entryContent.scrollTop+=bottom-paneBottom+10;
+        });
+      });
       document.getElementById('water-new-form').addEventListener('submit',e=>{e.preventDefault();add(document.getElementById('water-new-amount').value)});
     }else if(type==='activity'){
       openActivityLibrary(true);
@@ -5082,6 +5103,6 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
   handleFoodScanForeground();
 })();
 </script>
-<script type="module" src="piechart-db.js?v=0.1.093"></script>
+<script type="module" src="piechart-db.js?v=0.1.094"></script>
 </body>
 </html>

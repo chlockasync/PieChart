@@ -1,4 +1,4 @@
-# Jules Berne’s Pie Chart — v0.1.093
+# Jules Berne’s Pie Chart — v0.1.094
 
 Phone-first PWA for weight, nutrition, water, steps, and activity tracking. Hosted on GitHub Pages with Google sign-in, shared Food and Activity Libraries, and owner-private history.
 
@@ -57,3 +57,12 @@ Today's Food and Today's Activities now use the same Recorded → Search → Fav
 arrangement with shared spacing and consistent search-state hiding. The recorded
 list has additional breathing room before the search field. The standalone Food
 and Activity Libraries retain their regular search-first layout.
+
+## Water recording controls
+
+Today's Water's New Amount action uses the same sticky action-row component as
+other entry forms, keeping the purple Record amount button readable above the
+phone keyboard. The Water shortcut uses the shared per-100 mL hydration rule
+(including configured contributions below 100%) and leaves live chart
+refreshes to Firestore's incremental history listener. Previously saved Water
+entries remain unchanged. No database migration is required.
