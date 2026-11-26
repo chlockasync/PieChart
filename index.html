@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#fffaf2">
-  <title>Jules Berne's Pie Chart — v0.1.094</title>
+  <title>Jules Berne's Pie Chart — v0.1.095</title>
   <link rel="manifest" href="manifest.webmanifest">
   <style>
-/* Jules Berne's Pie Chart — single visual system, v0.1.094.
+/* Jules Berne's Pie Chart — single visual system, v0.1.095.
    The home screen is one eight-series chart with an integrated right legend.
    No historical overrides or per-version CSS patches. */
 :root {
@@ -3198,7 +3198,19 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         }
       });
       scanButton?.addEventListener('click',()=>scanBarcode(code=>{
-        searchInput.value=code;changed(true);
+        // Scan selection uses this shared controller in the diary, library, and
+        // recipe ingredient search. A unique exact saved barcode is already a
+        // reviewed item: open it directly, without querying an external API.
+        const matches=approvedFoods.filter(item=>accept(item)&&
+          String(item.barcode||'').trim()===code);
+        if(matches.length===1){
+          clearTimeout(timer);generation++;
+          onPick(matches[0],'local');
+          return;
+        }
+        // With zero or multiple local matches, show the normal barcode results
+        // so the user can choose rather than silently opening the wrong item.
+        searchInput.value=code;changed(matches.length===0);
       },message=>{
         barcodeState='idle';barcodeError='';render();
         if(statusNode)statusNode.textContent=message;
@@ -4151,7 +4163,47 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       try{field.select();}catch{} // Some Android versions do not support numeric selection.
     }
   }
-  entryContent.addEventListener('focusout',()=>setTimeout(fitEntryToVisibleViewport,150));
+  // A numeric field requires an intentional double tap/click to type. The
+  // shared read-only gate prevents an incidental short touch from raising the
+  // keyboard; the existing press-and-hold gesture remains available.
+  function lockNumberTyping(field){
+    if(!field?.matches?.('input[type="number"]')||field.disabled)return;
+    if(field.dataset.numberTypingMode==='editing')return;
+    field.dataset.numberTypingMode='locked';
+    field.readOnly=true;
+    field.setAttribute('aria-description','Double tap to type, or hold briefly and slide to adjust.');
+  }
+  function unlockNumberTyping(field){
+    if(!field?.matches?.('input[type="number"]')||field.disabled)return;
+    field.dataset.numberTypingMode='editing';
+    field.readOnly=false;
+    field.focus({preventScroll:true});
+    selectFocusedContents(field);
+    requestAnimationFrame(scrollFocusedField);
+  }
+  const lockNumericDescendants=()=>entryContent.querySelectorAll('input[type="number"]').forEach(lockNumberTyping);
+  const numericInputObserver=new MutationObserver(lockNumericDescendants);
+  numericInputObserver.observe(entryContent,{childList:true,subtree:true});
+  lockNumericDescendants();
+  let lastNumberTap=null;
+  entryContent.addEventListener('dblclick',e=>{
+    const field=e.target.closest?.('input[type="number"]');
+    if(field){e.preventDefault();lastNumberTap=null;unlockNumberTyping(field);}
+  });
+  // Keyboard navigation retains an accessible path for desktop users.
+  entryContent.addEventListener('keydown',e=>{
+    const field=e.target.closest?.('input[type="number"]');
+    if(field?.dataset.numberTypingMode==='locked'&&['Enter',' '].includes(e.key)){
+      e.preventDefault();unlockNumberTyping(field);
+    }
+  });
+  entryContent.addEventListener('focusout',e=>{
+    if(e.target?.matches?.('input[type="number"]')){
+      const field=e.target;
+      if(field.dataset.numberTypingMode==='editing')lockNumberTyping(field);
+    }
+    setTimeout(fitEntryToVisibleViewport,150);
+  });
   entryContent.addEventListener('focusin',e=>{
     const field=e.target;
     selectFocusedContents(field);
@@ -4261,7 +4313,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
   }
   let numberSwipe=null;
   let numberMomentum=null;
-  const NUMBER_HOLD_MS=250;
+  const NUMBER_HOLD_MS=190;
   const NUMBER_HOLD_SLOP=9;
   function stopNumberMomentum(){
     if(!numberMomentum)return;
@@ -4301,19 +4353,23 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         // A field focused while held can open Android's keyboard as soon as
         // readOnly is lifted. Blur before restoring normal editable behaviour.
         if(g.active&&document.activeElement===g.field)g.field.blur();
-        g.field.readOnly=false;
+        g.field.readOnly=g.previousReadOnly;
       }
     }
   }
   function beginNumberSwipe(field,id,x,y,kind){
-    if(!field||field.disabled||field.readOnly)return;
-    const initial=Number(field.value);
-    if(!field.value.trim()||!Number.isFinite(initial))return;
+    if(!field||field.disabled||(field.readOnly&&field.dataset.numberTypingMode!=='locked'))return;
+    const parsed=Number(field.value);
+    const hasValue=!!field.value.trim()&&Number.isFinite(parsed);
+    // An empty field cannot be scrubbed, but its two short taps must still
+    // be recognised so the user can open the keyboard to enter a first value.
+    if(!hasValue&&kind!=='touch')return;
+    const initial=hasValue?parsed:0;
     cancelNumberSwipe();
     const now=performance.now();
     const g={field,id,kind,x,y,lastY:y,lastTime:now,raw:initial,
       settings:numberSwipeSettings(field),active:false,moved:false,travel:0,
-      samples:[{y,t:now}],timer:0};
+      previousReadOnly:field.readOnly,samples:[{y,t:now}],timer:0};
     numberSwipe=g;
     if(kind==='touch'){
       // Temporarily prevent the native touch focus from opening the keyboard.
@@ -4322,6 +4378,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       field.readOnly=true;
       g.touchLocked=true;
     }
+    if(!hasValue)return;
     g.timer=setTimeout(()=>{
       if(numberSwipe!==g||!entryContent.contains(field)||entryBackdrop.hidden)return;
       g.active=true;
@@ -4397,8 +4454,26 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
   },{passive:false});
   function finishNumberTouch(e,released){
     const g=numberSwipe;if(!g||g.kind!=='touch')return;
-    if(!Array.from(e.changedTouches).some(t=>t.identifier===g.id))return;
+    const touch=Array.from(e.changedTouches).find(t=>t.identifier===g.id);
+    if(!touch)return;
+    const tapped=released&&!g.active&&!g.moved&&
+      Math.hypot(touch.clientX-g.x,touch.clientY-g.y)<=NUMBER_HOLD_SLOP;
+    const field=g.field;
     if(endNumberSwipe(g.id,released)&&e.cancelable)e.preventDefault();
+    if(tapped){
+      const now=performance.now();
+      if(lastNumberTap?.field===field&&now-lastNumberTap.time<=430){
+        lastNumberTap=null;
+        unlockNumberTyping(field);
+        if(e.cancelable)e.preventDefault();
+      }else{
+        lastNumberTap={field,time:now};
+        // Read-only fields must not leave a caret visible after a single tap.
+        requestAnimationFrame(()=>{
+          if(field.dataset.numberTypingMode==='locked'&&document.activeElement===field)field.blur();
+        });
+      }
+    }
   }
   entryContent.addEventListener('touchend',e=>finishNumberTouch(e,true),{passive:false});
   entryContent.addEventListener('touchcancel',e=>finishNumberTouch(e,false),{passive:false});
@@ -4742,7 +4817,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         <form class="entry-form recent-form" id="water-new-form" hidden>
           <label for="water-new-amount">New amount (mL)</label>
           <input id="water-new-amount" type="number" inputmode="decimal" min="1" max="10000" step="1" value="250" required>
-          <p class="entry-note">Press and hold the number to adjust, or tap to type.</p>
+          <p class="entry-note">Double tap to type, or hold briefly and slide to adjust.</p>
           <div class="entry-actions single-action"><button class="entry-affirm" type="submit">Record amount</button></div>
         </form>
         <p id="water-record-error" class="food-copy-status" role="alert"></p>
@@ -4837,12 +4912,13 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       const newBtn=document.createElement('button');newBtn.type='button';newBtn.className='new-amount';newBtn.textContent='+ New amount';row.append(newBtn);
       newBtn.addEventListener('click',()=>{
         const form=document.getElementById('water-new-form');form.hidden=false;
-        // Reveal the form without opening the phone's keyboard or moving focus.
+        // Choosing New amount is an explicit request to type. This is the
+        // intentional exception to the shared double-tap numeric gate.
+        // Focus synchronously inside the button click: Android browsers may
+        // refuse to open the keyboard after user activation has expired.
+        unlockNumberTyping(form.querySelector('#water-new-amount'));
         requestAnimationFrame(()=>{
-          if(!form.isConnected||entryBackdrop.hidden)return;
-          const bottom=form.getBoundingClientRect().bottom;
-          const paneBottom=entryContent.getBoundingClientRect().bottom;
-          if(bottom>paneBottom-10)entryContent.scrollTop+=bottom-paneBottom+10;
+          if(form.isConnected&&!entryBackdrop.hidden)fitEntryToVisibleViewport();
         });
       });
       document.getElementById('water-new-form').addEventListener('submit',e=>{e.preventDefault();add(document.getElementById('water-new-amount').value)});
@@ -4857,7 +4933,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         <label for="weight-value">Weight (kg)</label>
         <input id="weight-value" type="number" inputmode="decimal" min="20" max="400" step="0.05"
           placeholder="Enter weight in kg" aria-label="Weight in kilograms" value="${startWeight}" required>
-        <p class="entry-note">Press and hold the number to adjust it, or tap to type.</p>
+        <p class="entry-note">Double tap to type, or hold briefly and slide to adjust.</p>
         <p class="food-alert" id="weight-record-error" role="alert"></p>
         <div class="entry-actions"><button class="entry-cancel" id="weight-cancel" type="button">Cancel</button><button class="entry-affirm" type="submit">Record weight</button></div>
         ${selectedDay&&storeLive&&(db.state.weights||[]).some(w=>w.date===activeDate())?'<button class="food-secondary-action" type="button" id="weight-delete">Delete recorded weight</button>':''}

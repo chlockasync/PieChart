@@ -1,4 +1,4 @@
-# Jules Berne’s Pie Chart — v0.1.094
+# Jules Berne’s Pie Chart — v0.1.095
 
 Phone-first PWA for weight, nutrition, water, steps, and activity tracking. Hosted on GitHub Pages with Google sign-in, shared Food and Activity Libraries, and owner-private history.
 
@@ -66,3 +66,11 @@ phone keyboard. The Water shortcut uses the shared per-100 mL hydration rule
 (including configured contributions below 100%) and leaves live chart
 refreshes to Firestore's incremental history listener. Previously saved Water
 entries remain unchanged. No database migration is required.
+
+## Barcode selection and numeric field gestures
+
+Scanning a barcode that uniquely identifies a saved Food Item opens that item immediately through the existing shared Food Library selection flow. No external product lookup is needed for an exact local match; ambiguous matches remain selectable from search results.
+
+All numeric fields now require a double tap or double click to open the keyboard and type, while a brief stationary hold (190 ms) starts shared vertical scrubbing; swiping before activation still scrolls. Keyboard users can use Enter. Choosing **New amount** in Today's Water is an explicit exception: it focuses and selects the value immediately so the numeric keyboard is ready.
+
+The separate calculation audit documents the app's existing formulas, assumptions, rounding, and open issues; **this patch changes no calculation rules**.
