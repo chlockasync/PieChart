@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#fffaf2">
-  <title>Jules Berne's Pie Chart — v0.1.096</title>
+  <title>Jules Berne's Pie Chart — v0.1.098</title>
   <link rel="manifest" href="manifest.webmanifest">
   <style>
-/* Jules Berne's Pie Chart — single visual system, v0.1.096.
+/* Jules Berne's Pie Chart — single visual system, v0.1.098.
    The home screen is one eight-series chart with an integrated right legend.
    No historical overrides or per-version CSS patches. */
 :root {
@@ -300,8 +300,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 .activity-form .activity-grid {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
 .activity-form .activity-field {display:flex;flex-direction:column;gap:4px;min-width:0}
 .activity-form input,.activity-form select {width:100%;min-width:0;font-size:16px}
-.activity-form .activity-check {display:flex;gap:9px;align-items:center;font-size:12px;font-weight:750}
-.activity-form .activity-check input {width:19px;height:19px;flex:none}
+/* Activity favourites reuse the shared form-toggle control. */
 .activity-estimate {font-size:12px;line-height:1.45}
 .activity-history {display:grid;gap:6px;margin-top:12px}
 .activity-history h3 {margin:5px 0 1px;font-size:14px;color:var(--ink)}
@@ -317,8 +316,11 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 .targets-form .target-actions {display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:3px}
 .targets-form p {margin:2px 0!important}
 /* A Food Item can be favourited just like a Dish or Meal. */
-.food-item-favourite {display:flex;align-items:center;gap:9px;margin:7px 0 0;font-weight:750;font-size:13px;color:var(--ink)}
-.food-item-favourite input {width:18px;height:18px;flex:none}
+/* All library editors use one consistent, accessible checkbox style. */
+.form-toggle {display:flex;align-items:center;gap:9px;min-width:0;min-height:36px;margin:0;
+  color:#435875;font-size:13px;font-weight:800;line-height:1.3;cursor:pointer}
+.form-toggle input[type="checkbox"] {flex:0 0 19px;width:19px;height:19px;margin:0;accent-color:#8262cf;cursor:pointer}
+.form-toggle:focus-within {color:var(--ink)}
 /* Number fields scroll normally unless an intentional press-and-hold activates
    scrubbing. During a touch hold they stay read-only to avoid opening the keyboard. */
 .entry-sheet input[type="number"] {touch-action:pan-y}
@@ -381,41 +383,53 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 .food-field {display:flex;flex-direction:column;gap:4px;min-width:0}
 .food-field label {font-size:13px;color:#435875;font-weight:900}
 .food-field input,.food-field select {width:100%;padding:11px 12px;border:1px solid #bfcede;border-radius:11px;background:#fff;color:var(--ink);font-size:16px}
-/* Five nutrition cards mirror the home screen's metric colours. Keep the
-   five nutrients visible across even a narrow phone viewport. */
-.food-preferences-row {display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:10px 18px}
-.food-preferences-row .food-item-favourite {margin:0;min-height:30px}
-.food-preferences-row .food-water-allocation {border:0;padding:0;gap:5px}
-.food-preferences-row .food-water-toggle {min-height:30px}
-.food-preferences-row #food-water-controls {margin-top:4px}
-.food-nutrition {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;padding:2px 0;min-width:0}
-.food-nutrient-row {--card-accent:var(--green);display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;
-  gap:3px;min-width:0;min-height:106px;padding:6px 4px 8px;border:1px solid #e0e5ed;border-top:4px solid var(--card-accent);
-  border-radius:9px;background:#fff;text-align:center}
+/* Match the approved Food Item mock-up at ALL viewport widths: five equal
+   horizontal metric cards, Energy first with vertically stacked kJ/Cal.
+   Keep inputs editable/scrubbable without surrounding mini form boxes. */
+.food-preferences-row {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;gap:8px 12px}
+.food-preferences-row .form-toggle {align-items:center}
+.food-preferences-row .food-water-allocation {border:0;padding:0;gap:4px;min-width:0}
+.food-preferences-row #food-water-controls {margin-top:5px}
+.food-nutrition {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;min-width:0}
+.food-nutrient-row {--card-accent:var(--green);display:flex;flex-direction:column;align-items:stretch;
+  gap:3px;min-width:0;padding:6px 3px 6px;border:1px solid #dce5ef;border-top:4px solid var(--card-accent);
+  border-radius:11px;background:#fff;box-shadow:0 1px 3px #18395d09;text-align:center}
 #food-row-calories{--card-accent:var(--orange)}
 #food-row-protein{--card-accent:var(--green)}
 #food-row-fats{--card-accent:var(--pink)}
 #food-row-carbs{--card-accent:var(--sky)}
 #food-row-fibre{--card-accent:var(--lilac)}
-.food-nutrient-row > label,.food-fibre-heading label {font-size:clamp(10px,2.65vw,13px);font-weight:850;color:var(--ink);line-height:1.2}
-.food-energy-fields {display:flex;flex-direction:column;gap:2px;min-width:0}
-.food-unit-input {display:flex;justify-content:center;align-items:baseline;gap:1px;min-width:0}
-.food-unit-input input {display:block;width:100%;min-width:0;min-height:30px;height:30px;padding:3px 0;border:0;border-radius:4px;
-  background:transparent;color:var(--ink);text-align:right;font-size:clamp(11px,2.7vw,17px);font-weight:850;font-variant-numeric:tabular-nums;
-  appearance:textfield;-moz-appearance:textfield}
+.food-nutrient-row > label {display:block;width:100%;font-size:clamp(10px,2.8vw,14px);font-weight:850;color:var(--ink);line-height:1.15;text-align:center}
+.food-energy-fields {display:grid;grid-template-columns:minmax(0,1fr);gap:1px;min-width:0}
+.food-unit-input {display:flex;align-items:baseline;justify-content:center;min-width:0;min-height:21px;
+  padding:0 1px;gap:0;border:1px solid transparent;border-radius:4px;background:transparent}
+.food-unit-input:focus-within {border-color:#739dc7;background:#f4f8ff;box-shadow:0 0 0 1px #739dc7}
+.food-unit-input input {display:block;flex:1 1 0;width:100%;min-width:0;min-height:20px;height:20px;
+  padding:0!important;border:0!important;border-radius:0;background:transparent!important;
+  color:var(--ink);text-align:right;font-size:clamp(12px,3.45vw,20px);font-weight:850;font-variant-numeric:tabular-nums;
+  appearance:textfield;-moz-appearance:textfield;box-shadow:none!important;outline:none}
 .food-unit-input input::-webkit-outer-spin-button,.food-unit-input input::-webkit-inner-spin-button {-webkit-appearance:none;margin:0}
-.food-unit-input .unit {position:static;transform:none;flex:none;color:#526981;font-size:clamp(9px,2vw,11px);font-weight:750;pointer-events:none}
-.food-nutrient-row.is-estimated input {background:#fff9ec;box-shadow:inset 0 -1px 0 #d7b779}
-.food-nutrient-row.fibre-estimate-row {display:flex}
-.food-fibre-heading {display:flex;align-items:center;justify-content:center;gap:2px;min-width:0;flex-direction:column}
-.food-fibre-estimate-button {border:1px solid #c7d5e5;background:#f2f6fb;color:#375475;border-radius:6px;
-  padding:3px 2px;font-size:9px;font-weight:800;line-height:1.1;cursor:pointer;touch-action:manipulation;order:2}
+.food-unit-input .unit {flex:none;color:#526981;font-size:clamp(10px,2.8vw,14px);font-weight:750;pointer-events:none}
+.food-nutrient-energy .food-unit-input:last-child input {font-size:clamp(11px,3.05vw,18px);font-weight:650;color:#4b5a6d}
+.food-nutrient-row.is-estimated .food-unit-input{background:#fffaf0}
+.food-fibre-estimate-button {width:100%;align-self:stretch;border:1px solid #c7d5e5;background:#f2f6fb;color:#375475;
+  border-radius:7px;padding:3px 1px;font-size:clamp(7px,1.8vw,11px);font-weight:800;line-height:1.15;white-space:nowrap;
+  overflow-wrap:normal;cursor:pointer;touch-action:manipulation}
 .food-fibre-estimate-button:disabled {opacity:.55;cursor:wait}
-.food-fibre-reference {color:#536e86;font-size:10px;line-height:1.3;overflow-wrap:anywhere;padding:2px}
+.food-fibre-reference {color:#536e86;font-size:12px;line-height:1.35;overflow-wrap:anywhere;padding:0 2px}
 .food-fibre-reference:empty {display:none}
 .food-fibre-reference a {color:#285e9d;text-decoration:underline;text-underline-offset:2px}
-@media (max-width:395px){.food-nutrition{gap:3px}.food-nutrient-row{padding:5px 2px 7px}.food-unit-input input{font-size:12px}.food-unit-input .unit{font-size:9px}.food-preferences-row{gap:8px}}
-
+@media (max-width:365px) {
+  .food-nutrition {gap:3px}
+  .food-nutrient-row{padding:5px 1px 5px;border-radius:8px;gap:2px}
+  .food-preferences-row{gap:6px 8px}
+  .food-fibre-estimate-button{padding:4px 0;white-space:normal}
+}
+@media (min-width:660px) {
+  .food-nutrition {gap:9px}
+  .food-nutrient-row {padding:9px 8px;gap:4px}
+  .food-unit-input{gap:2px}
+}
 
 /* Source-supported fibre suggestions, separate from accepted Food Item values. */
 .fibre-estimate-summary {font-weight:850;font-size:12px;color:#344d6b;margin-bottom:3px}
@@ -429,7 +443,6 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 .fibre-estimate-details a {display:inline-block;margin-bottom:5px}
 .fibre-estimate-accept {margin:8px 0 3px;border:1px solid #a4bcd8;background:#e9f2fc;color:#234b72;border-radius:7px;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer}
 .food-unit-input input::placeholder {color:#9b9eaa;font-size:12px}
-@media(max-width:375px) {.food-nutrition{gap:2px}.food-nutrient-row{min-height:112px}}
 .food-measures {display:grid;gap:7px}
 .food-measure-row {display:grid;grid-template-columns:minmax(0,1fr) 120px 28px;gap:7px}
 .food-measure-row input {min-width:0;width:100%;border:1px solid #c5d4e5;border-radius:8px;padding:8px 10px;background:#fff}
@@ -448,10 +461,10 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 .food-np-status {min-height:0!important;margin:0!important;color:#426381!important;font-size:12px!important;line-height:1.4!important}
 .food-np-status:empty {display:none}
 .food-np-status.is-error {color:#9d3f2e!important}
-.food-np-changed input {border:2px solid #5a91bd!important;background:#f5faff!important}
+.food-np-changed .food-unit-input {border-color:#5a91bd;background:#f5faff}
 /* Unconfirmed scanner readings are visible and editable, but never masquerade as verified. */
-.food-np-provisional {background:#fff9ec;border-left:3px solid #bd8a3e;padding-left:6px;border-radius:5px}
-.food-np-provisional label::after {content:" · check";font-size:10px;font-weight:700;color:#9a642a}
+.food-np-provisional {background:#fff9ec;border-color:#bd8a3e}
+.food-np-provisional > label::after {content:" · check";font-size:10px;font-weight:700;color:#9a642a}
 .food-barcode-error-link {display:inline-block;margin-top:6px;color:#275f9a;text-decoration:underline;font-weight:750}
 
 .food-np-choice[hidden]{display:none!important}
@@ -464,8 +477,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 
 /* Food Item hydration allocation follows its inline checkbox. */
 .food-water-allocation {display:grid;gap:5px;border:0;padding:0}
-.food-water-toggle {display:flex;align-items:center;gap:9px;font-size:13px;font-weight:800;color:#385a78;cursor:pointer}
-.food-water-toggle input {width:17px;height:17px;flex:none;accent-color:#25a9c3}
+.food-water-toggle {align-items:center}
 .food-water-allocation #food-water-controls {display:grid;grid-template-columns:minmax(0,1fr) 92px;align-items:center;gap:7px 10px}
 .food-water-allocation #food-water-controls[hidden] {display:none}
 .food-water-allocation #food-water-controls>label {font-size:12px;font-weight:700;line-height:1.35;color:#536d86}
@@ -517,8 +529,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 .recipe-line .recipe-remove{border:0;background:transparent;color:#7a8b9e;font-size:20px;padding:3px}
 .recipe-totals{font-size:12px;color:#3d5876;font-weight:750;line-height:1.5;padding:10px 0;border-top:1px solid #dfe7ef;border-bottom:1px solid #dfe7ef}
 .recipe-totals.is-error{color:#a14926}
-.recipe-linked{display:flex;align-items:center;gap:8px;color:#405874;font-size:13px;font-weight:700}
-.recipe-linked input{accent-color:var(--purple);width:17px;height:17px}
+/* Dish and Meal toggles use .form-toggle, as do Food and Activity. */
 @media(max-width:375px){.recipe-line{grid-template-columns:22px minmax(0,1fr) 57px 80px 25px;gap:4px}}
 
 /* Keep form actions visible above the mobile keyboard. Apply sticky paper
@@ -644,7 +655,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 
 <script src="activity-math.js?v=0.1.096"></script><script src="calorie-budget.js?v=0.1.096"></script>
 <script src="piechart-shared.js?v=0.1.087"></script>
-<script>/* PieChart v0.1.096 — shared diary controls and validated common helpers. */
+<script>/* PieChart v0.1.098 — shared diary controls and validated common helpers. */
 (() => {
   'use strict';
   // All chart data comes from private member records; blank days remain blank.
@@ -3362,8 +3373,8 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
           <div class="food-lookup-controls"><input class="food-search" id="recipe-item-search" type="search" autocomplete="off" placeholder="Food name or barcode" spellcheck="false"><button id="recipe-camera" type="button" title="Scan barcode">Scan</button></div></div>
         <div class="recipe-pick-list" id="recipe-pick-list" hidden></div>
         <div class="recipe-totals" id="recipe-totals" aria-live="polite"></div>
-        ${originalParent?`<label class="recipe-linked"><input id="recipe-stay-linked" type="checkbox" ${existing?.linked?'checked':''}> Update details when ${safe(originalParent.name)} is updated</label>`:''}
-        <label class="recipe-linked"><input type="checkbox" id="recipe-favourite" ${existing?.favorite?'checked':''}> Favourite</label>
+        ${originalParent?`<label class="form-toggle"><input id="recipe-stay-linked" type="checkbox" ${existing?.linked?'checked':''}> Update details when ${safe(originalParent.name)} is updated</label>`:''}
+        <label class="form-toggle"><input type="checkbox" id="recipe-favourite" ${existing?.favorite?'checked':''}> Favourite</label>
         <p class="food-alert" id="recipe-alert" role="alert"></p>
         <div class="food-review-actions"><button type="button" class="entry-cancel" id="recipe-back">Back</button><button type="submit" class="entry-affirm" id="recipe-save">Save ${label}</button></div>
         ${editing?'<button type="button" class="food-secondary-action" id="recipe-delete">Remove from library</button>':''}`;
@@ -3615,14 +3626,14 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       // Concise NZ-label-style nutrition rows. Keep origins in data, not repetitive field notes.
       const nutritionOrder=['protein','fats','carbs','fibre'];
       const valueInput=k=>`<div class="food-nutrient-row ${k==='fibre'?'fibre-estimate-row ':''}${item.origins?.[k]==='estimated'||item.origins?.[k]==='missing'?'is-estimated':''}" id="food-row-${k}">
-        ${k==='fibre'?'<div class="food-fibre-heading"><label for="food-n-fibre">Fibre</label><button type="button" id="food-estimate-fibre" class="food-fibre-estimate-button">Provide estimate</button></div>':`<label for="food-n-${k}">${k==='carbs'?'Carbs':nutrientNames[k]}</label>`}
-        <div class="food-unit-input"><input required id="food-n-${k}" aria-label="${nutrientNames[k]} per 100" type="number" min="0" step="any" inputmode="decimal" placeholder="${item.origins?.[k]==='missing'?'Estimate':''}" value="${Number.isFinite(item.values?.[k])?roundFood(item.values[k]):''}" data-initial="${Number.isFinite(item.values?.[k])?roundFood(item.values[k]):''}"><span class="unit">g</span></div>${k==='fibre'?'<div class="food-fibre-reference" id="food-fibre-reference" role="status" aria-live="polite"></div>':''}</div>`;
+        <label for="food-n-${k}">${k==='carbs'?'Carbs':nutrientNames[k]}</label>
+        <div class="food-unit-input"><input required id="food-n-${k}" aria-label="${nutrientNames[k]} per 100" type="number" min="0" step="any" inputmode="decimal" placeholder="${item.origins?.[k]==='missing'?'Estimate':''}" value="${Number.isFinite(item.values?.[k])?roundFood(item.values[k]):''}" data-initial="${Number.isFinite(item.values?.[k])?roundFood(item.values[k]):''}"><span class="unit">g</span></div>${k==='fibre'?'<button type="button" id="food-estimate-fibre" class="food-fibre-estimate-button">Provide estimate</button>':''}</div>`;
       review.innerHTML=`${isLocal?`<button class="food-record-action" id="food-record-serving" type="button">Record serving of ${safe(initialFoodName)}</button>`:''}<div class="food-field-grid">
           <div class="food-field wide"><label for="food-name">Food name</label><input required id="food-name" maxlength="160" value="${safe(initialFoodName)}"></div>
           <div class="food-preferences-row wide">
-            <label class="food-item-favourite"><input type="checkbox" id="food-favourite" ${item.favorite?'checked':''}> Favourite</label>
+            <label class="form-toggle"><input type="checkbox" id="food-favourite" ${item.favorite?'checked':''}> Favourite</label>
             <div class="food-water-allocation" id="food-water-allocation">
-              <label class="food-water-toggle"><input type="checkbox" id="food-counts-as-water"> Counts towards water intake</label>
+              <label class="form-toggle food-water-toggle"><input type="checkbox" id="food-counts-as-water"> Counts towards water intake</label>
               <div id="food-water-controls" hidden>
                 <label for="food-water-percent">Percentage of remaining mass counted as water</label>
                 <div class="food-water-number"><input type="number" id="food-water-percent" min="0" max="100" step="any" inputmode="decimal" value="100"><span>%</span></div>
@@ -3641,6 +3652,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
           </div>
           ${nutritionOrder.map(valueInput).join('')}
         </div>
+        <div class="food-fibre-reference" id="food-fibre-reference" role="status" aria-live="polite"></div>
         <div class="food-field">
           <button class="food-np-scan" type="button" id="food-photo-nutrients">Scan nutrition panel</button>
           <button class="food-secondary-action" type="button" id="food-photo-fallback" hidden>Use photograph instead</button>
@@ -3654,7 +3666,6 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
           </div>
         </div>
         <div class="food-field"><label>Familiar measures</label><p class="food-measure-explanation">Name a unit (e.g. slice, cup, or pack), then enter how many g or mL are in ONE unit. Recording 2 slices uses twice this amount.</p><div id="food-measures" class="food-measures"></div><button type="button" id="food-add-measure" class="food-secondary-action">+ Add measure</button></div>
-        <div class="food-field"><label for="food-source">Source</label><input id="food-source" value="${safe(src)}" maxlength="180" required></div>
         ${item.sourceUrl&&/^https:\/\/(?:world\.openfoodfacts\.org\/product\/|www\.foodcomposition\.co\.nz\/search\/|www\.foodstandards\.gov\.au\/science-data\/|fdc\.nal\.usda\.gov\/food-details\/)/.test(item.sourceUrl)?`<p class="food-source-credit"><a href="${safe(item.sourceUrl)}" target="_blank" rel="noopener">Original source</a></p>`:''}
         <p class="food-alert" id="food-alert" role="alert"></p>
         ${isLocal?'<button class="food-secondary-action" id="food-remove" type="button">Remove from my library</button>':''}
@@ -3696,8 +3707,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
           waterPreview.textContent='Enter nutrients and a valid percentage to calculate water.';return;
         }
         const baseUnit=document.getElementById('food-base-unit').value;
-        const sourceValue=document.getElementById('food-source').value;
-        const temporary={name:nameInput.value,type:'Food Item',source:sourceValue,values:v,
+        const temporary={name:nameInput.value,type:'Food Item',source:item.source||src,values:v,
           waterRemainderPercent:pct,carbsIncludeFibre:item.carbsIncludeFibre};
         const used=v.protein+v.fats+v.carbs+(carbsIncludeFibre(temporary)?0:v.fibre);
         const remainder=roundFood(Math.max(0,100-used));
@@ -3707,7 +3717,6 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       waterPercent.addEventListener('input',updateWaterPreview);
       for(const k of ['protein','fats','carbs','fibre'])document.getElementById('food-n-'+k).addEventListener('input',updateWaterPreview);
       document.getElementById('food-base-unit').addEventListener('change',updateWaterPreview);
-      document.getElementById('food-source').addEventListener('input',updateWaterPreview);
       nameInput.addEventListener('input',()=>{
         if(!waterTouched&&!isLocal){
           const namedWater=nameInput.value.trim().toLowerCase()==='water';
@@ -3765,7 +3774,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
           photoStatus.classList.add('is-error');photoStatus.textContent='No reliable nutrient values were found. Try a sharper photograph or enter the values manually.';return;
         }
         document.getElementById('food-base-unit').value=parsed.baseUnit;
-        if(edited.length){document.getElementById('food-source').value='Product label (photo OCR)';item.source='Product label (photo OCR)';}
+        if(edited.length)item.source='Product label (photo OCR)';
         updateWaterPreview();
         photoStatus.classList.toggle('is-error',!edited.length);
         const check=(parsed.uncertainFields||[]).map(k=>nutrientNames[k]).join(', ');
@@ -4074,8 +4083,9 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         }
         const duplicate=approvedFoods.find(x=>x.id!==item.id&&((barcode&&x.barcode===barcode)||foodNameWithBrand(x).toLocaleLowerCase('en-NZ')===name.toLocaleLowerCase('en-NZ')));
         if(duplicate){alert.textContent='This item is already in your library. Choose it from the library results to edit.';return null;}
-        const source=document.getElementById('food-source').value.trim();
-        if(!source){alert.textContent='Please identify the nutrition source, even if it is an estimate.';return null;}
+        // Provenance is retained internally, not exposed as a compulsory field.
+        // Keep existing and imported source details, or record a manual source.
+        const source=String(item.source||src||'Manual entry').trim()||'Manual entry';
         const saved={...item,id:isLocal?item.id:(crypto.randomUUID?.()||'f-'+Date.now()+'-'+Math.random().toString(36).slice(2)),
           approved:true,type:item.type||'Food Item',name,brand,barcode,baseUnit:document.getElementById('food-base-unit').value,
           values,origins,source,measures,fibreEstimate:fibreEstimate&&values.fibre===fibreEstimate.value?fibreEstimate:null,
@@ -4682,7 +4692,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         ${['light','moderate','vigorous'].map(x=>`<option value="${x}" ${(template.intensity||'moderate')===x?'selected':''}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}
       </select></div>
       <p class="recipe-totals activity-estimate" id="activity-preview" aria-live="polite"></p>
-      <label class="food-item-favourite activity-check" for="activity-favourite"><input type="checkbox" id="activity-favourite" ${existing?.favorite?'checked':''}>Favourite (for me)</label>
+      <label class="form-toggle" for="activity-favourite"><input type="checkbox" id="activity-favourite" ${existing?.favorite?'checked':''}>Favourite (for me)</label>
       <p class="food-alert" id="activity-error" role="alert"></p>
       ${existing?'<button type="button" class="food-secondary-action" id="activity-library-delete">Delete from shared library</button>':''}
       <div class="food-review-actions">
