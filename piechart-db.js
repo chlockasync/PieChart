@@ -1,4 +1,4 @@
-/* PieChart v0.1.088 — shared libraries, owner-private records, Noom summaries, and step sync.
+/* PieChart v0.1.091 — shared libraries, owner-private records, Noom summaries, and step sync.
    Firestore uses owner-private personal collections and member-only approved food and activity libraries.
    No private key belongs in a GitHub Pages app. An administrator manually provisions
    the initial two membership documents through Firebase Console. */
@@ -9,14 +9,14 @@ const state={mode:'local',configured:false,uid:'',displayName:'',email:'',error:
   foods:[],activityLibrary:[],favorites:{foods:{},activities:{}},favoritesLoaded:false,favoritesFromCache:true,activityLibraryLoaded:false,activityLibraryFromCache:true,activityLibraryPending:false,foodsFromCache:false,pending:false,online:navigator.onLine,
   weights:[],waters:[],foodEntries:[],activityDays:[],stepDays:[],noomDays:[],targets:{},details:{},targetsLoaded:false,targetsFromCache:true,
   weightsLoaded:false,watersLoaded:false,foodEntriesLoaded:false,activityDaysLoaded:false,stepDaysLoaded:false,privateFromCache:true,privatePending:false,
-  weightsPending:false,watersPending:false,foodEntriesPending:false,activityDaysPending:false,stepDaysPending:false,targetsPending:false,initialRemoteFoods:false};
+  weightsPending:false,watersPending:false,foodEntriesPending:false,activityDaysPending:false,stepDaysPending:false,targetsPending:false,initialRemoteFoods:false,graphRevision:0,graphChange:null,libraryRevision:0};
 let app,auth,db,sdkAuth,sdkStore;
 let stopMember=null,stopFoods=null,stopActivityLibrary=null,stopFavorites=null,stopWeights=null,stopWaters=null,stopFoodEntries=null,stopActivities=null,stopSteps=null,stopTargets=null;
 let authEpoch=0;
-// The original favourites were on shared library documents. During migration,
-// seed each member's new private favourites once, then disregard those flags.
+// Shared definitions never supply account-private favourites. Firestore's
+// persistent IndexedDB cache is the local source of historical records.
 let sharedFoods=[],sharedActivities=[];
-let gotRemoteFoods=false,gotRemoteActivities=false,needsFavoriteMigration=false,favoriteMigrationPending=false;
+const privateDocumentMaps=new Map();
 function favouriteFlags(value){
   if(!value||typeof value!=='object'||Array.isArray(value))return {};
   return Object.fromEntries(Object.entries(value).filter(([id,on])=>/^[a-zA-Z0-9_-]{5,128}$/.test(id)&&on===true));
@@ -25,33 +25,19 @@ function overlayPrivateFavorites(){
   state.foods=sharedFoods.map(item=>({...item,favorite:state.favoritesLoaded&&state.favorites.foods[item.id]===true}));
   state.activityLibrary=sharedActivities.map(item=>({...item,favorite:state.favoritesLoaded&&state.favorites.activities[item.id]===true}));
 }
-function maybeMigrateFavourites(uid,epoch){
-  if(epoch!==authEpoch||!needsFavoriteMigration||favoriteMigrationPending||!gotRemoteFoods||!gotRemoteActivities||!state.uid)return;
-  favoriteMigrationPending=true;
-  // Copy only the old flags visible at the first authenticated read. This is a
-  // one-time starting point; each member's selections diverge independently.
-  const foods=Object.fromEntries(sharedFoods.filter(x=>x.favorite===true).map(x=>[x.id,true]));
-  const activities=Object.fromEntries(sharedActivities.filter(x=>x.favorite===true).map(x=>[x.id,true]));
-  const ref=sdkStore.doc(db,'users',uid,'settings','favorites');
-  sdkStore.runTransaction(db,async transaction=>{
-    const current=await transaction.get(ref);
-    if(!current.exists())transaction.set(ref,{foods,activities,initialized:true});
-  }).catch(error=>{if(epoch===authEpoch){favoriteMigrationPending=false;state.error=friendly(error);broadcast();}});
-}
 function watchFavorites(uid,epoch){
   stopFavorites=sdkStore.onSnapshot(sdkStore.doc(db,'users',uid,'settings','favorites'),{includeMetadataChanges:true},snapshot=>{
     if(epoch!==authEpoch)return;
-    state.favoritesFromCache=snapshot.metadata.fromCache;
-    if(snapshot.exists()){
-      const data=snapshot.data()||{};
-      state.favorites={foods:favouriteFlags(data.foods),activities:favouriteFlags(data.activities)};
-      state.favoritesLoaded=true;needsFavoriteMigration=false;favoriteMigrationPending=false;
-    }else if(!snapshot.metadata.fromCache){
-      // Don't treat missing offline cache data as an empty personal selection.
-      needsFavoriteMigration=true;
-      maybeMigrateFavourites(uid,epoch);
-    }
-    overlayPrivateFavorites();broadcast();
+    const fromCache=snapshot.metadata.fromCache;
+    const loaded=snapshot.exists()||!fromCache;
+    const values=snapshot.exists()?snapshot.data()||{}:{};
+    const next={foods:favouriteFlags(values.foods),activities:favouriteFlags(values.activities)};
+    const changed=loaded&&(JSON.stringify(next)!==JSON.stringify(state.favorites)||!state.favoritesLoaded);
+    const statusChanged=state.favoritesFromCache!==fromCache;
+    state.favoritesFromCache=fromCache;
+    if(loaded){state.favorites=next;state.favoritesLoaded=true;}
+    if(changed){overlayPrivateFavorites();broadcast({library:true});}
+    else if(statusChanged)broadcast();
   },error=>{if(epoch===authEpoch){state.error=friendly(error);broadcast();}});
 }
 function saveFavorite(kind,id,on,{silent=false}={}){
@@ -59,7 +45,7 @@ function saveFavorite(kind,id,on,{silent=false}={}){
   if(!state.favoritesLoaded)throw new Error('Your personal favourites have not finished loading.');
   if(!['foods','activities'].includes(kind)||typeof id!=='string'||!/^[a-zA-Z0-9_-]{5,128}$/.test(id))throw new Error('Invalid favourite item.');
   if(on===true)state.favorites[kind][id]=true;else delete state.favorites[kind][id];
-  overlayPrivateFavorites();if(!silent)broadcast();
+  overlayPrivateFavorites();if(!silent)broadcast({library:true});
   const ref=sdkStore.doc(db,'users',state.uid,'settings','favorites');
   // Merge only this ID, rather than replacing the list and racing another tab.
   const change=on===true?true:sdkStore.deleteField();
@@ -78,7 +64,12 @@ function saveFavouriteDifferences(previous,next,kind){
   for(const old of prior.values())if(old.favorite)saveFavorite(kind,old.id,false,{silent:true});
 }
 
-function broadcast(){
+function broadcast({graphDates=null,graphKind='',graphAll=false,library=false}={}){
+  if(graphDates!==null||graphAll){
+    state.graphRevision++;
+    state.graphChange={dates:Array.isArray(graphDates)?graphDates:[],kind:graphKind,all:!!graphAll};
+  }
+  if(library)state.libraryRevision++;
   window.dispatchEvent(new CustomEvent('piechart-db-state',{detail:state}));
   for(const callback of listeners){try{callback(state)}catch(error){console.error(error)}}
 }
@@ -88,12 +79,12 @@ function stopSubscriptions(){
   stopMember=stopFoods=stopActivityLibrary=stopFavorites=stopWeights=stopWaters=stopFoodEntries=stopActivities=stopSteps=stopTargets=null;
 }
 function clearAccount(){
-  sharedFoods=[];sharedActivities=[];gotRemoteFoods=gotRemoteActivities=false;needsFavoriteMigration=favoriteMigrationPending=false;
+  sharedFoods=[];sharedActivities=[];privateDocumentMaps.clear();
   state.uid='';state.displayName='';state.email='';state.foods=[];state.activityLibrary=[];state.favorites={foods:{},activities:{}};state.favoritesLoaded=false;state.favoritesFromCache=true;state.activityLibraryLoaded=false;state.activityLibraryFromCache=true;state.activityLibraryPending=false;state.weights=[];
   state.waters=[];state.foodEntries=[];state.activityDays=[];state.stepDays=[];state.noomDays=[];state.targets={};state.details={};state.targetsLoaded=false;state.targetsFromCache=true;
   state.weightsLoaded=false;state.watersLoaded=false;state.foodEntriesLoaded=false;state.activityDaysLoaded=false;state.stepDaysLoaded=false;state.privatePending=false;
   state.weightsPending=false;state.watersPending=false;state.foodEntriesPending=false;state.activityDaysPending=false;state.stepDaysPending=false;state.targetsPending=false;
-  state.initialRemoteFoods=false;state.pending=false;state.privateFromCache=true;
+  state.initialRemoteFoods=false;state.pending=false;state.privateFromCache=true;state.graphChange=null;
 }
 function friendly(error){
   if(!error)return 'Unknown database error';
@@ -177,7 +168,7 @@ function safeLibraryActivity(input){
     throw new Error('Check the activity name, type, and measurements.');
   const copy={id:input.id,name:input.name.trim(),type:input.type,
     minutes:input.minutes??null,distanceKm:input.distanceKm??null,steps:input.steps??null,
-    intensity:input.intensity||'moderate',favorite:false, // Required by existing rules; never a shared personal preference.
+    intensity:input.intensity||'moderate',
     savedAt:typeof input.savedAt==='string'?input.savedAt:new Date().toISOString()};
   if(copy.minutes===null&&copy.distanceKm===null&&copy.steps===null)
     throw new Error('Save at least one of duration, distance, or steps.');
@@ -192,25 +183,47 @@ function saveActivityLibraryChanges(previous,next){
 function watchPersonal(uid,epoch){
   const collections=[['weightEntries','weights'],['waterEntries','waters'],['foodEntries','foodEntries'],['exerciseEntries','activityDays'],['dailyTotals','stepDays']];
   for(const [name,key] of collections){
+    const records=new Map();privateDocumentMaps.set(name,records);
     const stop=sdkStore.onSnapshot(sdkStore.collection(db,'users',uid,name),{includeMetadataChanges:true},snapshot=>{
       if(epoch!==authEpoch)return;
-      const documents=snapshot.docs.map(x=>({id:x.id,...x.data()}));
-      if(name==='dailyTotals'){
-        // One collection holds independent Health Connect steps and imported
-        // owner-private Noom daily summaries. Do not conflate their sources.
-        state.stepDays=documents.filter(row=>
-          /^\d{4}-\d{2}-\d{2}$/.test(row.date||'')&&
-          Number.isInteger(row.steps)&&row.steps>=0&&row.steps<=100000&&
-          row.source==='health_connect'&&typeof row.complete==='boolean');
-        state.noomDays=documents.filter(row=>
-          /^\d{4}-\d{2}-\d{2}$/.test(row.date||'')&&
-          row.noom&&typeof row.noom==='object'&&!Array.isArray(row.noom));
-      }else state[key]=documents;
-      state[key+'Loaded']=true;
+      // docChanges contains only changed records. Metadata-only notifications
+      // never copy the whole collection or invalidate the chart.
+      const changes=snapshot.docChanges({includeMetadataChanges:false});
+      const affected=new Set();
+      for(const change of changes){
+        const id=change.doc.id;
+        const previous=records.get(id);
+        if(previous?.date)affected.add(previous.date);
+        if(change.type==='removed')records.delete(id);
+        else{
+          const record={...change.doc.data(),id};
+          records.set(id,record);
+          if(record.date)affected.add(record.date);
+        }
+      }
+      const ready=snapshot.docs.length>0||!snapshot.metadata.fromCache;
+      const firstLoad=ready&&!state[key+'Loaded'];
+      if(ready)state[key+'Loaded']=true;
+      const fromCacheChanged=state.privateFromCache!==snapshot.metadata.fromCache;
       state.privateFromCache=snapshot.metadata.fromCache;
-      state[key+'Pending']=snapshot.metadata.hasPendingWrites;
+      const pendingKey=key+'Pending';
+      const pendingChanged=state[pendingKey]!==snapshot.metadata.hasPendingWrites;
+      state[pendingKey]=snapshot.metadata.hasPendingWrites;
       state.privatePending=state.weightsPending||state.watersPending||state.foodEntriesPending||state.activityDaysPending||state.stepDaysPending||state.targetsPending;
-      broadcast();
+      if(changes.length){
+        const documents=[...records.values()];
+        if(name==='dailyTotals'){
+          // Health Connect steps and imported Noom summaries are distinct
+          // fields on the same owner-private date document.
+          state.stepDays=documents.filter(row=>/^\d{4}-\d{2}-\d{2}$/.test(row.date||'')&&
+            Number.isInteger(row.steps)&&row.steps>=0&&row.steps<=100000&&
+            row.source==='health_connect'&&typeof row.complete==='boolean');
+          state.noomDays=documents.filter(row=>/^\d{4}-\d{2}-\d{2}$/.test(row.date||'')&&
+            row.noom&&typeof row.noom==='object'&&!Array.isArray(row.noom));
+        }else state[key]=documents;
+      }
+      if(changes.length||firstLoad)broadcast({graphDates:[...affected],graphKind:name});
+      else if(fromCacheChanged||pendingChanged)broadcast();
     },error=>{if(epoch===authEpoch){state.error=friendly(error);broadcast();}});
     if(name==='weightEntries')stopWeights=stop;else if(name==='waterEntries')stopWaters=stop;else if(name==='foodEntries')stopFoodEntries=stop;else if(name==='exerciseEntries')stopActivities=stop;else stopSteps=stop;
   }
@@ -218,50 +231,51 @@ function watchPersonal(uid,epoch){
     {includeMetadataChanges:true},snapshot=>{
       if(epoch!==authEpoch)return;
       const values=snapshot.data()||{};
-      state.targets=Object.fromEntries(['weight','water','steps','protein','fibre'].map(k=>
+      const nextTargets=Object.fromEntries(['weight','water','steps','protein','fibre'].map(k=>
         [k,Number.isFinite(values[k])&&values[k]>0?values[k]:null]));
-      // An unset intensity in an older account defaults to Moderate; never overwrite
-      // Firestore merely because the older document did not contain the new field.
-      state.targets.goalIntensity=['gentle','moderate','strong'].includes(values.goalIntensity)
+      nextTargets.goalIntensity=['gentle','moderate','strong'].includes(values.goalIntensity)
         ?values.goalIntensity:'moderate';
       const details=values.details||{};
-      state.details={
+      const nextDetails={
         dateOfBirth:typeof details.dateOfBirth==='string'&&isValidDateOfBirth(details.dateOfBirth)?details.dateOfBirth:null,
         heightCm:Number.isFinite(details.heightCm)&&details.heightCm>=80&&details.heightCm<=250?details.heightCm:null,
         sex:['female','male'].includes(details.sex)?details.sex:null
       };
-      // A missing document on an unprimed offline cache is NOT confirmation
-      // that the account has no saved targets. Avoid overwriting unknown goals.
-      state.targetsLoaded=snapshot.exists()||!snapshot.metadata.fromCache;
+      const ready=snapshot.exists()||!snapshot.metadata.fromCache;
+      const changed=ready&&(!state.targetsLoaded||JSON.stringify(nextTargets)!==JSON.stringify(state.targets)||
+        JSON.stringify(nextDetails)!==JSON.stringify(state.details));
+      const metadataChanged=state.targetsFromCache!==snapshot.metadata.fromCache||
+        state.targetsPending!==snapshot.metadata.hasPendingWrites;
+      if(ready){state.targets=nextTargets;state.details=nextDetails;state.targetsLoaded=true;}
       state.targetsFromCache=snapshot.metadata.fromCache;
       state.targetsPending=snapshot.metadata.hasPendingWrites;
       state.privatePending=state.weightsPending||state.watersPending||state.foodEntriesPending||state.activityDaysPending||state.stepDaysPending||state.targetsPending;
-      broadcast();
+      if(changed)broadcast({graphAll:true,graphKind:'targets'});
+      else if(metadataChanged)broadcast();
     },error=>{if(epoch===authEpoch){state.error=friendly(error);broadcast();}});
 }
 function watchFoods(uid,epoch){
   stopFoods=sdkStore.onSnapshot(sdkStore.collection(db,'approvedFoods'),{includeMetadataChanges:true},snapshot=>{
     if(epoch!==authEpoch)return;
-    sharedFoods=snapshot.docs.map(x=>({...x.data(),id:x.id}));
-    gotRemoteFoods=!snapshot.metadata.fromCache;
-    overlayPrivateFavorites();
-    maybeMigrateFavourites(uid,epoch);
+    const changed=snapshot.docChanges({includeMetadataChanges:false}).length>0||!state.initialRemoteFoods;
+    const statusChanged=state.foodsFromCache!==snapshot.metadata.fromCache||state.pending!==snapshot.metadata.hasPendingWrites;
+    if(changed){sharedFoods=snapshot.docs.map(x=>({...x.data(),id:x.id}));overlayPrivateFavorites();}
     state.foodsFromCache=snapshot.metadata.fromCache;
     state.pending=snapshot.metadata.hasPendingWrites;
     state.initialRemoteFoods=true;
     if(state.mode!=='connected')state.mode='connected';
-    broadcast();
+    if(changed)broadcast({library:true});else if(statusChanged)broadcast();
   },error=>{if(epoch===authEpoch)setMode('error',friendly(error));});
   stopActivityLibrary=sdkStore.onSnapshot(sdkStore.collection(db,'approvedActivities'),{includeMetadataChanges:true},snapshot=>{
     if(epoch!==authEpoch)return;
-    sharedActivities=snapshot.docs.map(x=>({...x.data(),id:x.id}));
-    gotRemoteActivities=!snapshot.metadata.fromCache;
-    overlayPrivateFavorites();
-    maybeMigrateFavourites(uid,epoch);
+    const changed=snapshot.docChanges({includeMetadataChanges:false}).length>0||!state.activityLibraryLoaded;
+    const statusChanged=state.activityLibraryFromCache!==snapshot.metadata.fromCache||
+      state.activityLibraryPending!==snapshot.metadata.hasPendingWrites;
+    if(changed){sharedActivities=snapshot.docs.map(x=>({...x.data(),id:x.id}));overlayPrivateFavorites();}
     state.activityLibraryLoaded=true;
     state.activityLibraryFromCache=snapshot.metadata.fromCache;
     state.activityLibraryPending=snapshot.metadata.hasPendingWrites;
-    broadcast();
+    if(changed)broadcast({library:true});else if(statusChanged)broadcast();
   },error=>{if(epoch===authEpoch){state.error=friendly(error);broadcast();}});
   watchPersonal(uid,epoch);
   watchFavorites(uid,epoch);

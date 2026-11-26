@@ -1,4 +1,4 @@
-# Jules Berne’s Pie Chart — v0.1.090
+# Jules Berne’s Pie Chart — v0.1.091
 
 Phone-first PWA for weight, nutrition, water, steps, and activity tracking. Hosted on GitHub Pages with Google sign-in, shared Food and Activity Libraries, and owner-private history.
 
@@ -27,13 +27,14 @@ never project missing steps from nearby days; only today may project unobserved
 steps. For other owner-specific historical imports, prepare Firestore-compatible
 records offline and upload them separately; personal data is not committed to GitHub.
 
-## Android nutrition-panel scanner integration
+## Current history and synchronisation
 
-The PieChart Food Item form offers **Scan nutrition panel** on Android, launching the installed PieChart Companion v0.2.016 directly into its ML Kit camera screen. The native scanner is styled to match PieChart's Food Item dialog, with a large camera grid, the same five nutrient colours, and Cancel / Done buttons. Readings in the companion are regular-weight until confirmed, then bold.
+Firestore's existing persistent IndexedDB cache holds each browser profile's authorised account data. Live snapshot listeners apply only changed documents. Cached history is retained locally for later launches; unrelated Firestore metadata, favourites, and library notifications do not redraw the graph. Changed dates and chart bands refresh without rebuilding unrelated graph content. This cache is not an off-device backup.
 
-PieChart v0.1.081 preserves the unsaved Food Item draft and handles a session-specific HTTPS callback. **Done** returns confirmed and provisional original per-100 g/mL readings, labelled by status; the Food Item form fills all recognised figures and marks provisional entries **check** for manual review. Missing fields remain blank, not zero. If energy was printed in kcal, PieChart converts it to kJ rather than misinterpreting the unit. The user can correct values manually and restore previous values before saving. **Cancel** does not change the form. The previously tested five-dummy-values path is replaced by live scanner results; an old dummy callback is still recognised and safely blocked from saving.
+Imported Noom summaries are stored privately at `users/{uid}/dailyTotals/{YYYY-MM-DD}.noom`. Their original calorie budgets, including genuine missing days, are authoritative throughout the period covered by that member's Noom history. Daily calorie/nutrient/water readings and diaries add separately recorded PieChart entries to imported Noom totals. Do not place personal history exports in GitHub.
 
-This v0.1.081 / v0.2.016 return change has **not yet been phone-tested**. Barcode lookup remains Open Food Facts only; failures now show their reason, offer a product-page link, and try its official v3 API after v2 fails when appropriate. External network availability cannot be guaranteed. Test a fresh unsaved Food Item and confirm successful Done, Cancel, incomplete labels, and any duplicate browser tabs. The existing browser-photo reader is available as **Use photograph instead** and remains the fallback on non-Android devices.
+Favourites are account-private under `users/{uid}/settings/favorites`; shared definitions never seed personal favourites. Existing private settings are not reset.
 
-Apply only the changed files from the PieChart v0.1.081 delta ZIP into the **PieChart** repository (not PieChartCompanion), preserving unchanged files and paths, and allow GitHub Pages to deploy. The companion must separately be updated in its own repository.
+## Scanner
 
+The separate Android PieChart Companion v0.2.016 handles ML Kit per-100 nutrition scanning. PieChart preserves the unsaved Food Item draft for the app-to-app callback. See `PROJECT_SPEC.md` for current scanner requirements and remaining phone testing; there is no scanner change in this patch.

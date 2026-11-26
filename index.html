@@ -619,7 +619,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 
 <script src="activity-math.js?v=0.1.075"></script><script src="calorie-budget.js?v=0.1.090"></script>
 <script src="piechart-shared.js?v=0.1.087"></script>
-<script>/* PieChart v0.1.090 — shared diary controls and validated common helpers. */
+<script>/* PieChart v0.1.091 — shared diary controls and validated common helpers. */
 (() => {
   'use strict';
   // All chart data comes from private member records; blank days remain blank.
@@ -761,14 +761,44 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
     draw();
   }
   const dayUTC=d=>Date.parse(d+'T00:00:00Z');
-  function rebuildLiveData(){
+  // Firestore already stores private history in persistent IndexedDB. Keep one
+  // in-memory derived timeline and recompute only dates affected by document
+  // changes. Unrelated library, favourite, and metadata events do no graph work.
+  let lastGraphRevision=-1;
+  let lastNoomRange='';
+  const pendingGraphChanges={dates:new Set(),kinds:new Set(),all:false};
+  let graphRefreshFrame=0;
+  const requestGraphRefresh=()=>{
+    if(graphRefreshFrame)return;
+    graphRefreshFrame=requestAnimationFrame(()=>{
+      graphRefreshFrame=0;
+      if(!privateRecordsReady()||!livePersonalMode||!liveDbState?.uid)return;
+      const all=pendingGraphChanges.all||lastGraphRevision<0;
+      const dates=new Set(pendingGraphChanges.dates);
+      const kinds=new Set(pendingGraphChanges.kinds);
+      pendingGraphChanges.dates.clear();pendingGraphChanges.kinds.clear();pendingGraphChanges.all=false;
+      rebuildLiveData({all,dates,kinds});
+    });
+  };
+  function rebuildLiveData({all=true,dates=new Set(),kinds=new Set()}={}){
     if(!livePersonalMode)return;
     const state=liveDbState||{};
-    const today=localDay();liveChartDay=today;
+    const today=localDay();
+    if(liveChartDay!==today)all=true;
+    liveChartDay=today;
     const validDate=date=>window.PieChartShared.validDay(date,today);
     const validMeasurement=(value,max=100000)=>Number.isFinite(value)&&value>=0&&value<=max;
     const noomByDate=new Map((state.noomDays||[]).filter(d=>validDate(d.date)&&
       d.noom&&typeof d.noom==='object'&&!Array.isArray(d.noom)).map(d=>[d.date,d.noom]));
+    // A historical import is a dated archive, not a classification for every
+    // record entered before today. Missing Noom days inside its archive are
+    // intentionally budgetless; other members retain PieChart calculations.
+    const archiveDates=[...noomByDate.keys()].sort();
+    const noomFirst=archiveDates[0]||null,noomLast=archiveDates.at(-1)||null;
+    const inNoomPeriod=date=>noomFirst!==null&&date>=noomFirst&&date<=noomLast;
+    const noomRange=(noomFirst||'')+'|'+(noomLast||'');
+    if(lastNoomRange!==noomRange){all=true;lastNoomRange=noomRange;}
+
     const weightEvents=(state.weights||[]).filter(e=>validDate(e.date)&&Number.isFinite(e.kg)&&e.kg>=20&&e.kg<=400)
       .sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.createdAt||'').localeCompare(String(b.createdAt||''))||String(a.id).localeCompare(String(b.id)));
     const waterEvents=(state.waters||[]).filter(e=>validDate(e.date)&&Number.isFinite(e.ml)&&e.ml>0);
@@ -821,16 +851,33 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       [...mergedStepsByDate.values()],activities);
     // Historical totals, imported weights, and actual diary records all extend
     // the calendar; no public sample or invented measurements are involved.
-    const dates=[...noomByDate.keys(),...weightsByDate.keys(),...waterByDate.keys(),
+    const recordedDates=[...noomByDate.keys(),...weightsByDate.keys(),...waterByDate.keys(),
       ...foodByDate.keys(),...mergedStepsByDate.keys(),...additionalStepsByDate.keys(),
       ...activityByDate.keys()].sort();
     const todayMs=dayUTC(today);
-    const firstRecorded=dates[0]||null;
+    const firstRecorded=recordedDates[0]||null;
     const earliest=Math.min(todayMs-100*86400000,firstRecorded?dayUTC(firstRecorded):todayMs);
     const first=Math.max(earliest,todayMs-3650*86400000);
     const numberOfDays=Math.round((todayMs-first)/86400000)+1;
     const goals=state.targets||{};
     const details=state.details||{};
+    const oldRows=new Map(DATA.map(row=>[row.date,row]));
+    if(!oldRows.has(new Date(first).toISOString().slice(0,10))||DATA.length!==numberOfDays)all=true;
+    // Changed weigh-ins can affect the most-recent-weight baseline until a
+    // subsequent reading, as well as trailing weight trends. Recalculate from
+    // the earliest changed weigh-in without rescanning source collections.
+    const weightChangeDates=kinds.has('weightEntries')?[...dates].sort():[];
+    const weightsChangedFrom=weightChangeDates[0]||null;
+    const updateTodayForStepHistory=kinds.has('dailyTotals')&&[...dates].some(date=>
+      dayUTC(today)-dayUTC(date)<=21*86400000&&date<=today);
+    if(updateTodayForStepHistory)dates.add(today);
+    const shouldRecalculate=date=>all||dates.has(date)||
+      (weightsChangedFrom!==null&&date>=weightsChangedFrom);
+    const previousVisibleStart=current[0]?.date;
+    const previousVisibleEnd=current.at(-1)?.date;
+    const redrawNeeded=all||weightsChangedFrom!==null||
+      [...dates].some(date=>date>=previousVisibleStart&&date<=previousVisibleEnd);
+
     const privateWeightWindow=[],stepWindow=[];
     const dayProgress=(new Date().getHours()*60+new Date().getMinutes())/1440;
     let mostRecentPrivateWeight=null,stepCursor=0;
@@ -847,13 +894,24 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       while(stepCursor<augmentedStepDays.length&&augmentedStepDays[stepCursor].date<=date)
         stepWindow.push(augmentedStepDays[stepCursor++]);
       while(stepWindow.length&&stepWindow[0].date<stepCutoff)stepWindow.shift();
+      if(!shouldRecalculate(date)&&oldRows.has(date))return oldRows.get(date);
       const totals=foodByDate.get(date)||{};
+      // An imported Noom summary with some nutritional measurements but a
+      // missing nutrient cannot yield a complete total for that nutrient.
+      // New food entries add to known Noom values, but do not make unknown
+      // portions of the imported day's nutrition magically become zero.
+      const hasNoomNutrition=!!noom&&nutrientKeys.some(k=>
+        validMeasurement(noom[k],k==='calories'?100000:10000));
+      const nutritionTotal=(key,max)=>validMeasurement(noom?.[key],max)
+        ?noom[key]+(totals[key]||0)
+        :hasNoomNutrition?null:Number.isFinite(totals[key])?totals[key]:null;
       const noomBudget=validMeasurement(noom?.calorieBudgetKcal,100000)?noom.calorieBudgetKcal:null;
       const importedLow=validMeasurement(noom?.calorieBudgetLowKcal,100000)?noom.calorieBudgetLowKcal:noomBudget;
       const importedHigh=validMeasurement(noom?.calorieBudgetHighKcal,100000)?noom.calorieBudgetHighKcal:noomBudget;
       // Noom's own historic calorie budgets are authoritative. Missing values
       // remain unknown on Noom days; estimates are only for ordinary app days.
-      const estimate=!noom&&state.targetsLoaded&&window.PieChartCalorieBudget?.calculate({
+      const isArchiveDay=inNoomPeriod(date);
+      const estimate=!isArchiveDay&&state.targetsLoaded&&window.PieChartCalorieBudget?.calculate({
         date,dateOfBirth:details.dateOfBirth,heightCm:details.heightCm,sex:details.sex,
         weightKg:mostRecentPrivateWeight,goalWeightKg:goals.weight,
         goalIntensity:goals.goalIntensity||'moderate',weightHistory:privateWeightWindow,
@@ -865,11 +923,12 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       const additional=additionalStepsByDate.get(date);
       const observedSteps=mergedStepsByDate.get(date)?.steps;
       const stepsPresent=Number.isInteger(observedSteps)||!!additional;
-      const budgetLow=noom?importedLow:(Number.isFinite(estimate?.low)?estimate.low:null);
-      const budgetHigh=noom?importedHigh:(Number.isFinite(estimate?.high)?estimate.high:null);
+      const budgetLow=isArchiveDay?importedLow:(Number.isFinite(estimate?.low)?estimate.low:null);
+      const budgetHigh=isArchiveDay?importedHigh:(Number.isFinite(estimate?.high)?estimate.high:null);
       return {date,
         weight:weightsByDate.get(date)??null,
-        water:waterByDate.get(date)??(validMeasurement(noom?.waterMl,15000)?noom.waterMl:null),
+        water:validMeasurement(noom?.waterMl,15000)||waterByDate.has(date)
+          ?(validMeasurement(noom?.waterMl,15000)?noom.waterMl:0)+(waterByDate.get(date)||0):null,
         targetWeight:goals.weight??null,waterGoal:Number.isFinite(goals.water)?Math.round(goals.water*1000):null,
         stepsGoal:goals.steps??null,proteinGoal:goals.protein??null,fibreGoal:goals.fibre??null,
         steps:stepsPresent?(observedSteps||0)+(additional?.measured||0)+(additional?.estimated||0):null,
@@ -877,25 +936,28 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         stepsAdditionalEstimated:additional?.estimated||0,
         activityLoad:activity?.load??null,
         activityMinutes:activity?.knownDurations?activity.minutes:null,activityCount:activity?.count??0,
-        calories:totals.calories??(validMeasurement(noom?.calories,100000)?noom.calories:null),
-        protein:totals.protein??(validMeasurement(noom?.protein,10000)?noom.protein:null),
-        fibre:totals.fibre??(validMeasurement(noom?.fibre,10000)?noom.fibre:null),
-        carbs:totals.carbs??(validMeasurement(noom?.carbs,10000)?noom.carbs:null),
-        fats:totals.fats??(validMeasurement(noom?.fats,10000)?noom.fats:null),
+        calories:nutritionTotal('calories',100000),
+        protein:nutritionTotal('protein',10000),
+        fibre:nutritionTotal('fibre',10000),
+        carbs:nutritionTotal('carbs',10000),
+        fats:nutritionTotal('fats',10000),
         budgetLow,budgetHigh,
         budget:Number.isFinite(budgetLow)&&Number.isFinite(budgetHigh)?(budgetLow+budgetHigh)/2:null,
-        budgetSource:noom?'noom':'calculated',
-        budgetProvisional:!noom&&!!estimate?.provisional,
-        budgetReason:noom?null:estimate?.reason||null,
-        budgetGuardLimited:!noom&&!!estimate?.guardLimited,
-        budgetActivityBasis:noom?'Original recorded Noom budget':estimate?.activityBasis||null,
-        budgetMaintenance:noom?null:estimate?.maintenance??null,
+        budgetSource:isArchiveDay?'noom':'calculated',
+        budgetProvisional:!isArchiveDay&&!!estimate?.provisional,
+        budgetReason:isArchiveDay?null:estimate?.reason||null,
+        budgetGuardLimited:!isArchiveDay&&!!estimate?.guardLimited,
+        budgetActivityBasis:isArchiveDay?'Original recorded Noom budget':estimate?.activityBasis||null,
+        budgetMaintenance:isArchiveDay?null:estimate?.maintenance??null,
         partial:date===today
       };
     });
-    weighed=DATA.filter(d=>Number.isFinite(d.weight)).map(d=>({t:dayUTC(d.date),weight:d.weight}));
+    if(all||kinds.has('weightEntries'))weighed=DATA.filter(d=>Number.isFinite(d.weight)).map(d=>({t:dayUTC(d.date),weight:d.weight}));
     daysVisible=Math.max(MIN_DAYS,Math.min(daysVisible,DATA.length));
-    draw();
+    // Today's unplotted readouts can update without rebuilding the SVG.
+    if(redrawNeeded){
+      if(all)draw();else repaintChangedSeries(kinds);
+    }else if(dates.has(activeDate()))updateMetrics(DATA.find(d=>d.date===activeDate()));
   }
   window.addEventListener('piechart-db-state',e=>{
     const state=e.detail;
@@ -905,42 +967,43 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
     liveDbState=state;
     if(accountChanged){
       selectedDay=null;datePickMode=false;datePreviewDay=null;updateDateControls();
-      displayedUid=uid;
-      daysVisible=100;
+      displayedUid=uid;daysVisible=100;lastGraphRevision=-1;lastNoomRange='';
+      pendingGraphChanges.dates.clear();pendingGraphChanges.kinds.clear();pendingGraphChanges.all=true;
       if(lastHomeMetrics?.uid!==uid){
-        // Never let a previous person's cached or rendered readings survive a
-        // switch to another account while its Firestore streams are loading.
-        eraseHomeMetrics();
-        DATA=emptyHistory();
-        weighed=DATA.filter(d=>Number.isFinite(d.weight)).map(d=>({t:dayUTC(d.date),weight:d.weight}));
-        draw();
+        eraseHomeMetrics();DATA=emptyHistory();weighed=[];draw();
       }
     }
     if(uid){
       if(state.mode==='not-authorized'){
-        eraseHomeMetrics();
-        DATA=emptyHistory();
-        weighed=DATA.filter(d=>Number.isFinite(d.weight)).map(d=>({t:dayUTC(d.date),weight:d.weight}));
-        draw();
+        eraseHomeMetrics();DATA=emptyHistory();weighed=[];
+        pendingGraphChanges.dates.clear();pendingGraphChanges.kinds.clear();
+        lastGraphRevision=-1;draw();
       }else if(privateRecordsReady(state)){
-        // Firestore loads weight, water, food, steps, activities, and targets
-        // separately. Only rebuild when all are known, not between snapshots.
-        rebuildLiveData();
+        if(lastGraphRevision!==state.graphRevision||accountChanged||localDay()!==liveChartDay){
+          if(lastGraphRevision<0||accountChanged||localDay()!==liveChartDay)pendingGraphChanges.all=true;
+          else{
+            for(const date of state.graphChange?.dates||[])pendingGraphChanges.dates.add(date);
+            if(state.graphChange?.kind)pendingGraphChanges.kinds.add(state.graphChange.kind);
+            if(state.graphChange?.all)pendingGraphChanges.all=true;
+          }
+          lastGraphRevision=state.graphRevision;
+          requestGraphRefresh();
+        }
       }else if(lastHomeMetrics?.uid===uid){
         paintLastHomeMetrics();
       }
     }else if(wasLive||state?.mode==='signed-out'||state?.mode==='not-authorized'){
       if(state?.mode==='signed-out'||state?.mode==='not-authorized')eraseHomeMetrics();
-      displayedUid='';
+      displayedUid='';lastGraphRevision=-1;liveChartDay='';lastNoomRange='';
+      pendingGraphChanges.dates.clear();pendingGraphChanges.kinds.clear();pendingGraphChanges.all=true;
       selectedDay=null;datePickMode=false;datePreviewDay=null;updateDateControls();
-      // Never show another account's private records after sign-out.
-      DATA=emptyHistory();
-      weighed=DATA.filter(d=>Number.isFinite(d.weight)).map(d=>({t:dayUTC(d.date),weight:d.weight}));
-      daysVisible=100;draw();
+      DATA=emptyHistory();weighed=[];daysVisible=100;draw();
     }
   });
   document.addEventListener('visibilitychange',()=>{
-    if(!document.hidden&&livePersonalMode&&localDay()!==liveChartDay)rebuildLiveData();
+    if(!document.hidden&&livePersonalMode&&localDay()!==liveChartDay){
+      pendingGraphChanges.all=true;requestGraphRefresh();
+    }
   });
   const valueFor=(k,d)=>d[k]==null?null:(k==='water'?d[k]/1000:d[k]);
   const goalFor=(k,d)=>k==='weight'?d.targetWeight:k==='water'?(Number.isFinite(d.waterGoal)?d.waterGoal/1000:null):d[goals[k]];
@@ -1250,6 +1313,78 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       b.dataset.anchorDate=recentReference(k,current)?.date||'';
     });
   }
+  function paintSeriesBand(layer,k,i,visible,edges,slotWidths,x,y,pw,ph){
+    const bandH=ph/Math.max(1,visible.length),top=i*bandH;
+    let budgetLines=null;
+    if(k==='calories'){
+      // Each boundary is the exact calculated budget for THAT day.
+      // Smoothing neighbouring days shifted the visible range away from
+      // the day-specific values, making the chart misleading.
+      const upper=current.map(d=>pos(k,d.budgetHigh));
+      const lower=current.map(d=>pos(k,d.budgetLow));
+      const shape=closedRibbon(upper,lower,x,y);
+      if(shape)el('path',{d:shape,fill:colors.calories,'fill-opacity':.15,stroke:'none'},layer);
+      budgetLines={upper,lower};
+    }
+    if(k==='weight'){
+      // Preserve the approved weight envelope algorithm and appearance.
+      const envelope=weightEnvelope(current,edges,slotWidths,y);
+      if(envelope){
+        el('path',{d:envelope.shape,fill:colors.weight,'fill-opacity':.18,stroke:'none'},layer);
+        el('path',{d:envelope.top,fill:'none',stroke:colors.weight,'stroke-opacity':.25,'stroke-width':1},layer);
+        el('path',{d:envelope.bottom,fill:'none',stroke:colors.weight,'stroke-opacity':.25,'stroke-width':1},layer);
+      }
+    }
+    if(k!=='weight')bandAtmosphere(layer,k,current,y);
+    dayMarks(layer,k,current,x,y,pw,ph);
+    // Draw targets AFTER the columns, so the coloured dashed line never
+    // becomes patchy or disappears under its own series' shadows.
+    if(['weight','steps','water','fibre','protein'].includes(k)){
+      // Do not expand weight's native data scale just to accommodate a distant goal.
+      // A weight target only appears when it lies inside the existing weight band.
+      const bandTop=1-(i*bandH+1)/ph,bandBottom=1-((i+1)*bandH-1)/ph;
+      const targets=current.map(d=>{
+        const v=pos(k,goalFor(k,d));
+        return k!=='weight'||(Number.isFinite(v)&&v<=bandTop&&v>=bandBottom)?v:null;
+      });
+      referenceLine(layer,targets,x,y,colors[k]);
+    }
+    if(k==='steps')activityMarkers(layer,current,x,y,top,bandH);
+    if(budgetLines){
+      referenceLine(layer,budgetLines.upper,x,y,colors.calories);
+      referenceLine(layer,budgetLines.lower,x,y,colors.calories);
+    }
+  }
+  function repaintChangedSeries(kinds){
+    if(!geometry||!current.length||!svg.querySelector('[data-series]')){draw();return;}
+    const previous=current;
+    const next=rangeData();
+    if(previous.length!==next.length||previous[0]?.date!==next[0]?.date||
+       previous.at(-1)?.date!==next.at(-1)?.date){draw();return;}
+    current=next;
+    scales=metricScales(current);
+    const visible=keys.filter(shown);
+    const series=new Set();
+    for(const kind of kinds){
+      if(kind==='foodEntries')for(const k of ['water','calories','fibre','protein','fats','carbs'])series.add(k);
+      else if(kind==='waterEntries')series.add('water');
+      else if(kind==='weightEntries')for(const k of ['weight','calories'])series.add(k);
+      else if(kind==='exerciseEntries')for(const k of ['steps','calories'])series.add(k);
+      else if(kind==='dailyTotals')for(const k of ['steps','water','calories','fibre','protein','fats','carbs'])series.add(k);
+      else {draw();return;}
+    }
+    const {edges,slotWidths,pw,ph,x,y}=geometry;
+    for(const k of series){
+      if(!shown(k))continue;
+      const layer=svg.querySelector('[data-series="'+k+'"]');
+      const index=visible.indexOf(k);
+      if(!layer||index<0){draw();return;}
+      layer.replaceChildren();
+      paintSeriesBand(layer,k,index,visible,edges,slotWidths,x,y,pw,ph);
+    }
+    updateMetrics(DATA.find(d=>d.date===activeDate()));
+    positionMetricButtons();
+  }
   function draw(){
     if(!DATA.length)return;
     current=rangeData();
@@ -1276,45 +1411,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       const clip=el('clipPath',{id:'series-clip-'+k},defs);
       el('rect',{x:0,y:top+1,width:pw,height:Math.max(1,bandH-2)},clip);
       const layer=el('g',{'clip-path':'url(#series-clip-'+k+')','data-series':k},seriesLayer);
-      let budgetLines=null;
-      if(k==='calories'){
-        // Each boundary is the exact calculated budget for THAT day.
-        // Smoothing neighbouring days shifted the visible range away from
-        // the day-specific values, making the chart misleading.
-        const upper=current.map(d=>pos(k,d.budgetHigh));
-        const lower=current.map(d=>pos(k,d.budgetLow));
-        const shape=closedRibbon(upper,lower,x,y);
-        if(shape)el('path',{d:shape,fill:colors.calories,'fill-opacity':.15,stroke:'none'},layer);
-        budgetLines={upper,lower};
-      }
-      if(k==='weight'){
-        // Preserve the approved weight envelope algorithm and appearance.
-        const envelope=weightEnvelope(current,edges,slotWidths,y);
-        if(envelope){
-          el('path',{d:envelope.shape,fill:colors.weight,'fill-opacity':.18,stroke:'none'},layer);
-          el('path',{d:envelope.top,fill:'none',stroke:colors.weight,'stroke-opacity':.25,'stroke-width':1},layer);
-          el('path',{d:envelope.bottom,fill:'none',stroke:colors.weight,'stroke-opacity':.25,'stroke-width':1},layer);
-        }
-      }
-      if(k!=='weight')bandAtmosphere(layer,k,current,y);
-      dayMarks(layer,k,current,x,y,pw,ph);
-      // Draw targets AFTER the columns, so the coloured dashed line never
-      // becomes patchy or disappears under its own series' shadows.
-      if(['weight','steps','water','fibre','protein'].includes(k)){
-        // Do not expand weight's native data scale just to accommodate a distant goal.
-        // A weight target only appears when it lies inside the existing weight band.
-        const bandTop=1-(i*bandH+1)/ph,bandBottom=1-((i+1)*bandH-1)/ph;
-        const targets=current.map(d=>{
-          const v=pos(k,goalFor(k,d));
-          return k!=='weight'||(Number.isFinite(v)&&v<=bandTop&&v>=bandBottom)?v:null;
-        });
-        referenceLine(layer,targets,x,y,colors[k]);
-      }
-      if(k==='steps')activityMarkers(layer,current,x,y,top,bandH);
-      if(budgetLines){
-        referenceLine(layer,budgetLines.upper,x,y,colors.calories);
-        referenceLine(layer,budgetLines.lower,x,y,colors.calories);
-      }
+      paintSeriesBand(layer,k,i,visible,edges,slotWidths,x,y,pw,ph);
     }
     const grid=el('g',{'aria-hidden':'true'});
     // Separators are shared across the graph and right labels, like the approved reference.
@@ -1437,8 +1534,8 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         put(key+'-reading',Number.isFinite(d[key])?(selectedDay?niceDate(activeDate())+' intake':"Today's intake"):'Not recorded');put(key+'-target','');
       }
       for(const key of keys)ratio(key,key==='weight'?kg:key==='water'?water:
-        key==='calories'?cal:['protein','fibre'].includes(key)?d[key]:null,
-        key==='weight'?wt:key==='water'?waterGoal:key==='calories'?budgetMid:
+        key==='calories'?cal:key==='steps'?d.steps:['protein','fibre'].includes(key)?d[key]:null,
+        key==='weight'?wt:key==='water'?waterGoal:key==='steps'?d.stepsGoal:key==='calories'?budgetMid:
         ['protein','fibre'].includes(key)?d[key+'Goal']:null);
       saveHomeMetrics();
       return;
@@ -1880,20 +1977,22 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
   }
   // Switching accounts must never leave the previous member's approved foods
   // visible or editable, even temporarily. The signed-out fallback is the local copy.
-  let remoteLibraryShowing=false,remoteLibraryUser='';
+  let remoteLibraryShowing=false,remoteLibraryUser='',lastLibraryRevision=-1;
   function deviceLocalFoods(){
     try{return JSON.parse(localStorage.getItem(FOOD_DB_KEY)||'[]').filter(x=>x&&x.approved===true)}
     catch{return []}
   }
   window.addEventListener('piechart-db-state',e=>{
     const state=e.detail;
-    if(state.mode==='connected'&&state.initialRemoteFoods){
+    if(state.mode==='connected'&&state.initialRemoteFoods&&
+       (!remoteLibraryShowing||remoteLibraryUser!==state.uid||lastLibraryRevision!==state.libraryRevision)){
+      lastLibraryRevision=state.libraryRevision;
       approvedFoods=state.foods.map(food=>({...food}));
       refreshRecipes();remoteLibraryShowing=true;remoteLibraryUser=state.uid;
       window.dispatchEvent(new Event('piechart-foods-refreshed'));
     }else if(remoteLibraryShowing || (state.uid && state.uid!==remoteLibraryUser)){
       approvedFoods=state.uid?[]:deviceLocalFoods();
-      remoteLibraryShowing=false;remoteLibraryUser=state.uid;
+      remoteLibraryShowing=false;remoteLibraryUser=state.uid;lastLibraryRevision=-1;
       window.dispatchEvent(new Event('piechart-foods-refreshed'));
     }
   });
@@ -2440,15 +2539,19 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
     if(detail){const subtitle=document.createElement('small');subtitle.textContent=detail;title.append(subtitle);}
     const amount=document.createElement('span');amount.className='food-diary-qty';amount.textContent=quantity;
     content.append(title,amount);
-    const del=document.createElement('button');del.type='button';del.className='food-diary-delete';
-    del.textContent='×';del.title=deleteLabel||'Delete recorded entry';
-    del.setAttribute('aria-label',deleteLabel||'Delete '+name);
-    del.addEventListener('click',event=>{
-      event.stopPropagation();
-      if(!confirm(deleteMessage||'Delete this recorded entry?'))return;
-      try{onDelete?.();}catch(error){alert(error.message);}
-    });
-    line.append(content,del);return line;
+    line.append(content);
+    if(onDelete){
+      const del=document.createElement('button');del.type='button';del.className='food-diary-delete';
+      del.textContent='×';del.title=deleteLabel||'Delete recorded entry';
+      del.setAttribute('aria-label',deleteLabel||'Delete '+name);
+      del.addEventListener('click',event=>{
+        event.stopPropagation();
+        if(!confirm(deleteMessage||'Delete this recorded entry?'))return;
+        try{onDelete();}catch(error){alert(error.message);}
+      });
+      line.append(del);
+    }
+    return line;
   }
   function openFoodDiary(){
     const db=window.PieChartDB;
@@ -3094,7 +3197,20 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         const items=(diaryDb.state.foodEntries||[]).filter(e=>e.date===diaryDate&&e.nutrition)
           .sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
         diaryRows.replaceChildren();
-        if(!items.length){const empty=document.createElement('div');empty.className='food-diary-empty';
+        const noom=(diaryDb.state.noomDays||[]).find(e=>e.date===diaryDate)?.noom;
+        const nutritionKeys=['calories','protein','fibre','fats','carbs'];
+        const known=noom?nutritionKeys.filter(k=>Number.isFinite(noom[k])):[];
+        if(known.length){
+          const labels={protein:'Protein',fibre:'Fibre',fats:'Fats',carbs:'Carbs'};
+          const details=known.filter(k=>k!=='calories').map(k=>labels[k]+' '+nutrientText(noom[k])+'g');
+          diaryRows.append(recordedDiaryRow({
+            name:'Noom daily summary',
+            detail:details.length?details.join(' · '):'Historical daily total; individual foods were not exported',
+            quantity:Number.isFinite(noom.calories)?nutrientText(noom.calories)+' kcal':'',
+            // This is an imported total, not a fabricated editable serving.
+          }));
+        }
+        if(!items.length&&!known.length){const empty=document.createElement('div');empty.className='food-diary-empty';
           empty.textContent='Nothing recorded for this date yet.';diaryRows.append(empty);return;}
         for(const entry of items){
           diaryRows.append(recordedDiaryRow({
@@ -3108,7 +3224,12 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         }
       }
       const cleanupLookup=entryCleanup;
-      const stopDiaryUpdates=diaryDb.subscribe(paintDiary);
+      let lastDiaryGraphRevision=-1,lastDiaryUid='';
+      const stopDiaryUpdates=diaryDb.subscribe(state=>{
+        if(state.graphRevision===lastDiaryGraphRevision&&state.uid===lastDiaryUid)return;
+        lastDiaryGraphRevision=state.graphRevision;lastDiaryUid=state.uid;
+        paintDiary();
+      });
       entryCleanup=()=>{stopDiaryUpdates?.();cleanupLookup?.();};
       paintDiary();
     }
@@ -4359,7 +4480,14 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
     search.addEventListener('blur',()=>{if(!search.value.trim())queueMicrotask(()=>{
       if(search.isConnected&&document.activeElement!==search)render();
     });});
-    entryCleanup=db.subscribe(render);
+    let lastActivityGraphRevision=-1,lastActivityLibraryRevision=-1,lastActivityUid='';
+    entryCleanup=db.subscribe(state=>{
+      if(state.graphRevision===lastActivityGraphRevision&&
+         state.libraryRevision===lastActivityLibraryRevision&&state.uid===lastActivityUid)return;
+      lastActivityGraphRevision=state.graphRevision;
+      lastActivityLibraryRevision=state.libraryRevision;lastActivityUid=state.uid;
+      render();
+    });
     render();
   }
   function lastGenuineWeight(date){
@@ -4583,8 +4711,16 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
           ...(db.state.waters||[]).filter(e=>e.date===waterDate&&Number(e.ml)>0).map(e=>({
             name:'Water',detail:'Earlier water recording',amount:fmt(e.ml)+' mL',createdAt:e.createdAt||'',legacy:e}))
         ].sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
-        if(!entries.length){const empty=document.createElement('div');empty.className='food-diary-empty';
-          empty.textContent='No water recorded for this date yet.';waterRecorded.append(empty);return;}
+        const noom=(db.state.noomDays||[]).find(e=>e.date===waterDate)?.noom;
+        const historicalMl=Number.isFinite(noom?.waterMl)?noom.waterMl:null;
+        if(Number.isFinite(historicalMl)){
+          waterRecorded.append(recordedDiaryRow({name:'Noom daily water total',
+            detail:'Historical total, not an individual drink',quantity:fmt(historicalMl)+' mL'}));
+        }
+        if(!entries.length&&!Number.isFinite(historicalMl)){
+          const empty=document.createElement('div');empty.className='food-diary-empty';
+          empty.textContent='No water recorded for this date yet.';waterRecorded.append(empty);return;
+        }
         for(const entry of entries){
           // Deleting a water-contributing FDM deletes the entire private diary
           // record: water plus all associated nutrition. Old water records use
@@ -4601,8 +4737,15 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         }
       }
       paintWater();
-      if(storeLive){const dispose=db.subscribe(()=>requestAnimationFrame(()=>{if(waterRecorded.isConnected)paintWater();}));
-        entryCleanup=dispose;}
+      if(storeLive){
+        let lastWaterGraphRevision=-1,lastWaterUid='';
+        const dispose=db.subscribe(state=>{
+          if(state.graphRevision===lastWaterGraphRevision&&state.uid===lastWaterUid)return;
+          lastWaterGraphRevision=state.graphRevision;lastWaterUid=state.uid;
+          requestAnimationFrame(()=>{if(waterRecorded.isConnected)paintWater();});
+        });
+        entryCleanup=dispose;
+      }
       const add=v=>{
         v=Math.round(Number(v));if(!Number.isFinite(v)||v<=0||v>10000)return;
         if(storeLive){
@@ -4884,6 +5027,6 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
   handleFoodScanForeground();
 })();
 </script>
-<script type="module" src="piechart-db.js?v=0.1.088"></script>
+<script type="module" src="piechart-db.js?v=0.1.091"></script>
 </body>
 </html>
