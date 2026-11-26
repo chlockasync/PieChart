@@ -1,4 +1,4 @@
-/* PieChart v0.1.067 — saved activity measurements and step reconciliation.
+/* PieChart v0.1.096 — saved activity measurements and step reconciliation.
  * Named Library entries and recorded events use the same estimates. Activity
  * distance / step estimates are heuristics (not clinical energy measurements).
  * Health Connect's original step days are NEVER modified here.
@@ -16,7 +16,6 @@ const TYPES={
   Yoga:{mets:[2,3.3,4]},Sport:{mets:[3.5,6,8]},Other:{mets:[2.5,4,7]}
 };
 const INTERVALS=['light','moderate','vigorous'];
-const CADENCE={Walking:[70,100,125],Running:[130,155,175],Hiking:[70,95,115]};
 const clamp=(v,l,h)=>Math.min(h,Math.max(l,v));
 function interpolatedMets(speed,points){
  if(!Number.isFinite(speed)||speed<=0)return null;
@@ -45,13 +44,10 @@ function estimateActivity(input,{heightCm=null}={}){
  if(steps!==null&&!definition.steps)throw new Error('Steps are not supported for this activity type.');
  const stride=strideMetres(heightCm,type);
  const index=Math.max(0,INTERVALS.indexOf(input.intensity||'moderate'));
- // Manual counts always win. Distance is more informative than a crude
- // cadence assumption; a time-only walk gets provisional cadence-based steps
- // solely for overlap handling, NOT as a substitute for objective pace.
- const stepsCount=steps!==null?steps:
-   definition.steps&&distanceKm!==null?Math.min(100000,Math.round(distanceKm*1000/stride)):
-   definition.steps&&minutes!==null?Math.min(100000,Math.round(minutes*CADENCE[type][index])):null;
- const stepOrigin=steps!==null?'manual':stepsCount!==null?'estimated':'none';
+ // Step totals contain measured steps only. Duration and distance inform the
+ // activity-energy estimate but must never manufacture a step reading.
+ const stepsCount=steps;
+ const stepOrigin=steps!==null?'manual':'none';
  const inferredDistance=distanceKm??(steps!==null?steps*stride/1000:null);
  let mets,netKcalPerKg,basis;
  if(minutes!==null&&inferredDistance!==null&&definition.speed){
@@ -77,13 +73,12 @@ function estimateActivity(input,{heightCm=null}={}){
    minutes,distanceKm,stepsCount,stepOrigin,
    stepRelation:relation,
    stepsIncluded:relation==='none'?0:stepsCount,
-   // This flag retains the old calorie-budget adapter's understanding that
-   // these steps are counted in the daily step expenditure after reconciliation.
-   stepOverlap:relation!=='none',
+   // Step-based activities without an independent measured step count can
+   // overlap Health Connect steps. Avoid claiming known overlap counts.
+   stepOverlap:relation!=='none'||(definition.steps&&stepOrigin==='none'),
    intensity:INTERVALS[index],mets:Math.round(clamp(mets,1,23)*100)/100,
    netKcalPerKg:Math.round(Math.max(0,netKcalPerKg)*10000)/10000,
-   calculationBasis:basis,estimatedStrideMetres:stepOrigin==='estimated'&&distanceKm!==null||
-     (steps!==null&&distanceKm===null)?stride:null
+   calculationBasis:basis,estimatedStrideMetres:steps!==null&&distanceKm===null?stride:null
  };
 }
 function augmentStepDays(stepDays,activities){
@@ -94,7 +89,7 @@ function augmentStepDays(stepDays,activities){
  }
  for(const a of Array.isArray(activities)?activities:[]){
    if(!/^\d{4}-\d{2}-\d{2}$/.test(a?.date||''))continue;
-   if(a.stepRelation!=='additional'||!Number.isInteger(a.stepsIncluded)||a.stepsIncluded<=0)continue;
+   if(a.stepOrigin==='estimated'||a.stepRelation!=='additional'||!Number.isInteger(a.stepsIncluded)||a.stepsIncluded<=0)continue;
    if(!dayMap.has(a.date))dayMap.set(a.date,{date:a.date,steps:0,complete:false,source:'recorded_activity'});
    dayMap.get(a.date).steps+=a.stepsIncluded;
  }

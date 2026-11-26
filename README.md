@@ -1,4 +1,4 @@
-# Jules Berne’s Pie Chart — v0.1.095
+# Jules Berne’s Pie Chart — v0.1.096
 
 Phone-first PWA for weight, nutrition, water, steps, and activity tracking. Hosted on GitHub Pages with Google sign-in, shared Food and Activity Libraries, and owner-private history.
 
@@ -73,4 +73,8 @@ Scanning a barcode that uniquely identifies a saved Food Item opens that item im
 
 All numeric fields now require a double tap or double click to open the keyboard and type, while a brief stationary hold (190 ms) starts shared vertical scrubbing; swiping before activation still scrolls. Keyboard users can use Enter. Choosing **New amount** in Today's Water is an explicit exception: it focuses and selects the value immediately so the numeric keyboard is ready.
 
-The separate calculation audit documents the app's existing formulas, assumptions, rounding, and open issues; **this patch changes no calculation rules**.
+## Calculation and history corrections
+
+Noom's missing individual nutrients never hide known values from later PieChart servings. Known partial values are displayed with a ≥ marker, while completely unrecorded nutrients remain missing. Open Food Facts no longer manufactures energy from macronutrients: the Food Item review requires the user to supply missing energy. New food and Water shortcuts retain a private unrounded `snapshotBasis` so repeated edits do not accumulate roundoff; older entries acquire that basis on their first edit. Duration-only and distance-only activities can estimate expenditure but do not fabricate recorded steps. Existing imported notes are preserved without invented duration, distance, steps, or kcal. Metadata-only Firestore events stay inert, and ordinary history changes update only affected in-memory rows and chart bands.
+
+The 3,000-step budget baseline and other energy-model assumptions remain **unreviewed design decisions**; this patch does not change them. No private records or database rules need migrating.

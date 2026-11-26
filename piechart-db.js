@@ -1,4 +1,4 @@
-/* PieChart v0.1.094 — shared libraries, owner-private records, Noom summaries, water, and step sync.
+/* PieChart v0.1.096 — shared libraries, owner-private records, Noom summaries, water, and step sync.
    Firestore uses owner-private personal collections and member-only approved food and activity libraries.
    No private key belongs in a GitHub Pages app. An administrator manually provisions
    the initial two membership documents through Firebase Console. */
@@ -335,6 +335,11 @@ function validateFoodEntry(payload){
      !['g','mL','whole'].includes(payload.unit)||
      !['calories','protein','carbs','fats','fibre','energyKj'].every(k=>Number.isFinite(payload.nutrition?.[k])&&payload.nutrition[k]>=0))
     throw new Error('Invalid food record.');
+  const basis=payload.snapshotBasis;
+  if(basis!==undefined&&(!basis||!Number.isFinite(basis.quantity)||basis.quantity<=0||
+     !Number.isFinite(basis.waterMl)||basis.waterMl<0||
+     !['calories','protein','carbs','fats','fibre','energyKj'].every(k=>Number.isFinite(basis.nutrition?.[k])&&basis.nutrition[k]>=0)))
+    throw new Error('Invalid original serving measurements.');
 }
 function createPrivateEntry(collection,record,{onWriteError=null}={}){
   requireMembership();
@@ -379,7 +384,7 @@ function updateFoodEntry(id,changes){
   requireMembership();
   const entry=state.foodEntries.find(e=>e.id===id);
   if(!entry)throw new Error('Food entry not found in this account.');
-  if(!changes||Object.keys(changes).some(k=>!['date','quantity','nutrition','waterMl'].includes(k)))
+  if(!changes||Object.keys(changes).some(k=>!['date','quantity','nutrition','waterMl','snapshotBasis'].includes(k)))
     throw new Error('Only date, quantity, nutrition and water can be edited.');
   const updated={...entry,...changes};
   if(typeof updated.date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(updated.date)||
@@ -400,19 +405,22 @@ function recordWater(date,ml,waterFood,options){
   if(waterFood.baseUnit&&waterFood.baseUnit!=='mL')
     throw new Error('The Water Food Item must have Values per 100 set to Millilitres.');
   const values=waterFood.values||{};
-  const nutrition={};
+  const exact={};
   for(const k of ['calories','protein','carbs','fats','fibre']){
     if(!Number.isFinite(values[k])||values[k]<0)throw new Error('The Water Food Item has incomplete nutrition.');
-    nutrition[k]=Math.round(values[k]*ml)/100; // two decimal places for a per-100 mL quantity
+    exact[k]=values[k]*ml/100;
   }
-  nutrition.energyKj=Math.round((Number.isFinite(values.energyKj)?values.energyKj:values.calories*4.184)*ml)/100;
+  exact.energyKj=(Number.isFinite(values.energyKj)?values.energyKj:values.calories*4.184)*ml/100;
+  const nutrition=Object.fromEntries(Object.entries(exact).map(([k,v])=>[k,Math.round(v*100)/100]));
   // Use the exact shared Food Item hydration rule used when recording Water as
   // an ordinary serving. Never override an explicitly configured percentage.
   const attributedPer100=window.PieChartShared?.waterPer100?.(waterFood);
   if(!Number.isFinite(attributedPer100))throw new Error('Unable to calculate Water contribution.');
   const waterMl=Math.round(attributedPer100*ml)/100;
   return recordFood(date,{itemId:waterFood.id,name:waterFood.name,type:'Food Item',unit:'mL',
-    quantity:ml,waterMl,nutrition,source:'water-shortcut'},options);
+    quantity:ml,waterMl,nutrition,
+    snapshotBasis:{quantity:ml,nutrition:exact,waterMl:attributedPer100*ml/100},
+    source:'water-shortcut'},options);
 }
 // Owner-private logged exercise. Existing deployed Firestore rules already allow
 // users/{uid}/exerciseEntries; no rule or data migration is needed.
