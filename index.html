@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#fffaf2">
-  <title>Jules Berne's Pie Chart — v0.1.106</title>
+  <title>Jules Berne's Pie Chart — v0.1.107</title>
   <link rel="manifest" href="manifest.webmanifest">
   <style>
-/* Jules Berne's Pie Chart — single visual system, v0.1.106.
+/* Jules Berne's Pie Chart — single visual system, v0.1.107.
    The home screen is one eight-series chart with an integrated right legend.
    No historical overrides or per-version CSS patches. */
 :root {
@@ -682,7 +682,8 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 <script src="activity-math.js?v=0.1.096"></script><script src="calorie-budget.js?v=0.1.096"></script>
 <script src="piechart-shared.js?v=0.1.087"></script>
 <script src="piechart-entry-flows.js?v=0.1.106"></script>
-<script>/* PieChart v0.1.106 — explicit Activity routes and shared form lifecycle. */
+<script src="piechart-fdm-flows.js?v=0.1.107"></script>
+<script>/* PieChart v0.1.107 — explicit Activity routes and shared form lifecycle. */
 (() => {
   'use strict';
   // All chart data comes from private member records; blank days remain blank.
@@ -3097,37 +3098,19 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       });
     }
     // Internal library navigation preserves unsaved recipe edits and scroll position.
-    const libraryViews=[];
-    let activeLibraryView='browse';
-    const panelByName={browse,compose,review};
+    const libraryViews=window.PieChartFdmFlows.createLibraryViews({
+      panels:{browse,compose,review},heading:entryHeading,scrollContainer:entryContent
+    });
     function enterLibraryView(which,title){
-      const current=panelByName[activeLibraryView];
-      const previous={view:activeLibraryView,title:entryHeading.textContent,scroll:entryContent.scrollTop};
-      if(activeLibraryView===which&&(which==='compose'||which==='review')){
-        // Save nested editor content so Back from a proposed variation restores
-        // the original unsaved FDM, including its chosen values.
-        previous.nodes=document.createDocumentFragment();
-        while(current.firstChild)previous.nodes.append(current.firstChild);
-        previous.submit=current.onsubmit;current.onsubmit=null;
-      }
-      libraryViews.push(previous);
-      for(const [key,panel] of Object.entries(panelByName))panel.hidden=key!==which;
-      activeLibraryView=which;entryHeading.textContent=title;entryContent.scrollTop=0;
+      libraryViews.enter(which,title);
       if(diaryDate)setDailyNavigation(which==='browse'?'food':null);
     }
     function backLibraryView(){
-      if(!libraryViews.length)return false;
+      if(!libraryViews.depth)return false;
       stopBarcodeScan();clearTimeout(foodSearchTimer);foodFetchGeneration++;
-      const previous=libraryViews.pop();
-      for(const [key,panel] of Object.entries(panelByName))panel.hidden=key!==previous.view;
-      if(previous.nodes){
-        panelByName[previous.view].replaceChildren(previous.nodes);
-        panelByName[previous.view].onsubmit=previous.submit;
-      }
-      activeLibraryView=previous.view;entryHeading.textContent=previous.title;
-      if(diaryDate)setDailyNavigation(activeLibraryView==='browse'?'food':null);
-      entryContent.scrollTop=previous.scroll;
-      if(activeLibraryView==='browse')render();
+      libraryViews.back();
+      if(diaryDate)setDailyNavigation(libraryViews.current==='browse'?'food':null);
+      if(libraryViews.current==='browse')render();
       return true;
     }
     libraryBackHandler=backLibraryView;
@@ -3367,9 +3350,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
     // its recording screen; an ingredient returns to its unfinished recipe.
     function readyForNextFoodSearch({focusSearch=true}={}){
       stopBarcodeScan();clearTimeout(foodSearchTimer);foodFetchGeneration++;
-      libraryViews.length=0;
-      for(const [key,panel] of Object.entries(panelByName))panel.hidden=key!=='browse';
-      activeLibraryView='browse';
+      libraryViews.reset();
       compose.onsubmit=null;review.onsubmit=null;
       compose.replaceChildren();review.replaceChildren();
       entryHeading.textContent=diaryDate?(diaryDate===localDay()?'Today’s food':'Food · '+niceDate(diaryDate)):'Food library';
@@ -3377,7 +3358,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       entryContent.scrollTop=0;
       mainSearch.clear();render();
       requestAnimationFrame(()=>{
-        if(focusSearch&&input.isConnected&&!entryBackdrop.hidden&&activeLibraryView==='browse'){
+        if(focusSearch&&input.isConnected&&!entryBackdrop.hidden&&libraryViews.current==='browse'){
           input.focus({preventScroll:true});
           entryContent.scrollTop=0;
         }
@@ -3617,7 +3598,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         }else readyForNextFoodSearch();
         return true;
       }
-      let recipeSaveChoice=null;
+      const recipeSave=window.PieChartFdmFlows.createSaveDecision();
       compose.onsubmit=e=>{
         e.preventDefault();alert.textContent='';
         const name=foodCapitalCase(nameField.value);
@@ -3626,20 +3607,20 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         const duplicateName=approvedFoods.some(x=>x.id!==draftId&&x.type===type&&x.name.toLowerCase()===name.toLowerCase());
         if(duplicateName){alert.textContent='A '+label+' with that name already exists.';nameField.focus();return;}
         try{nutritionOf({id:draftId,type,components:draft});}catch(error){alert.textContent=error.message;return;}
-        if(editing&&recipeChanged()&&!recipeSaveChoice){
-          offerFdmSaveActions(type,{
+        recipeSave.submit({
+          needsChoice:editing&&recipeChanged(),
+          offer:confirmUpdate=>offerFdmSaveActions(type,{
             originalName:existing.name,
             onRecord:recordRecipeDraft,
-            onUpdate:()=>{recipeSaveChoice='update';compose.requestSubmit();},
+            onUpdate:()=>{confirmUpdate();compose.requestSubmit();},
             onSaveNew:newName=>{
               if(approvedFoods.some(x=>x.name.toLowerCase()===newName.toLowerCase()))
                 return 'An FDM with that name already exists.';
               return storeRecipeDraft(newName,{asNew:true});
             }
-          });
-          return;
-        }
-        recipeSaveChoice=null;storeRecipeDraft(name);
+          }),
+          commit:()=>storeRecipeDraft(name)
+        });
       };
       renderLines();
       recipeSearch.render();
@@ -4172,25 +4153,25 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
           favorite:!!row.favorite,waterRemainderPercent:roundFood(waterPercentOf(row)),
           measures:(row.measures||[]).map(m=>({label:m.label,amount:Number(m.amount)}))});
       }
-      let foodSaveChoice=null;
+      const foodSave=window.PieChartFdmFlows.createSaveDecision();
       review.onsubmit=e=>{
         e.preventDefault();
         const saved=collectFoodDraft();if(!saved)return;
-        if(isLocal&&foodFingerprint(saved)!==foodFingerprint(item)&&!foodSaveChoice){
-          offerFdmSaveActions('Food Item',{
+        foodSave.submit({
+          needsChoice:isLocal&&foodFingerprint(saved)!==foodFingerprint(item),
+          offer:confirmUpdate=>offerFdmSaveActions('Food Item',{
             originalName:item.name,
             onRecord:()=>openFoodRecord(saved),
-            onUpdate:()=>{foodSaveChoice='update';review.requestSubmit();},
+            onUpdate:()=>{confirmUpdate();review.requestSubmit();},
             onSaveNew:newName=>{
               if(approvedFoods.some(x=>x.type==='Food Item'&&x.name.toLowerCase()===newName.toLowerCase()&&
                 !(x.brand||'')&&!(saved.brand||'')))
                 return 'A Food Item with that name and brand already exists.';
               return storeFoodDraft({...saved,id:newFoodId(),name:newName,barcode:'',savedAt:new Date().toISOString()},{asNew:true});
             }
-          });
-          return;
-        }
-        foodSaveChoice=null;storeFoodDraft(saved);
+          }),
+          commit:()=>storeFoodDraft(saved)
+        });
       };
     }
     render();

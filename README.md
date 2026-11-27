@@ -1,4 +1,4 @@
-# Jules Berne’s Pie Chart — v0.1.106
+# Jules Berne’s Pie Chart — v0.1.107
 
 Phone-first PWA for weight, nutrition, water, steps, and activity tracking. Hosted on GitHub Pages with Google sign-in, shared Food and Activity Libraries, and owner-private history.
 
@@ -6,6 +6,7 @@ Phone-first PWA for weight, nutrition, water, steps, and activity tracking. Host
 
 - `index.html` — chart, overlays, forms, and interactions.
 - `piechart-entry-flows.js` — explicit Activity edit/record routes and common dialog history, without Firebase operations.
+- `piechart-fdm-flows.js` — reusable Food Item, Dish, and Meal editor subview history and save-decision state, without nutrition or database operations.
 - `piechart-db.js`, `firebase-config.js`, and `firestore.rules` — Firebase integration and security rules.
 - `activity-math.js` and `calorie-budget.js` — activity and energy calculations.
 - `nz-concise-2021.js`, `au-afcd-r3.js`, `usda-foundation-2026.js` — bundled food references.
@@ -116,10 +117,11 @@ Regression checks are included in `tests/` and do not require live Firebase.
 With Node.js and Python Playwright/Chromium available, run:
 
 ```text
-node --test tests/test_entry_flows.cjs
+node --test tests/test_entry_flows.cjs tests/test_fdm_flows.cjs
 python tests/test_activity_routes.py
 python tests/test_activity_create.py
 python tests/test_daily_forms.py
+python tests/test_fdm_forms.py
 ```
 
 These simulate form behaviour and database calls, not live Firestore security,
