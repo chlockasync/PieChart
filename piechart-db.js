@@ -1,4 +1,4 @@
-/* PieChart v0.1.102 — shared libraries, owner-private records, Noom summaries, water, and step sync.
+/* PieChart v0.1.103 — shared libraries, owner-private records, Noom summaries, water, and step sync.
    Firestore uses owner-private personal collections and member-only approved food and activity libraries.
    No private key belongs in a GitHub Pages app. An administrator manually provisions
    the initial two membership documents through Firebase Console. */
@@ -172,6 +172,10 @@ function safeLibraryActivity(input){
   const copy={id:input.id,name:input.name.trim(),type:input.type,
     minutes:input.minutes??null,distanceKm:input.distanceKm??null,steps:input.steps??null,
     intensity:input.intensity||'moderate',
+    // Existing deployed Firestore rules require this legacy field on shared
+    // Activity records. It is always false; the account's actual choice is
+    // stored exclusively in users/{uid}/settings/favorites.
+    favorite:false,
     savedAt:typeof input.savedAt==='string'?input.savedAt:new Date().toISOString()};
   if(copy.minutes===null&&copy.distanceKm===null&&copy.steps===null)
     throw new Error('Save at least one of duration, distance, or steps.');
