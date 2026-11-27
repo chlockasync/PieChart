@@ -1,4 +1,4 @@
-/* PieChart v0.1.096 — shared libraries, owner-private records, Noom summaries, water, and step sync.
+/* PieChart v0.1.102 — shared libraries, owner-private records, Noom summaries, water, and step sync.
    Firestore uses owner-private personal collections and member-only approved food and activity libraries.
    No private key belongs in a GitHub Pages app. An administrator manually provisions
    the initial two membership documents through Firebase Console. */
@@ -40,7 +40,7 @@ function watchFavorites(uid,epoch){
     else if(statusChanged)broadcast();
   },error=>{if(epoch===authEpoch){state.error=friendly(error);broadcast();}});
 }
-function saveFavorite(kind,id,on,{silent=false}={}){
+function saveFavorite(kind,id,on,{silent=false,onWriteError=null}={}){
   requireMembership();
   if(!state.favoritesLoaded)throw new Error('Your personal favourites have not finished loading.');
   if(!['foods','activities'].includes(kind)||typeof id!=='string'||!/^[a-zA-Z0-9_-]{5,128}$/.test(id))throw new Error('Invalid favourite item.');
@@ -50,18 +50,18 @@ function saveFavorite(kind,id,on,{silent=false}={}){
   // Merge only this ID, rather than replacing the list and racing another tab.
   const change=on===true?true:sdkStore.deleteField();
   sdkStore.setDoc(ref,{[kind]:{[id]:change}},{merge:true})
-    .catch(error=>{state.error=friendly(error);broadcast()});
+    .catch(error=>{state.error=friendly(error);broadcast();if(typeof onWriteError==='function')onWriteError(state.error);});
   return true;
 }
-function saveFavouriteDifferences(previous,next,kind){
+function saveFavouriteDifferences(previous,next,kind,onWriteError=null){
   const prior=new Map((previous||[]).map(x=>[x.id,x]));
   for(const item of next||[]){
     const old=prior.get(item.id);
-    if(!!old?.favorite!==!!item.favorite)saveFavorite(kind,item.id,!!item.favorite,{silent:true});
+    if(!!old?.favorite!==!!item.favorite)saveFavorite(kind,item.id,!!item.favorite,{silent:true,onWriteError});
     prior.delete(item.id);
   }
   // Remove personal flags when the shared library item is deleted.
-  for(const old of prior.values())if(old.favorite)saveFavorite(kind,old.id,false,{silent:true});
+  for(const old of prior.values())if(old.favorite)saveFavorite(kind,old.id,false,{silent:true,onWriteError});
 }
 
 function broadcast({graphDates=null,graphKind='',graphAll=false,library=false}={}){
@@ -121,7 +121,7 @@ function safeFood(food){
 // Shared-library persistence is identical for Foods and Activities: sanitise
 // records, ignore timestamp-only edits, write changed records in one batch,
 // and keep each member's favourites exclusively in their own settings.
-function saveSharedLibraryChanges(previous,next,{collection,kind,cleanRecord,errorLimit}){
+function saveSharedLibraryChanges(previous,next,{collection,kind,cleanRecord,errorLimit,onWriteError=null}){
   requireMembership();
   const before=new Map((previous||[]).map(item=>[item.id,item]));
   const after=new Map((next||[]).map(item=>[item.id,item]));
@@ -133,7 +133,7 @@ function saveSharedLibraryChanges(previous,next,{collection,kind,cleanRecord,err
   }
   for(const id of before.keys())if(!after.has(id))changes.push(['delete',id]);
   if(changes.length>400)throw new Error(errorLimit);
-  saveFavouriteDifferences(previous,next,kind);
+  saveFavouriteDifferences(previous,next,kind,onWriteError);
   if(!changes.length)return false;
   const batch=sdkStore.writeBatch(db);
   for(const [action,id,item] of changes){
@@ -142,7 +142,10 @@ function saveSharedLibraryChanges(previous,next,{collection,kind,cleanRecord,err
   }
   // Offline writes are queued by Firestore immediately. Show later rejection
   // without blocking the editor waiting for the server to acknowledge the batch.
-  batch.commit().catch(error=>{state.error=friendly(error);broadcast();});
+  batch.commit().catch(error=>{
+    state.error=friendly(error);broadcast();
+    if(typeof onWriteError==='function')onWriteError(state.error);
+  });
   return true;
 }
 function sameExceptSavedAt(before,after){
@@ -163,7 +166,7 @@ function validOptionalNumber(value,min,max){return value===null||value===undefin
 function safeLibraryActivity(input){
   if(!input||typeof input!=='object'||typeof input.id!=='string'||!/^[a-zA-Z0-9_-]{5,128}$/.test(input.id)||
      typeof input.name!=='string'||!input.name.trim()||input.name.length>160||!LIBRARY_ACTIVITY_TYPES.includes(input.type)||
-     !validOptionalNumber(input.minutes,1,720)||!validOptionalNumber(input.distanceKm,.01,1000)||
+     !validOptionalNumber(input.minutes,.1,720)||!validOptionalNumber(input.distanceKm,.01,1000)||
      !validOptionalNumber(input.steps,1,100000)||!['light','moderate','vigorous'].includes(input.intensity||'moderate'))
     throw new Error('Check the activity name, type, and measurements.');
   const copy={id:input.id,name:input.name.trim(),type:input.type,
@@ -174,11 +177,21 @@ function safeLibraryActivity(input){
     throw new Error('Save at least one of duration, distance, or steps.');
   return copy;
 }
-function saveActivityLibraryChanges(previous,next){
-  return saveSharedLibraryChanges(previous,next,{
+function saveActivityLibraryChanges(previous,next,{onError=null}={}){
+  const before=new Map((previous||[]).map(item=>[item.id,!!item.favorite]));
+  const favoriteChanged=(next||[]).some(item=>before.get(item.id)!==!!item.favorite)||
+    (previous||[]).some(item=>item.favorite&&!(next||[]).some(nextItem=>nextItem.id===item.id));
+  const saved=saveSharedLibraryChanges(previous,next,{
     collection:'approvedActivities',kind:'activities',cleanRecord:safeLibraryActivity,
-    errorLimit:'Too many activity library changes at once.'
+    errorLimit:'Too many activity library changes at once.',onWriteError:onError
   });
+  // Firestore accepts writes into the local queue before server acknowledgement.
+  // Match the Food Library's locally visible workflow: display a queued Activity
+  // immediately, rather than hiding it until a later snapshot notification.
+  // The authoritative snapshot will reconcile pending writes and remote edits.
+  if(saved){sharedActivities=next.map(item=>({...item}));overlayPrivateFavorites();broadcast({library:true});}
+  else if(favoriteChanged){overlayPrivateFavorites();broadcast({library:true});}
+  return saved||favoriteChanged;
 }
 function watchPersonal(uid,epoch){
   const collections=[['weightEntries','weights'],['waterEntries','waters'],['foodEntries','foodEntries'],['exerciseEntries','activityDays'],['dailyTotals','stepDays']];
@@ -431,7 +444,7 @@ function checkActivityEntry(input){
      new Date(input.date+'T00:00:00Z').toISOString().slice(0,10)!==input.date||
      input.date>new Date().toLocaleDateString('sv-SE'))throw new Error('Check the activity date and type.');
   const minutes=input.minutes??null,distanceKm=input.distanceKm??null,stepsCount=input.stepsCount??null;
-  if(!validOptionalNumber(minutes,1,720)||!validOptionalNumber(distanceKm,.01,1000)||
+  if(!validOptionalNumber(minutes,.1,720)||!validOptionalNumber(distanceKm,.01,1000)||
      !validOptionalNumber(stepsCount,1,100000)||
      (minutes===null&&distanceKm===null&&stepsCount===null)||
      !Number.isFinite(input.mets)||input.mets<1||input.mets>23||
@@ -462,7 +475,7 @@ function saveActivity(input,id=null){
   const payload={...record,id:identifier,
     createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
   sdkStore.setDoc(sdkStore.doc(db,'users',state.uid,'exerciseEntries',identifier),payload)
-    .catch(error=>{state.error=friendly(error);broadcast()});
+    .catch(error=>{state.error=friendly(error);broadcast();});
   return identifier;
 }
 function deleteActivity(id){
@@ -517,7 +530,7 @@ function saveDetailsAndTargets(values){
   // Single atomic write avoids saving only half a form.
   const task=sdkStore.setDoc(sdkStore.doc(db,'users',state.uid,'settings','targets'),
     {...targets,details},{merge:true});
-  task.catch(error=>{state.error=friendly(error);broadcast()});
+  task.catch(error=>{state.error=friendly(error);broadcast();});
   return true;
 }
 

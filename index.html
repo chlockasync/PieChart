@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#fffaf2">
-  <title>Jules Berne's Pie Chart — v0.1.100</title>
+  <title>Jules Berne's Pie Chart — v0.1.102</title>
   <link rel="manifest" href="manifest.webmanifest">
   <style>
-/* Jules Berne's Pie Chart — single visual system, v0.1.100.
+/* Jules Berne's Pie Chart — single visual system, v0.1.102.
    The home screen is one eight-series chart with an integrated right legend.
    No historical overrides or per-version CSS patches. */
 :root {
@@ -297,8 +297,6 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 .account-actions {display:flex;flex-wrap:wrap;gap:8px}
 /* Owner-private activity log. Simple controls; scrollable content, no visible scrollbar. */
 .activity-form {display:grid;gap:10px}
-.activity-form .activity-grid {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
-.activity-form .activity-field {display:flex;flex-direction:column;gap:4px;min-width:0}
 .activity-form input,.activity-form select {width:100%;min-width:0;font-size:16px}
 /* Activity favourites reuse the shared form-toggle control. */
 .activity-estimate {font-size:12px;line-height:1.45}
@@ -683,7 +681,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 
 <script src="activity-math.js?v=0.1.096"></script><script src="calorie-budget.js?v=0.1.096"></script>
 <script src="piechart-shared.js?v=0.1.087"></script>
-<script>/* PieChart v0.1.101 — reliable activity creation, recording, and numeric form controls. */
+<script>/* PieChart v0.1.102 — activity library persistence and editor consistency. */
 (() => {
   'use strict';
   // All chart data comes from private member records; blank days remain blank.
@@ -4739,28 +4737,29 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
     const name=recordedEntry?.name||existing?.name||initialName||'';
     const duration=template.minutes??'',distance=template.distanceKm??'',
       steps=recordedEntry?.stepOrigin==='estimated'?'':(recordedEntry?.stepsCount??template.steps??'');
-    showEntry(recordOnly?'Record activity':recordedEntry?'Edit recorded activity':existing?'Activity · '+existing.name:'New activity',`<form class="activity-form food-review" id="activity-edit-form">
-      ${recordOnly?'':`<button type="button" class="food-record-action" id="activity-record-top">${editingId?'Update recorded activity':'Record activity'+(name?' · '+safe(name):'')}</button>`}
-      <div class="food-field activity-field"><label for="activity-name">Activity name</label><input id="activity-name" maxlength="160" required value="${safe(name)}" placeholder="e.g. Morning walk"></div>
-      <div class="food-field-grid activity-grid">
-        <div class="food-field activity-field"><label for="activity-date">Date</label><input type="date" id="activity-date" max="${localDay()}" required value="${safe(recordedEntry?.date||activeDate())}"></div>
-        <div class="food-field activity-field"><label for="activity-type">Type</label><select id="activity-type">${Object.keys(activityTypes).map(t=>`<option value="${t}" ${t===typeName?'selected':''}>${t}</option>`).join('')}</select></div>
+    // Library definitions have no date: the date belongs only to recording.
+    const recording=recordOnly||!!recordedEntry;
+    const showRecordAction=!recordOnly&&(!!existing||!!recordedEntry);
+    showEntry(recordOnly?'Record activity':recordedEntry?'Edit recorded activity':'Activity',`<form class="activity-form food-review" id="activity-edit-form">
+      ${showRecordAction?`<button type="button" class="food-record-action" id="activity-record-top">${editingId?'Update recorded activity':'Record activity'+(name?' · '+safe(name):'')}</button>`:''}
+      <div class="food-field-grid">
+        <div class="food-field wide"><label for="activity-name">Activity name</label><input id="activity-name" maxlength="160" required value="${safe(name)}" placeholder="e.g. Morning walk"></div>
+        ${recording?'':`<div class="food-preferences-row wide"><label class="form-toggle" for="activity-favourite"><input type="checkbox" id="activity-favourite" ${existing?.favorite?'checked':''}> Favourite</label></div>`}
+        ${recording?`<div class="food-field wide"><label for="activity-date">Date</label><input type="date" id="activity-date" max="${localDay()}" required value="${safe(recordedEntry?.date||activeDate())}"></div>`:''}
+        <div class="food-field wide"><label for="activity-type">Type</label><select id="activity-type">${Object.keys(activityTypes).map(t=>`<option value="${t}" ${t===typeName?'selected':''}>${t}</option>`).join('')}</select></div>
+        <div class="food-field"><label for="activity-minutes">Time (minutes, optional)</label><input type="number" inputmode="decimal" id="activity-minutes" min=".1" max="720" step="any" value="${duration}"></div>
+        <div class="food-field activity-conditional" id="activity-distance-field"><label for="activity-distance">Distance (km, optional)</label><input type="number" inputmode="decimal" id="activity-distance" min=".01" max="1000" step="any" value="${distance}"></div>
+        <div class="food-field wide activity-conditional" id="activity-steps-field"><label for="activity-steps">Steps (optional, accurate manual count)</label><input type="number" inputmode="numeric" id="activity-steps" min="1" max="100000" step="1" value="${steps}"></div>
+        <div class="food-field wide" id="activity-intensity-field"><label for="activity-intensity">Intensity (when measurements can't determine it)</label><select id="activity-intensity">
+          ${['light','moderate','vigorous'].map(x=>`<option value="${x}" ${(template.intensity||'moderate')===x?'selected':''}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}
+        </select></div>
       </div>
-      <div class="food-field-grid activity-grid">
-        <div class="food-field activity-field"><label for="activity-minutes">Time (minutes, optional)</label><input type="number" inputmode="decimal" id="activity-minutes" min=".1" max="720" step="any" value="${duration}"></div>
-        <div class="food-field activity-field activity-conditional" id="activity-distance-field"><label for="activity-distance">Distance (km, optional)</label><input type="number" inputmode="decimal" id="activity-distance" min=".01" max="1000" step="any" value="${distance}"></div>
-      </div>
-      <div class="food-field activity-field activity-conditional" id="activity-steps-field"><label for="activity-steps">Steps (optional, accurate manual count)</label><input type="number" inputmode="numeric" id="activity-steps" min="1" max="100000" step="1" value="${steps}"></div>
-      <div class="food-field activity-field" id="activity-intensity-field"><label for="activity-intensity">Intensity (when measurements can't determine it)</label><select id="activity-intensity">
-        ${['light','moderate','vigorous'].map(x=>`<option value="${x}" ${(template.intensity||'moderate')===x?'selected':''}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}
-      </select></div>
-      <p class="recipe-totals activity-estimate" id="activity-preview" aria-live="polite"></p>
-      ${recordOnly?'':`<label class="form-toggle" for="activity-favourite"><input type="checkbox" id="activity-favourite" ${existing?.favorite?'checked':''}>Favourite (for me)</label>`}
+      ${recording?'<p class="recipe-totals activity-estimate" id="activity-preview" aria-live="polite"></p>':''}
       <p class="food-alert" id="activity-error" role="alert"></p>
       ${existing&&!recordOnly?'<button type="button" class="food-secondary-action" id="activity-library-delete">Delete from shared library</button>':''}
       <div class="food-review-actions">
-        <button type="button" class="entry-cancel" id="activity-editor-back">Back</button>
-        <button type="button" class="entry-affirm" id="activity-library-save">${recordOnly?'Record':existing?'Save activity':'Add to Activity Library'}</button>
+        <button type="button" class="entry-cancel" id="activity-editor-back">${recordOnly?'Cancel':'Back'}</button>
+        <button type="button" class="entry-affirm" id="activity-library-save">${recordOnly?'Record':existing?'Save changes':'Add to library'}</button>
       </div>
     </form>`);
     const $=id=>document.getElementById(id);
@@ -4774,14 +4773,30 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
     function draft(){return {name:$('activity-name').value.trim(),type:type.value,
       minutes:mins.value.trim()===''?null:Number(mins.value),distanceKm:dist.value.trim()===''?null:Number(dist.value),
       steps:stepsInput.value.trim()===''?null:Number(stepsInput.value),
-      intensity:effort.value,favorite:recordOnly?!!existing?.favorite:!!$('activity-favourite').checked};}
+      intensity:effort.value,favorite:recording?!!existing?.favorite:!!$('activity-favourite').checked};}
     function snapshot(){const d=draft();return JSON.stringify(d);}
+    function validateLibraryDraft(d){
+      if(!d.name)throw new Error('Give this activity a name.');
+      if(d.minutes===null&&d.distanceKm===null&&d.steps===null)
+        throw new Error('Enter at least one duration, distance, or step count.');
+      // The shared library accepts the same numeric range and applicable
+      // measurements as the activity form. No recording date or step-overlap
+      // decision is required to save a reusable definition.
+      if((d.minutes!==null&&(!Number.isFinite(d.minutes)||d.minutes<.1||d.minutes>720))||
+         (d.distanceKm!==null&&(!Number.isFinite(d.distanceKm)||d.distanceKm<.01||d.distanceKm>1000))||
+         (d.steps!==null&&(!Number.isInteger(d.steps)||d.steps<1||d.steps>100000))||
+         (d.distanceKm!==null&&!activityTypes[d.type].speed)||
+         (d.steps!==null&&!activityTypes[d.type].steps))
+        throw new Error('Check the activity measurements.');
+      return d;
+    }
     function update(){
       const supportsDistance=!!activityTypes[type.value].speed,supportsSteps=stepActivities.has(type.value);
       $('activity-distance-field').hidden=!supportsDistance;$('activity-steps-field').hidden=!supportsSteps;
       if(!supportsDistance)dist.value='';if(!supportsSteps)stepsInput.value='';
       const d=draft(),measuredPace=(d.minutes!==null&&(d.distanceKm!==null||d.steps!==null))||d.distanceKm!==null||d.steps!==null;
       $('activity-intensity-field').hidden=measuredPace;
+      if(!recording)return; // Energy and recording date do not belong to shared definitions.
       let estimated=null;
       try{
         estimated=activityMath.estimateActivity({...d,stepRelation:'included'},{heightCm:db.state.details?.heightCm});
@@ -4798,18 +4813,27 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       error.textContent='';
       const d=draft();
       if(!d.name)throw new Error('Give this activity a name.');
-      if($('activity-date').value>localDay()||!$('activity-date').value)
+      if(recording&&($('activity-date').value>localDay()||!$('activity-date').value))
         throw new Error('Choose a valid recording date.');
       return activityMath.estimateActivity({...d,stepRelation},{heightCm:db.state.details?.heightCm});
     }
     const stepPreferenceKey='pieChartStepOverlap-'+db.state.uid;
     function createEntry(){
+      if(!recording){
+        // As with Food Items, recording a library draft is a distinct step:
+        // review its values, then confirm the dated private recording.
+        try{
+          const d=validateLibraryDraft(draft());
+          openActivityEditor({...existing,...d},'',null,{recordOnly:true,diaryMode:fromToday});
+        }catch(e){error.textContent=e.message;}
+        return;
+      }
       let provisional;
       try{provisional=getEstimate();}catch(e){error.textContent=e.message;return;}
       function commit(answer){
         try{
           const a=getEstimate(answer);
-          db.saveActivity({...a,date:$('activity-date').value,libraryId:existing?.id||''},editingId);
+          db.saveActivity({...a,date:$('activity-date').value,libraryId:recordedEntry?.libraryId||existing?.id||''},editingId);
           if(answer==='included'||answer==='additional'){
             try{localStorage.setItem(stepPreferenceKey,answer);}catch{}
           }
@@ -4859,16 +4883,20 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
     function saveLibrary(nameOverride=null,asNew=false){
       try{
         const d=draft();if(nameOverride!==null)d.name=nameOverride.trim();
-        if(!d.name)throw new Error('Give this activity a name.');
-        // A saved library definition has measurements only. The overlap
-        // answer is private to EACH recorded use of this saved activity.
-        getEstimate('included');
+        validateLibraryDraft(d);
         if(!db.state.activityLibraryLoaded)throw new Error('Wait for the shared Activity Library to finish loading.');
         const old=db.state.activityLibrary||[];
         if(old.some(a=>a.id!==(asNew?null:existing?.id)&&a.name.toLowerCase()===d.name.toLowerCase()))
           throw new Error('An activity with that name already exists.');
         const item={...d,id:asNew||!existing?crypto.randomUUID():existing.id,savedAt:new Date().toISOString()};
-        db.saveActivityLibraryChanges(old,[...old.filter(a=>a.id!==item.id),item]);
+        db.saveActivityLibraryChanges(old,[...old.filter(a=>a.id!==item.id),item],{
+          onError:message=>{
+            const text='Activity Library save failed: '+message;
+            const visible=document.getElementById('activity-error');
+            if(visible)visible.textContent=text;
+            else window.alert(text);
+          }
+        });
         if(!existing||asNew){
           // Match Food Item creation. Open a separate recording form populated
           // with the saved defaults; nothing enters the diary until Record.
@@ -4888,7 +4916,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
     for(const field of [type,mins,dist,stepsInput,effort,$('activity-name')]){
       field.addEventListener('input',update);field.addEventListener('change',update);
     }
-    if(!recordOnly)$('activity-record-top').onclick=createEntry;
+    if(showRecordAction)$('activity-record-top').onclick=createEntry;
     $('activity-library-save').onclick=()=>{
       if(recordOnly){createEntry();return;}
       if(existing&&snapshot()!==originalSnapshot)offerSaveOptions();
@@ -5291,6 +5319,6 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
   handleFoodScanForeground();
 })();
 </script>
-<script type="module" src="piechart-db.js?v=0.1.096"></script>
+<script type="module" src="piechart-db.js?v=0.1.102"></script>
 </body>
 </html>
