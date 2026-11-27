@@ -8,7 +8,7 @@ root=Path(__file__).resolve().parents[1]
 html=(root/'index.html').read_text()
 for name in ['nz-concise-2021.js','au-afcd-r3.js','usda-foundation-2026.js',
              'activity-math.js','calorie-budget.js','piechart-shared.js',
-             'piechart-entry-flows.js','piechart-fdm-flows.js']:
+             'piechart-entry-flows.js','piechart-fdm-flows.js','piechart-chart-data.js']:
     source=(root/name).read_text().replace('</script','<\\/script')
     html,count=re.subn(r'<script src="'+re.escape(name)+r'\?[^"]+"></script>',
                        lambda m:'<script>'+source+'</script>',html)
@@ -36,7 +36,7 @@ window.PieChartDB={state:st,subscribe(f){subscribers.add(f);f(st);return()=>subs
  saveFavorite(){},deleteFoodEntry(){},deleteWaterEntry(){},recordWater(){},recordWeight(){}
 };
 })();</script>'''
-html,count=re.subn(r'<script>/\* PieChart v0\.1\.107',lambda m:fixture+'<script>/* PieChart v0.1.107',html)
+html,count=re.subn(r'<script>/\* PieChart v0\.1\.109 — historical data preparation separated from graph drawing',lambda m:fixture+'<script>/* PieChart v0.1.109 — historical data preparation separated from graph drawing',html)
 assert count==1,count
 with sync_playwright() as p:
     browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox','--disable-dev-shm-usage'])

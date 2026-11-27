@@ -1,0 +1,524 @@
+[
+  {
+    "readouts": {
+      "weight": [
+        "67.70 kg",
+        "100%",
+        "Target 67.5 kg",
+        "1"
+      ],
+      "steps": [
+        "1,920 steps",
+        "23%",
+        "Target 8,400",
+        "0.22857142857142856"
+      ],
+      "water": [
+        "0.6 of 2.1 litres",
+        "27%",
+        "",
+        "0.2714285714285714"
+      ],
+      "calories": [
+        "470 kcal",
+        "23%",
+        "Aim 2,000\u20132,150",
+        "0.22650602409638554"
+      ],
+      "protein": [
+        "34 g",
+        "45%",
+        "Target 75 g",
+        "0.4533333333333333"
+      ],
+      "fibre": [
+        "7 g",
+        "29%",
+        "Target 24 g",
+        "0.2916666666666667"
+      ],
+      "fats": [
+        "Today's intake",
+        "14g",
+        "",
+        "0"
+      ],
+      "carbs": [
+        "Today's intake",
+        "53g",
+        "",
+        "0"
+      ]
+    },
+    "date": "26 Nov",
+    "bands": 8,
+    "marks": 0,
+    "svg_sha256": "4022bb1c94c85185f2e5138046b42ea8fe9e5f0966e35bcdec360ebf9216104c",
+    "svg_bytes": 44101,
+    "label": "initial"
+  },
+  {
+    "readouts": {
+      "weight": [
+        "67.70 kg",
+        "100%",
+        "Target 67.5 kg",
+        "1"
+      ],
+      "steps": [
+        "1,920 steps",
+        "23%",
+        "Target 8,400",
+        "0.22857142857142856"
+      ],
+      "water": [
+        "0.6 of 2.1 litres",
+        "27%",
+        "",
+        "0.2714285714285714"
+      ],
+      "calories": [
+        "470 kcal",
+        "23%",
+        "Aim 2,000\u20132,150",
+        "0.22650602409638554"
+      ],
+      "protein": [
+        "34 g",
+        "45%",
+        "Target 75 g",
+        "0.4533333333333333"
+      ],
+      "fibre": [
+        "7 g",
+        "29%",
+        "Target 24 g",
+        "0.2916666666666667"
+      ],
+      "fats": [
+        "Today's intake",
+        "14g",
+        "",
+        "0"
+      ],
+      "carbs": [
+        "Today's intake",
+        "53g",
+        "",
+        "0"
+      ]
+    },
+    "date": "26 Nov",
+    "bands": 8,
+    "marks": 0,
+    "svg_sha256": "13cd48658b6f5526140f99ce3ceed9f7c0a707ee0d49da9831131cbe7d0e7e24",
+    "svg_bytes": 44580,
+    "label": "added food to noom day"
+  },
+  {
+    "readouts": {
+      "weight": [
+        "67.70 kg",
+        "100%",
+        "Target 67.5 kg",
+        "1"
+      ],
+      "steps": [
+        "1,920 steps",
+        "23%",
+        "Target 8,400",
+        "0.22857142857142856"
+      ],
+      "water": [
+        "0.6 of 2.1 litres",
+        "27%",
+        "",
+        "0.2714285714285714"
+      ],
+      "calories": [
+        "470 kcal",
+        "20%",
+        "Aim 2,275\u20132,450",
+        "0.19894179894179895"
+      ],
+      "protein": [
+        "34 g",
+        "45%",
+        "Target 75 g",
+        "0.4533333333333333"
+      ],
+      "fibre": [
+        "7 g",
+        "29%",
+        "Target 24 g",
+        "0.2916666666666667"
+      ],
+      "fats": [
+        "Today's intake",
+        "14g",
+        "",
+        "0"
+      ],
+      "carbs": [
+        "Today's intake",
+        "53g",
+        "",
+        "0"
+      ]
+    },
+    "date": "26 Nov",
+    "bands": 8,
+    "marks": 0,
+    "svg_sha256": "8e5d9f81b077df27625ffc3de18d9a0ad51f36a8dc946d6906b730df680e03a9",
+    "svg_bytes": 44711,
+    "label": "added weight near envelope"
+  },
+  {
+    "readouts": {
+      "weight": [
+        "67.70 kg",
+        "100%",
+        "Target 67.5 kg",
+        "1"
+      ],
+      "steps": [
+        "1,920 steps",
+        "23%",
+        "Target 8,400",
+        "0.22857142857142856"
+      ],
+      "water": [
+        "0.6 of 2.1 litres",
+        "27%",
+        "",
+        "0.2714285714285714"
+      ],
+      "calories": [
+        "470 kcal",
+        "20%",
+        "Aim 2,275\u20132,450",
+        "0.19894179894179895"
+      ],
+      "protein": [
+        "34 g",
+        "45%",
+        "Target 75 g",
+        "0.4533333333333333"
+      ],
+      "fibre": [
+        "7 g",
+        "29%",
+        "Target 24 g",
+        "0.2916666666666667"
+      ],
+      "fats": [
+        "Today's intake",
+        "14g",
+        "",
+        "0"
+      ],
+      "carbs": [
+        "Today's intake",
+        "53g",
+        "",
+        "0"
+      ]
+    },
+    "date": "26 Nov",
+    "bands": 8,
+    "marks": 0,
+    "svg_sha256": "b43d25dc3257f0e252be0ce57cf3e9e5d0025935a8f03f1f4b1d695bd65cdb5c",
+    "svg_bytes": 44711,
+    "label": "added water"
+  },
+  {
+    "readouts": {
+      "weight": [
+        "67.70 kg",
+        "100%",
+        "Target 67.5 kg",
+        "1"
+      ],
+      "steps": [
+        "1,920 steps",
+        "23%",
+        "Target 8,400",
+        "0.22857142857142856"
+      ],
+      "water": [
+        "0.6 of 2.1 litres",
+        "27%",
+        "",
+        "0.2714285714285714"
+      ],
+      "calories": [
+        "470 kcal",
+        "20%",
+        "Aim 2,275\u20132,450",
+        "0.19894179894179895"
+      ],
+      "protein": [
+        "34 g",
+        "45%",
+        "Target 75 g",
+        "0.4533333333333333"
+      ],
+      "fibre": [
+        "7 g",
+        "29%",
+        "Target 24 g",
+        "0.2916666666666667"
+      ],
+      "fats": [
+        "Today's intake",
+        "14g",
+        "",
+        "0"
+      ],
+      "carbs": [
+        "Today's intake",
+        "53g",
+        "",
+        "0"
+      ]
+    },
+    "date": "26 Nov",
+    "bands": 8,
+    "marks": 0,
+    "svg_sha256": "053cc032a5751eaac93982dab639d7ffc58325cc49ef1676e912f79958c89f98",
+    "svg_bytes": 44714,
+    "label": "changed noom archive"
+  },
+  {
+    "readouts": {
+      "weight": [
+        "67.70 kg",
+        "100%",
+        "Target 67.5 kg",
+        "1"
+      ],
+      "steps": [
+        "1,920 steps",
+        "23%",
+        "Target 8,400",
+        "0.22857142857142856"
+      ],
+      "water": [
+        "0.6 of 2.1 litres",
+        "27%",
+        "",
+        "0.2714285714285714"
+      ],
+      "calories": [
+        "470 kcal",
+        "20%",
+        "Aim 2,275\u20132,450",
+        "0.19894179894179895"
+      ],
+      "protein": [
+        "34 g",
+        "45%",
+        "Target 75 g",
+        "0.4533333333333333"
+      ],
+      "fibre": [
+        "7 g",
+        "29%",
+        "Target 24 g",
+        "0.2916666666666667"
+      ],
+      "fats": [
+        "Today's intake",
+        "14g",
+        "",
+        "0"
+      ],
+      "carbs": [
+        "Today's intake",
+        "53g",
+        "",
+        "0"
+      ]
+    },
+    "date": "26 Nov",
+    "bands": 8,
+    "marks": 0,
+    "svg_sha256": "a83352e8d4a34ec900f18922252a63b0f405bc37023dd908f6a6bffdd9656e2b",
+    "svg_bytes": 44941,
+    "label": "added activity"
+  },
+  {
+    "readouts": {
+      "weight": [
+        "67.70 kg",
+        "100%",
+        "Target 67.5 kg",
+        "1"
+      ],
+      "steps": [
+        "1,920 steps",
+        "23%",
+        "Target 8,400",
+        "0.22857142857142856"
+      ],
+      "water": [
+        "0.6 of 2.1 litres",
+        "27%",
+        "",
+        "0.2714285714285714"
+      ],
+      "calories": [
+        "570 kcal",
+        "24%",
+        "Aim 2,275\u20132,450",
+        "0.24126984126984127"
+      ],
+      "protein": [
+        "42 g",
+        "56%",
+        "Target 75 g",
+        "0.56"
+      ],
+      "fibre": [
+        "9 g",
+        "38%",
+        "Target 24 g",
+        "0.375"
+      ],
+      "fats": [
+        "Today's intake",
+        "15g",
+        "",
+        "0"
+      ],
+      "carbs": [
+        "Today's intake",
+        "68g",
+        "",
+        "0"
+      ]
+    },
+    "date": "26 Nov",
+    "bands": 8,
+    "marks": 0,
+    "svg_sha256": "a83352e8d4a34ec900f18922252a63b0f405bc37023dd908f6a6bffdd9656e2b",
+    "svg_bytes": 44941,
+    "label": "changed today food"
+  },
+  {
+    "readouts": {
+      "weight": [
+        "67.70 kg",
+        "100%",
+        "Target 67.5 kg",
+        "1"
+      ],
+      "steps": [
+        "1,920 steps",
+        "23%",
+        "Target 8,400",
+        "0.22857142857142856"
+      ],
+      "water": [
+        "0.6 of 2.1 litres",
+        "27%",
+        "",
+        "0.2714285714285714"
+      ],
+      "calories": [
+        "570 kcal",
+        "24%",
+        "Aim 2,275\u20132,450",
+        "0.24126984126984127"
+      ],
+      "protein": [
+        "42 g",
+        "56%",
+        "Target 75 g",
+        "0.56"
+      ],
+      "fibre": [
+        "9 g",
+        "38%",
+        "Target 24 g",
+        "0.375"
+      ],
+      "fats": [
+        "Today's intake",
+        "15g",
+        "",
+        "0"
+      ],
+      "carbs": [
+        "Today's intake",
+        "68g",
+        "",
+        "0"
+      ]
+    },
+    "date": "26 Nov",
+    "bands": 8,
+    "marks": 0,
+    "svg_sha256": "a83352e8d4a34ec900f18922252a63b0f405bc37023dd908f6a6bffdd9656e2b",
+    "svg_bytes": 44941,
+    "label": "unchanged state"
+  },
+  {
+    "readouts": {
+      "weight": [
+        "No reading",
+        "\u2014",
+        "",
+        "0"
+      ],
+      "steps": [
+        "Not recorded",
+        "\u2014",
+        "",
+        "0"
+      ],
+      "water": [
+        "Not recorded",
+        "\u2014",
+        "",
+        "0"
+      ],
+      "calories": [
+        "Not recorded",
+        "\u2014",
+        "Set details & targets for budget",
+        "0"
+      ],
+      "protein": [
+        "Not recorded",
+        "\u2014",
+        "",
+        "0"
+      ],
+      "fibre": [
+        "Not recorded",
+        "\u2014",
+        "",
+        "0"
+      ],
+      "fats": [
+        "Not recorded",
+        "\u2014",
+        "",
+        "0"
+      ],
+      "carbs": [
+        "Not recorded",
+        "\u2014",
+        "",
+        "0"
+      ]
+    },
+    "date": "26 Nov",
+    "bands": 8,
+    "marks": 0,
+    "svg_sha256": "1b6fc0594ec1b9e88e6d50a3a9e8d52bcf3255e66704630ca1645807dcaafc6d",
+    "svg_bytes": 9872,
+    "label": "signed out"
+  }
+]
