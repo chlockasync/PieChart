@@ -1,4 +1,4 @@
-# Jules Berne’s Pie Chart — v0.1.104
+# Jules Berne’s Pie Chart — v0.1.105
 
 Phone-first PWA for weight, nutrition, water, steps, and activity tracking. Hosted on GitHub Pages with Google sign-in, shared Food and Activity Libraries, and owner-private history.
 

@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#fffaf2">
-  <title>Jules Berne's Pie Chart — v0.1.104</title>
+  <title>Jules Berne's Pie Chart — v0.1.105</title>
   <link rel="manifest" href="manifest.webmanifest">
   <style>
-/* Jules Berne's Pie Chart — single visual system, v0.1.104.
+/* Jules Berne's Pie Chart — single visual system, v0.1.105.
    The home screen is one eight-series chart with an integrated right legend.
    No historical overrides or per-version CSS patches. */
 :root {
@@ -681,7 +681,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 
 <script src="activity-math.js?v=0.1.096"></script><script src="calorie-budget.js?v=0.1.096"></script>
 <script src="piechart-shared.js?v=0.1.087"></script>
-<script>/* PieChart v0.1.104 — private recorded activity editing. */
+<script>/* PieChart v0.1.105 — private recorded activity editing. */
 (() => {
   'use strict';
   // All chart data comes from private member records; blank days remain blank.
@@ -4678,7 +4678,8 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       const activities=db.state.activityLibrary||[];
       const found=rankLocalLibrary(activities,{query:q,
         matchScore:(a,query)=>(a.name+' '+a.type).toLowerCase().includes(query)?1:0});
-      for(const a of found)target.append(makeResult((a.favorite?'★ ':'')+a.name,shortDescription(a),()=>openActivityEditor(a)));
+      for(const a of found)target.append(makeResult((a.favorite?'★ ':'')+a.name,shortDescription(a),
+        ()=>openActivityEditor(a,'',null,diaryMode?{recordOnly:true,diaryMode:true}:{diaryMode:false})));
       if(q)target.append(makeResult('+ Add new activity','',()=>openActivityEditor(null,search.value.trim()),'activity-library-create'));
       if(!q&&!found.length)target.append(makeResult('No favourites yet.','Search to find or add an activity.',()=>search.focus()));
       if(diaryMode){
