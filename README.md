@@ -1,4 +1,4 @@
-# Jules Berne’s Pie Chart — v0.1.109
+# Jules Berne’s Pie Chart — v0.1.110
 
 Phone-first PWA for weight, nutrition, water, steps, and activity tracking. Hosted on GitHub Pages with Google sign-in, shared Food and Activity Libraries, and owner-private history.
 
@@ -10,6 +10,7 @@ Phone-first PWA for weight, nutrition, water, steps, and activity tracking. Host
 - `piechart-chart-data.js` — independent private historical timeline, source aggregation, date-aligned chart ranges, and metric-scale preparation, without DOM, SVG drawing, or Firebase writes.
 - `piechart-db.js` — Firebase adapter for authentication, subscriptions, and writes.
 - `piechart-db-sync.mjs` — pure shared-library change planning, incremental document changes, Noom/step source separation, and pending-write flags.
+- `piechart-updates.js` and `app-version.json` — background release detection for installed PWAs, without a service worker.
 - `firebase-config.js` and `firestore.rules` — Firebase web configuration and active access rules.
 - `activity-math.js` and `calorie-budget.js` — activity and energy calculations.
 - `nz-concise-2021.js`, `au-afcd-r3.js`, `usda-foundation-2026.js` — bundled food references.
@@ -19,6 +20,8 @@ Phone-first PWA for weight, nutrition, water, steps, and activity tracking. Host
 ## Updating
 
 Patch ZIPs contain only changed files. Extract a patch into the existing GitHub Pages repository, replacing those filenames, preserving unchanged files, and commit. Apply patch versions in sequence when they modify different files.
+
+**Automatic installed-app updates:** After deploying a patch to GitHub Pages, the installed PWA checks the small `app-version.json` file after initial loading (not on the startup critical path), about every five minutes while running, and on return to the foreground. A newer version triggers an automatic page reload only when it can do so safely: not while editing/recording, scanning, returning from the companion, waiting for Firebase writes, or actively viewing History. It waits for a period of inactivity in an open app. No uninstall/reinstall, service worker, or changes to existing offline/Firestore caching are required. Every future release **must update** the version in `app-version.json` and the HTML page title together. Keep this file in every release patch. Reopening a suspended PWA also loads the current GitHub Pages version when available.
 
 Updates to the scanner handoff do not alter Firebase rules, Health Connect, or existing private records. Retain the existing database and food reference files.
 
@@ -199,3 +202,10 @@ unchanged v0.1.108 code to remove a pre-existing 25-kcal discrepancy in its olde
 v0.1.107 fixture; v0.1.109 matches this v0.1.108 baseline exactly. Firebase
 synchronisation is not an off-device historical backup; backup and restore are
 still a separate unresolved requirement.
+
+## Update and scanner regression tests
+
+Run `node --test tests/test_pwa_updates.cjs` and
+`python tests/test_scanner_visibility.py` alongside the existing test suite.
+The camera test uses a simulated device, not live Android permission prompts.
+The update tests simulate published versions and pending edits/writes, not real GitHub Pages cache propagation.

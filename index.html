@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#fffaf2">
-  <title>Jules Berne's Pie Chart — v0.1.109</title>
+  <title>Jules Berne's Pie Chart — v0.1.110</title>
   <link rel="manifest" href="manifest.webmanifest">
   <style>
-/* Jules Berne's Pie Chart — single visual system, v0.1.109.
+/* Jules Berne's Pie Chart — single visual system, v0.1.110.
    The home screen is one eight-series chart with an integrated right legend.
    No historical overrides or per-version CSS patches. */
 :root {
@@ -684,7 +684,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 <script src="piechart-entry-flows.js?v=0.1.106"></script>
 <script src="piechart-fdm-flows.js?v=0.1.107"></script>
 <script src="piechart-chart-data.js?v=0.1.108"></script>
-<script>/* PieChart v0.1.109 — historical data preparation separated from graph drawing. */
+<script>/* PieChart v0.1.110 — historical data preparation separated from graph drawing. */
 (() => {
   'use strict';
   // All chart data comes from private member records; blank days remain blank.
@@ -2001,29 +2001,47 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
     }catch(error){console.warn('Reference not available on this device',error)}
     nzReferenceLoaded=true;return nzFoodReference;
   }
+  let barcodeScanStateListener=null,barcodeScanGeneration=0;
   function stopBarcodeScan(){
+    barcodeScanGeneration++;
     scannerActive=false;
     if(scannerStream){scannerStream.getTracks().forEach(track=>track.stop());scannerStream=null;}
     document.getElementById('food-scanner')?.remove();
+    const onStop=barcodeScanStateListener;
+    barcodeScanStateListener=null;
+    onStop?.(false);
   }
-  async function scanBarcode(onCode,onError,container=null){
+  async function scanBarcode(onCode,onError,container=null,onScanState=()=>{}){
     if(!('BarcodeDetector' in window)){onError('This browser does not support barcode scanning. Type the barcode number instead.');return;}
     if(!navigator.mediaDevices?.getUserMedia){onError('Camera unavailable. Type the barcode number instead.');return;}
+    // Scanning is a search state, including while camera permission is pending.
+    // Keep the recorded list and favourites hidden until Cancel, a scan result,
+    // or a camera error restores the ordinary browsing state.
+    stopBarcodeScan();
+    scannerActive=true;
+    barcodeScanStateListener=onScanState;
+    const thisScan=barcodeScanGeneration;
+    onScanState(true);
     try{
       const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
-      scannerStream=stream;scannerActive=true;
+      if(!scannerActive||thisScan!==barcodeScanGeneration){stream.getTracks().forEach(track=>track.stop());return;}
+      scannerStream=stream;
       const preview=document.createElement('div');preview.id='food-scanner';preview.className='food-camera-message';
       preview.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>Point camera at barcode</b><button type="button" id="close-food-camera" class="food-secondary-action">Cancel</button></div><video autoplay playsinline muted style="width:100%;max-height:140px;object-fit:cover;border-radius:8px;margin-top:6px"></video>';
       (container||document.getElementById('food-browse')).prepend(preview);
       preview.querySelector('#close-food-camera').addEventListener('click',stopBarcodeScan);
       const video=preview.querySelector('video');video.srcObject=stream;await video.play();
       const detector=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128','itf']});
-      while(scannerActive){
+      while(scannerActive&&thisScan===barcodeScanGeneration){
         const found=await detector.detect(video);
+        if(thisScan!==barcodeScanGeneration)return;
         if(found.length&&/^\d{7,14}$/.test(found[0].rawValue.replace(/\s/g,''))){const code=found[0].rawValue.replace(/\s/g,'');stopBarcodeScan();onCode(code);return;}
         await new Promise(resolve=>setTimeout(resolve,280));
       }
-    }catch(error){stopBarcodeScan();onError('Camera scan unavailable. Type the barcode number instead.');}
+    }catch(error){
+      if(thisScan!==barcodeScanGeneration)return; // A cancelled scan isn't a camera failure.
+      stopBarcodeScan();onError('Camera scan unavailable. Type the barcode number instead.');
+    }
   }
   async function fetchBarcode(code){
     // Open Food Facts is the only permitted barcode provider. Try its current
@@ -2932,9 +2950,10 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
     // In the diary, focusing an empty search starts with a blank results area.
     // Once text is entered, the diary records remain out of the way until the
     // query is cleared and search loses focus.
+    let diaryCameraScanning=false;
     function syncDiaryBrowse(){
       if(!diaryDate)return false;
-      const searching=!!input.value.trim()||document.activeElement===input;
+      const searching=diaryCameraScanning||!!input.value.trim()||document.activeElement===input;
       document.getElementById('diary-recorded-wrap').hidden=searching;
       document.getElementById('diary-favourites-box').hidden=searching;
       return searching&&!input.value.trim();
@@ -2948,7 +2967,14 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       function render(){
         if(!searchInput.isConnected||entryBackdrop.hidden)return;
         const query=searchInput.value.trim(),{q}=librarySearchState(searchInput);
-        if(searchInput===input&&syncDiaryBrowse()){
+        if(searchInput===input&&diaryCameraScanning){
+          syncDiaryBrowse();
+          resultContainer.replaceChildren();resultContainer.hidden=true;
+          document.getElementById('diary-favourites-results')?.replaceChildren();
+          if(statusNode)statusNode.textContent='';
+          return;
+        }
+        if(searchInput===input&&syncDiaryBrowse()&&!searchInput.value.trim()){
           resultContainer.replaceChildren();resultContainer.hidden=true;
           document.getElementById('diary-favourites-results')?.replaceChildren();
           if(statusNode)statusNode.textContent='';
@@ -3050,7 +3076,11 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       },message=>{
         barcodeState='idle';barcodeError='';render();
         if(statusNode)statusNode.textContent=message;
-      },scanContainer));
+      },scanContainer,active=>{
+        if(searchInput!==input||!diaryDate)return;
+        diaryCameraScanning=active;
+        render();
+      }));
       return {render,clear(){clearTimeout(timer);generation++;searchInput.value='';resultContainer.replaceChildren();resultContainer.hidden=true;},
         dispose(){clearTimeout(timer);generation++;}};
     }
@@ -5091,6 +5121,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
   handleFoodScanForeground();
 })();
 </script>
-<script type="module" src="piechart-db.js?v=0.1.109"></script>
+<script src="piechart-updates.js?v=0.1.110" defer></script>
+<script type="module" src="piechart-db.js?v=0.1.110"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-/* PieChart v0.1.109 — shared libraries, owner-private records, Noom summaries, water, and step sync.
+/* PieChart v0.1.110 — shared libraries, owner-private records, Noom summaries, water, and step sync.
    Firestore uses owner-private personal collections and member-only approved food and activity libraries.
    No private key belongs in a GitHub Pages app. An administrator manually provisions
    the initial two membership documents through Firebase Console. */
@@ -530,6 +530,11 @@ function saveDetailsAndTargets(values){
 
 window.addEventListener('online',()=>{state.online=true;broadcast()});
 window.addEventListener('offline',()=>{state.online=false;broadcast()});
-window.PieChartDB={state,subscribe,signIn,signOut,saveFavorite,saveFoodChanges,saveActivityLibraryChanges,recordWeight,deleteWeight,recordWater,deleteWaterEntry,recordFood,updateFoodEntry,deleteFoodEntry,saveActivity,deleteActivity,saveDetailsAndTargets};
+// The release monitor must not refresh during a queued Firestore write,
+// including the interval before a metadata snapshot reports it.
+function hasUnsyncedWrites(){
+  return state.pending||state.activityLibraryPending||state.privatePending||pendingWritesForCurrentAccount();
+}
+window.PieChartDB={state,hasUnsyncedWrites,subscribe,signIn,signOut,saveFavorite,saveFoodChanges,saveActivityLibraryChanges,recordWeight,deleteWeight,recordWater,deleteWaterEntry,recordFood,updateFoodEntry,deleteFoodEntry,saveActivity,deleteActivity,saveDetailsAndTargets};
 broadcast();
 if(configured)initialize();
