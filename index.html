@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#fffaf2">
-  <title>Jules Berne's Pie Chart — v0.1.098</title>
+  <title>Jules Berne's Pie Chart — v0.1.100</title>
   <link rel="manifest" href="manifest.webmanifest">
   <style>
-/* Jules Berne's Pie Chart — single visual system, v0.1.098.
+/* Jules Berne's Pie Chart — single visual system, v0.1.100.
    The home screen is one eight-series chart with an integrated right legend.
    No historical overrides or per-version CSS patches. */
 :root {
@@ -383,53 +383,78 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 .food-field {display:flex;flex-direction:column;gap:4px;min-width:0}
 .food-field label {font-size:13px;color:#435875;font-weight:900}
 .food-field input,.food-field select {width:100%;padding:11px 12px;border:1px solid #bfcede;border-radius:11px;background:#fff;color:var(--ink);font-size:16px}
-/* Match the approved Food Item mock-up at ALL viewport widths: five equal
-   horizontal metric cards, Energy first with vertically stacked kJ/Cal.
-   Keep inputs editable/scrubbable without surrounding mini form boxes. */
+/* One cohesive nutrient panel for Food Items, Dishes, and Meals. Five equal
+   cards always stay on one row. Editors and calculated recipe totals reuse the
+   same structure and colours; only the value controls differ. */
 .food-preferences-row {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;gap:8px 12px}
 .food-preferences-row .form-toggle {align-items:center}
 .food-preferences-row .food-water-allocation {border:0;padding:0;gap:4px;min-width:0}
 .food-preferences-row #food-water-controls {margin-top:5px}
-.food-nutrition {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;min-width:0}
-.food-nutrient-row {--card-accent:var(--green);display:flex;flex-direction:column;align-items:stretch;
-  gap:3px;min-width:0;padding:6px 3px 6px;border:1px solid #dce5ef;border-top:4px solid var(--card-accent);
-  border-radius:11px;background:#fff;box-shadow:0 1px 3px #18395d09;text-align:center}
-#food-row-calories{--card-accent:var(--orange)}
-#food-row-protein{--card-accent:var(--green)}
-#food-row-fats{--card-accent:var(--pink)}
-#food-row-carbs{--card-accent:var(--sky)}
-#food-row-fibre{--card-accent:var(--lilac)}
-.food-nutrient-row > label {display:block;width:100%;font-size:clamp(10px,2.8vw,14px);font-weight:850;color:var(--ink);line-height:1.15;text-align:center}
-.food-energy-fields {display:grid;grid-template-columns:minmax(0,1fr);gap:1px;min-width:0}
-.food-unit-input {display:flex;align-items:baseline;justify-content:center;min-width:0;min-height:21px;
-  padding:0 1px;gap:0;border:1px solid transparent;border-radius:4px;background:transparent}
+.food-nutrition {--food-value-ink:#3d5876;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:clamp(4px,1.1vw,9px);width:100%;min-width:0}
+.food-nutrient-row {--card-accent:var(--green);position:relative;display:grid;grid-template-rows:15px minmax(0,1fr);
+  align-items:stretch;min-width:0;min-height:80px;padding:6px 3px 6px;
+  border:1px solid #dde5ef;border-top:6px solid var(--card-accent);border-radius:11px;
+  background:color-mix(in srgb,var(--card-accent) 4%,white);text-align:center;
+  box-shadow:0 1px 2px #182f510b}
+.food-nutrient-row[data-nutrient="calories"]{--card-accent:var(--orange)}
+.food-nutrient-row[data-nutrient="protein"]{--card-accent:var(--green)}
+.food-nutrient-row[data-nutrient="fats"]{--card-accent:var(--pink)}
+.food-nutrient-row[data-nutrient="carbs"]{--card-accent:var(--sky)}
+.food-nutrient-row[data-nutrient="fibre"]{--card-accent:var(--lilac)}
+.food-card-label {display:block;min-width:0;font-size:clamp(10px,2.5vw,12px);font-weight:850;
+  line-height:1.1;color:var(--ink);white-space:nowrap}
+.food-card-values {display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;
+  padding-top:4px;gap:2px;min-width:0}
+.food-unit-input {display:flex;align-items:baseline;justify-content:center;position:relative;min-width:0;width:100%;
+  padding:0;border:1px solid transparent;border-radius:5px;background:transparent}
 .food-unit-input:focus-within {border-color:#739dc7;background:#f4f8ff;box-shadow:0 0 0 1px #739dc7}
-.food-unit-input input {display:block;flex:1 1 0;width:100%;min-width:0;min-height:20px;height:20px;
+.food-unit-input input {display:block;flex:0 1 auto;width:auto;min-width:0;max-width:calc(100% - 12px);field-sizing:content;height:21px;min-height:21px;
   padding:0!important;border:0!important;border-radius:0;background:transparent!important;
-  color:var(--ink);text-align:right;font-size:clamp(12px,3.45vw,20px);font-weight:850;font-variant-numeric:tabular-nums;
-  appearance:textfield;-moz-appearance:textfield;box-shadow:none!important;outline:none}
+  color:var(--food-value-ink);text-align:center;font-size:clamp(12px,3.6vw,18px);font-weight:850;
+  font-variant-numeric:tabular-nums;letter-spacing:-.045em;appearance:textfield;-moz-appearance:textfield;
+  box-shadow:none!important;outline:none}
 .food-unit-input input::-webkit-outer-spin-button,.food-unit-input input::-webkit-inner-spin-button {-webkit-appearance:none;margin:0}
-.food-unit-input .unit {flex:none;color:#526981;font-size:clamp(10px,2.8vw,14px);font-weight:750;pointer-events:none}
-.food-nutrient-energy .food-unit-input:last-child input {font-size:clamp(11px,3.05vw,18px);font-weight:650;color:#4b5a6d}
-.food-nutrient-row.is-estimated .food-unit-input{background:#fffaf0}
-.food-fibre-estimate-button {width:100%;align-self:stretch;border:1px solid #c7d5e5;background:#f2f6fb;color:#375475;
-  border-radius:7px;padding:3px 1px;font-size:clamp(7px,1.8vw,11px);font-weight:800;line-height:1.15;white-space:nowrap;
-  overflow-wrap:normal;cursor:pointer;touch-action:manipulation}
+.food-unit-input .unit {flex:none;color:#576b82;font-size:clamp(9px,2.35vw,12px);
+  font-weight:650;letter-spacing:-.02em;pointer-events:none}
+.food-energy-fields {display:flex;flex-direction:column;gap:1px;justify-content:center;min-width:0}
+.food-nutrient-energy .food-unit-input input {font-size:clamp(11px,3.25vw,17px)}
+.food-nutrient-energy .food-unit-input:last-child input {font-size:clamp(11px,3.15vw,16px);font-weight:750}
+.food-nutrient-row.is-estimated .food-unit-input {background:#fff5e5}
+/* Centre the Fibre value and its Estimate action as a single group in the
+   available card space. Do not reserve a third row in the other four cards. */
+.food-card-values.has-estimate {justify-content:center;padding-top:0;gap:4px}
+.food-card-footer {display:flex;min-width:0;width:100%;justify-content:center}
+.food-fibre-estimate-button {display:block;width:100%;min-width:0;margin:0;border:1px solid #d3c7e5;
+  background:#f2ebfa;color:#684c8a;border-radius:5px;padding:2px 0;font-size:clamp(9px,2.15vw,11px);
+  font-weight:750;line-height:1.1;white-space:nowrap;cursor:pointer;touch-action:manipulation}
 .food-fibre-estimate-button:disabled {opacity:.55;cursor:wait}
+.food-card-readonly {display:flex;align-items:baseline;justify-content:center;min-width:0;white-space:nowrap;color:var(--food-value-ink);
+  font-size:clamp(12px,3.6vw,18px);font-weight:850;font-variant-numeric:tabular-nums;letter-spacing:-.045em}
+.food-card-readonly .unit {font-size:clamp(9px,2.35vw,12px);font-weight:650;letter-spacing:-.02em;color:#576b82}
+.food-card-readonly.secondary {font-size:clamp(11px,3.15vw,16px);font-weight:750}
+.food-nutrition.is-readonly .food-nutrient-row {min-height:80px}
+/* Round the *display* of Cal values only. The editable field retains its
+   original precise number, revealed on typing or scrubbing. */
+/* The underlying precise calorie input remains interactive across the
+   entire value row. The rounded display is a natural flex child, so its
+   number and unit centre together exactly like readonly recipe values. */
+.food-unit-input.food-whole-energy input {position:absolute;inset:0;width:100%;max-width:none;height:100%;opacity:0;cursor:text}
+.food-whole-energy-readout {display:inline-block;pointer-events:none;color:var(--food-value-ink);
+  font-size:clamp(11px,3.15vw,16px);font-weight:750;letter-spacing:-.045em;font-variant-numeric:tabular-nums}
+.food-whole-energy:focus-within input,.food-whole-energy:has(input.number-scrub-active) input {position:static;width:auto;max-width:calc(100% - 22px);height:21px;opacity:1;color:var(--food-value-ink)!important;-webkit-text-fill-color:var(--food-value-ink)}
+.food-whole-energy:focus-within .food-whole-energy-readout,.food-whole-energy:has(input.number-scrub-active) .food-whole-energy-readout {display:none}
+@media (max-width:365px) {
+  .food-nutrition {gap:3px}
+  .food-nutrient-row {padding:6px 1px 6px;border-radius:9px}
+  .food-preferences-row {gap:6px 8px}
+}
+@media (min-width:660px) {
+  .food-nutrient-row,.food-nutrition.is-readonly .food-nutrient-row {min-height:80px;padding:7px 7px 7px;grid-template-rows:17px minmax(0,1fr)}
+  .food-unit-input {gap:2px}
+}
 .food-fibre-reference {color:#536e86;font-size:12px;line-height:1.35;overflow-wrap:anywhere;padding:0 2px}
 .food-fibre-reference:empty {display:none}
 .food-fibre-reference a {color:#285e9d;text-decoration:underline;text-underline-offset:2px}
-@media (max-width:365px) {
-  .food-nutrition {gap:3px}
-  .food-nutrient-row{padding:5px 1px 5px;border-radius:8px;gap:2px}
-  .food-preferences-row{gap:6px 8px}
-  .food-fibre-estimate-button{padding:4px 0;white-space:normal}
-}
-@media (min-width:660px) {
-  .food-nutrition {gap:9px}
-  .food-nutrient-row {padding:9px 8px;gap:4px}
-  .food-unit-input{gap:2px}
-}
 
 /* Source-supported fibre suggestions, separate from accepted Food Item values. */
 .fibre-estimate-summary {font-weight:850;font-size:12px;color:#344d6b;margin-bottom:3px}
@@ -464,7 +489,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 .food-np-changed .food-unit-input {border-color:#5a91bd;background:#f5faff}
 /* Unconfirmed scanner readings are visible and editable, but never masquerade as verified. */
 .food-np-provisional {background:#fff9ec;border-color:#bd8a3e}
-.food-np-provisional > label::after {content:" · check";font-size:10px;font-weight:700;color:#9a642a}
+.food-np-provisional .food-card-label::after {content:" · check";font-size:10px;font-weight:700;color:#9a642a}
 .food-barcode-error-link {display:inline-block;margin-top:6px;color:#275f9a;text-decoration:underline;font-weight:750}
 
 .food-np-choice[hidden]{display:none!important}
@@ -527,7 +552,10 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 .recipe-line-title{font-size:13px;font-weight:800;color:var(--ink);overflow-wrap:anywhere}
 .recipe-line input,.recipe-line select{min-width:0;width:100%;font-size:13px;padding:9px 6px;border:1px solid #c5d4e5;border-radius:8px;background:#fff;color:var(--ink)}
 .recipe-line .recipe-remove{border:0;background:transparent;color:#7a8b9e;font-size:20px;padding:3px}
-.recipe-totals{font-size:12px;color:#3d5876;font-weight:750;line-height:1.5;padding:10px 0;border-top:1px solid #dfe7ef;border-bottom:1px solid #dfe7ef}
+.recipe-totals{display:grid;gap:7px;min-width:0;font-size:12px;color:#3d5876;font-weight:650;
+  line-height:1.45;padding:10px 0;border-top:1px solid #dfe7ef;border-bottom:1px solid #dfe7ef}
+.recipe-totals .recipe-total-heading{font-size:12px;font-weight:850;color:#415a77}
+.recipe-totals .recipe-total-meta{font-size:11px;color:#61748b;font-weight:650}
 .recipe-totals.is-error{color:#a14926}
 /* Dish and Meal toggles use .form-toggle, as do Food and Activity. */
 @media(max-width:375px){.recipe-line{grid-template-columns:22px minmax(0,1fr) 57px 80px 25px;gap:4px}}
@@ -655,7 +683,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 
 <script src="activity-math.js?v=0.1.096"></script><script src="calorie-budget.js?v=0.1.096"></script>
 <script src="piechart-shared.js?v=0.1.087"></script>
-<script>/* PieChart v0.1.098 — shared diary controls and validated common helpers. */
+<script>/* PieChart v0.1.101 — reliable activity creation, recording, and numeric form controls. */
 (() => {
   'use strict';
   // All chart data comes from private member records; blank days remain blank.
@@ -1563,7 +1591,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         const value=d[key],goal=d[key+'Goal'];
         const percentage=pct(value,goal);
         put(key+'-percent',d.incompleteNutrients?.includes(key)&&percentage!=='—'?'≥ '+percentage:percentage);
-        put(key+'-reading',Number.isFinite(value)?(d.incompleteNutrients?.includes(key)?'≥ ':'')+nutrientText(value)+' g':'Not recorded');
+        put(key+'-reading',Number.isFinite(value)?(d.incompleteNutrients?.includes(key)?'≥ ':'')+fmt(value)+' g':'Not recorded');
         put(key+'-target',Number.isFinite(goal)?'Target '+fmt(goal)+' g':'');
       }
       const cal=d.calories;
@@ -1580,7 +1608,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         'Add weight & details';
       const caloriePercentage=pct(cal,budgetMid);
       put('calories-percent',d.incompleteNutrients?.includes('calories')&&caloriePercentage!=='—'?'≥ '+caloriePercentage:caloriePercentage);
-      put('calories-reading',Number.isFinite(cal)?(d.incompleteNutrients?.includes('calories')?'≥ ':'')+nutrientText(cal)+' kcal':'Not recorded');
+      put('calories-reading',Number.isFinite(cal)?(d.incompleteNutrients?.includes('calories')?'≥ ':'')+fmt(cal)+' kcal':'Not recorded');
       put('calories-target',budgetMessage);
       const targetNote=document.getElementById('calories-target');
       if(targetNote)targetNote.title=budgetAvailable&&d.budgetSource==='noom'?
@@ -3293,7 +3321,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         // current authorised user's diary rather than a startup UID snapshot.
         requestAnimationFrame(()=>{if(diaryRemaining?.isConnected)paintDailyRemaining(diaryRemaining,'calories',diaryDate);});
         const items=(diaryDb.state.foodEntries||[]).filter(e=>e.date===diaryDate&&e.nutrition)
-          .sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+          .sort((a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||''))||String(a.id||'').localeCompare(String(b.id||'')));
         diaryRows.replaceChildren();
         const noom=(diaryDb.state.noomDays||[]).find(e=>e.date===diaryDate)?.noom;
         const nutritionKeys=['calories','protein','fibre','fats','carbs'];
@@ -3356,6 +3384,33 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         }
       });
     }
+    // Shared five-card nutrient presentation for all FDM editors. Food Items
+    // have editable per-100 figures; recipes show calculated whole-recipe totals.
+    // Keeping a single renderer prevents the views from diverging again.
+    function fdmNutrientCards(values={}, {editable=false, origins={}}={}){
+      const order=[['calories','Energy'],['protein','Protein'],['fats','Fat'],['carbs','Carbs'],['fibre','Fibre']];
+      const numericValue=(value)=>Number.isFinite(value)?roundFood(value):'';
+      const inputRow=(id,value,unit,label,{required=false,initial=false,whole=false}={})=>
+        `<div class="food-unit-input${whole?' food-whole-energy':''}"><input ${required?'required ':''}id="${id}" aria-label="${label}" type="number" min="0" step="any" inputmode="decimal" value="${numericValue(value)}" ${initial?`data-initial="${numericValue(value)}"`:''}>${whole?`<span class="food-whole-energy-readout" id="food-whole-calories" aria-hidden="true">${Number.isFinite(value)?Math.round(value).toLocaleString('en-NZ'):''}</span>`:''}<span class="unit">${unit}</span></div>`;
+      const textRow=(value,unit,secondary=false,whole=false)=>
+        `<div class="food-card-readonly${secondary?' secondary':''}"><span>${Number.isFinite(value)?(whole?Math.round(value).toLocaleString('en-NZ'):nutrientText(value)):'—'}</span><span class="unit">${unit}</span></div>`;
+      const cards=order.map(([key,name])=>{
+        const isEnergy=key==='calories';
+        const kj=Number.isFinite(values.energyKj)?values.energyKj:
+          Number.isFinite(values.calories)?window.PieChartShared.kcalToKj(values.calories):null;
+        const main=editable?(isEnergy?
+          `<div class="food-energy-fields">${inputRow('food-energy-kj',kj,'kJ','Energy in kilojoules')}${inputRow('food-n-calories',values.calories,'Cal','Energy in kilocalories',{required:true,initial:true,whole:true})}</div>`:
+          inputRow('food-n-'+key,values[key],'g',name+' per 100',{required:true,initial:true})):
+          (isEnergy?`<div class="food-energy-fields">${textRow(kj,'kJ')}${textRow(values.calories,'Cal',true,true)}</div>`:textRow(values[key],'g'));
+        const footer=editable&&key==='fibre'?
+          '<button type="button" id="food-estimate-fibre" class="food-fibre-estimate-button" aria-label="Provide fibre estimate" title="Provide fibre estimate">Estimate</button>':'';
+        return `<div class="food-nutrient-row ${isEnergy?'food-nutrient-energy ':''}${editable&&['estimated','missing'].includes(origins[key])?'is-estimated ':''}" ${editable?`id="food-row-${key}"`:''} data-nutrient="${key}">
+          ${editable?`<label class="food-card-label" for="${isEnergy?'food-energy-kj':'food-n-'+key}">${name}</label>`:`<span class="food-card-label">${name}</span>`}
+          <div class="food-card-values${footer?' has-estimate':''}">${main}${footer?`<div class="food-card-footer">${footer}</div>`:''}</div></div>`;
+      }).join('');
+      return `<div class="food-nutrition ${editable?'is-editable':'is-readonly'}" aria-label="${editable?'Nutrition values per 100 grams or millilitres':'Calculated nutrition for the entire recipe'}">${cards}</div>`;
+    }
+
     function openRecipeEditor(type,existing=null){
       clearTimeout(foodSearchTimer);foodFetchGeneration++;stopBarcodeScan();
       enterLibraryView('compose', 'Make '+type);
@@ -3403,7 +3458,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         try{
           const values=nutritionOf({id:draftId,type,components:draft});
           const v=values.totals;
-          summary.textContent=`${values.estimatedWeight?'≈':''}${numberText(values.weight)} g · ${numberText(v.energyKj)} kJ / ${numberText(v.calories)} kcal · Protein ${numberText(v.protein)} g · Fat ${numberText(v.fats)} g · Carbs ${numberText(v.carbs)} g · Fibre ${numberText(v.fibre)} g · Water ${numberText(values.waterMl)} mL`;
+          summary.innerHTML=`<div class="recipe-total-heading">${type} totals</div>${fdmNutrientCards(v)}<div class="recipe-total-meta">${values.estimatedWeight?'Approx. ':''}Weight: ${numberText(values.weight)} g · Water: ${numberText(values.waterMl)} mL</div>`;
           summary.classList.remove('is-error');
         }catch(error){summary.textContent=error.message;summary.classList.add('is-error');}
       }
@@ -3623,11 +3678,6 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         return brand&&normalized.toLocaleLowerCase('en-NZ').startsWith((brand+' ').toLocaleLowerCase('en-NZ'))
           ?brand+normalized.slice(brand.length):normalized;
       }
-      // Concise NZ-label-style nutrition rows. Keep origins in data, not repetitive field notes.
-      const nutritionOrder=['protein','fats','carbs','fibre'];
-      const valueInput=k=>`<div class="food-nutrient-row ${k==='fibre'?'fibre-estimate-row ':''}${item.origins?.[k]==='estimated'||item.origins?.[k]==='missing'?'is-estimated':''}" id="food-row-${k}">
-        <label for="food-n-${k}">${k==='carbs'?'Carbs':nutrientNames[k]}</label>
-        <div class="food-unit-input"><input required id="food-n-${k}" aria-label="${nutrientNames[k]} per 100" type="number" min="0" step="any" inputmode="decimal" placeholder="${item.origins?.[k]==='missing'?'Estimate':''}" value="${Number.isFinite(item.values?.[k])?roundFood(item.values[k]):''}" data-initial="${Number.isFinite(item.values?.[k])?roundFood(item.values[k]):''}"><span class="unit">g</span></div>${k==='fibre'?'<button type="button" id="food-estimate-fibre" class="food-fibre-estimate-button">Provide estimate</button>':''}</div>`;
       review.innerHTML=`${isLocal?`<button class="food-record-action" id="food-record-serving" type="button">Record serving of ${safe(initialFoodName)}</button>`:''}<div class="food-field-grid">
           <div class="food-field wide"><label for="food-name">Food name</label><input required id="food-name" maxlength="160" value="${safe(initialFoodName)}"></div>
           <div class="food-preferences-row wide">
@@ -3645,13 +3695,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
           <div class="food-field"><label for="food-base-unit">Values per 100</label><select id="food-base-unit"><option value="g">Grams</option><option value="mL">Millilitres</option></select></div>
         </div>
         ${reviewNameWarning}
-        <div class="food-nutrition" aria-label="Nutrition information per 100 grams or millilitres">
-          <div class="food-nutrient-row food-nutrient-energy" id="food-row-calories"><label for="food-energy-kj">Energy</label>
-            <div class="food-energy-fields"><div class="food-unit-input"><input id="food-energy-kj" aria-label="Energy in kilojoules" type="number" min="0" step="any" inputmode="decimal" value="${Number.isFinite(item.values?.energyKj)?roundFood(item.values.energyKj):Number.isFinite(item.values?.calories)?roundFood(window.PieChartShared.kcalToKj(item.values.calories)):''}"><span class="unit">kJ</span></div>
-            <div class="food-unit-input"><input required id="food-n-calories" aria-label="Energy in kilocalories" type="number" min="0" step="any" inputmode="decimal" value="${Number.isFinite(item.values?.calories)?roundFood(item.values.calories):''}" data-initial="${Number.isFinite(item.values?.calories)?roundFood(item.values.calories):''}"><span class="unit">Cal</span></div></div>
-          </div>
-          ${nutritionOrder.map(valueInput).join('')}
-        </div>
+        ${fdmNutrientCards(item.values,{editable:true,origins:item.origins})}
         <div class="food-fibre-reference" id="food-fibre-reference" role="status" aria-live="polite"></div>
         <div class="food-field">
           <button class="food-np-scan" type="button" id="food-photo-nutrients">Scan nutrition panel</button>
@@ -3776,6 +3820,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         document.getElementById('food-base-unit').value=parsed.baseUnit;
         if(edited.length)item.source='Product label (photo OCR)';
         updateWaterPreview();
+        refreshDisplayedCalories();
         photoStatus.classList.toggle('is-error',!edited.length);
         const check=(parsed.uncertainFields||[]).map(k=>nutrientNames[k]).join(', ');
         photoStatus.textContent=(edited.length?'Read '+edited.join(', ')+'. ':'')+
@@ -4003,6 +4048,13 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       // Do not round-trip through the display: the last explicitly entered unit wins.
       const energyKjInput=document.getElementById('food-energy-kj');
       const calorieInput=document.getElementById('food-n-calories');
+      function refreshDisplayedCalories(){
+        const label=document.getElementById('food-whole-calories');
+        if(!label)return;
+        const number=Number(calorieInput.value);
+        label.textContent=calorieInput.value.trim()!==''&&Number.isFinite(number)?Math.round(number).toLocaleString('en-NZ'):'';
+      }
+      calorieInput.addEventListener('input',refreshDisplayedCalories);
       const fmt=n=>Number(n.toFixed(2)).toString();
       calorieInput.addEventListener('input',()=>{
         const raw=calorieInput.value.trim(),value=Number(raw);
@@ -4012,6 +4064,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         const raw=energyKjInput.value.trim(),value=Number(raw);
         calorieInput.value=raw!==''&&Number.isFinite(value)&&value>=0?fmt(window.PieChartShared.kjToKcal(value)):'';
         calorieInput.dispatchEvent(new Event('change',{bubbles:false}));
+        refreshDisplayedCalories();
       });
       nutrientKeys.forEach(k=>{
         document.getElementById('food-n-'+k).addEventListener('input',e=>{
@@ -4204,9 +4257,9 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
   // A numeric field requires an intentional double tap/click to type. The
   // shared read-only gate prevents an incidental short touch from raising the
   // keyboard; the existing press-and-hold gesture remains available.
-  function lockNumberTyping(field){
+  function lockNumberTyping(field,{force=false}={}){
     if(!field?.matches?.('input[type="number"]')||field.disabled)return;
-    if(field.dataset.numberTypingMode==='editing')return;
+    if(!force&&field.dataset.numberTypingMode==='editing')return;
     field.dataset.numberTypingMode='locked';
     field.readOnly=true;
     field.setAttribute('aria-description','Double tap to type, or hold briefly and slide to adjust.');
@@ -4238,7 +4291,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
   entryContent.addEventListener('focusout',e=>{
     if(e.target?.matches?.('input[type="number"]')){
       const field=e.target;
-      if(field.dataset.numberTypingMode==='editing')lockNumberTyping(field);
+      if(field.dataset.numberTypingMode==='editing')lockNumberTyping(field,{force:true});
     }
     setTimeout(fitEntryToVisibleViewport,150);
   });
@@ -4391,7 +4444,8 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         // A field focused while held can open Android's keyboard as soon as
         // readOnly is lifted. Blur before restoring normal editable behaviour.
         if(g.active&&document.activeElement===g.field)g.field.blur();
-        g.field.readOnly=g.previousReadOnly;
+        if(g.active){lockNumberTyping(g.field,{force:true});}
+        else g.field.readOnly=g.previousReadOnly;
       }
     }
   }
@@ -4568,7 +4622,12 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
   closeEntry.addEventListener('click',backEntry);
   entryBackdrop.addEventListener('pointerdown',e=>{if(e.target===entryBackdrop)backEntry();});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.querySelector('.fdm-save-dialog[open],.activity-save-popup[open],.activity-step-dialog[open]'))return;
-    if(e.key==='Escape'&&!entryBackdrop.hidden){e.preventDefault();backEntry();}});
+    if(e.key==='Escape'&&!entryBackdrop.hidden){
+      e.preventDefault();
+      const focused=document.activeElement;
+      if(focused&&entryContent.contains(focused)&&focused.matches('input,select,textarea')){focused.blur();return;}
+      backEntry();
+    }});
   // Shared Activity Library: named saved instances, just like the Food Library.
   // Individual recorded instances and the question about Health Connect overlap
   // remain private and are NEVER saved as shared library preferences.
@@ -4627,7 +4686,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       if(diaryMode){
         recorded.replaceChildren();
         const list=(db.state.activityDays||[]).filter(a=>a.date===viewingDate)
-          .sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+          .sort((a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||''))||String(a.id||'').localeCompare(String(b.id||'')));
         if(!list.length){const empty=document.createElement('div');empty.className='activity-log-empty';empty.textContent='No activities recorded for this date.';recorded.append(empty);}
         for(const a of list){
           recorded.append(recordedDiaryRow({
@@ -4667,8 +4726,12 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         String(b.id||'').localeCompare(String(a.id||'')));
     return entries[0]||null;
   }
-  function openActivityEditor(libraryItem=null,initialName='',recordedEntry=null){
+  function openActivityEditor(libraryItem=null,initialName='',recordedEntry=null,options={}){
     const db=window.PieChartDB;
+    // A new shared Activity follows new Food Items: save the definition, then
+    // open a separate editable recording step; never record on library Save.
+    const recordOnly=!!options.recordOnly;
+    const fromToday=options.diaryMode??(dailyNavScreen==='activity');
     const existing=libraryItem||null;
     const template=recordedEntry||existing||{};
     const editingId=recordedEntry?.id||null;
@@ -4676,8 +4739,8 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
     const name=recordedEntry?.name||existing?.name||initialName||'';
     const duration=template.minutes??'',distance=template.distanceKm??'',
       steps=recordedEntry?.stepOrigin==='estimated'?'':(recordedEntry?.stepsCount??template.steps??'');
-    showEntry(recordedEntry?'Edit recorded activity':existing?'Activity · '+existing.name:'New activity',`<form class="activity-form food-review" id="activity-edit-form">
-      <button type="button" class="food-record-action" id="activity-record-top">${editingId?'Update recorded activity':'Record activity'+(name?' · '+safe(name):'')}</button>
+    showEntry(recordOnly?'Record activity':recordedEntry?'Edit recorded activity':existing?'Activity · '+existing.name:'New activity',`<form class="activity-form food-review" id="activity-edit-form">
+      ${recordOnly?'':`<button type="button" class="food-record-action" id="activity-record-top">${editingId?'Update recorded activity':'Record activity'+(name?' · '+safe(name):'')}</button>`}
       <div class="food-field activity-field"><label for="activity-name">Activity name</label><input id="activity-name" maxlength="160" required value="${safe(name)}" placeholder="e.g. Morning walk"></div>
       <div class="food-field-grid activity-grid">
         <div class="food-field activity-field"><label for="activity-date">Date</label><input type="date" id="activity-date" max="${localDay()}" required value="${safe(recordedEntry?.date||activeDate())}"></div>
@@ -4692,12 +4755,12 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         ${['light','moderate','vigorous'].map(x=>`<option value="${x}" ${(template.intensity||'moderate')===x?'selected':''}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}
       </select></div>
       <p class="recipe-totals activity-estimate" id="activity-preview" aria-live="polite"></p>
-      <label class="form-toggle" for="activity-favourite"><input type="checkbox" id="activity-favourite" ${existing?.favorite?'checked':''}>Favourite (for me)</label>
+      ${recordOnly?'':`<label class="form-toggle" for="activity-favourite"><input type="checkbox" id="activity-favourite" ${existing?.favorite?'checked':''}>Favourite (for me)</label>`}
       <p class="food-alert" id="activity-error" role="alert"></p>
-      ${existing?'<button type="button" class="food-secondary-action" id="activity-library-delete">Delete from shared library</button>':''}
+      ${existing&&!recordOnly?'<button type="button" class="food-secondary-action" id="activity-library-delete">Delete from shared library</button>':''}
       <div class="food-review-actions">
         <button type="button" class="entry-cancel" id="activity-editor-back">Back</button>
-        <button type="button" class="entry-affirm" id="activity-library-save">${existing?'Save activity':'Save to Activity Library'}</button>
+        <button type="button" class="entry-affirm" id="activity-library-save">${recordOnly?'Record':existing?'Save activity':'Add to Activity Library'}</button>
       </div>
     </form>`);
     const $=id=>document.getElementById(id);
@@ -4711,7 +4774,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
     function draft(){return {name:$('activity-name').value.trim(),type:type.value,
       minutes:mins.value.trim()===''?null:Number(mins.value),distanceKm:dist.value.trim()===''?null:Number(dist.value),
       steps:stepsInput.value.trim()===''?null:Number(stepsInput.value),
-      intensity:effort.value,favorite:$('activity-favourite').checked};}
+      intensity:effort.value,favorite:recordOnly?!!existing?.favorite:!!$('activity-favourite').checked};}
     function snapshot(){const d=draft();return JSON.stringify(d);}
     function update(){
       const supportsDistance=!!activityTypes[type.value].speed,supportsSteps=stepActivities.has(type.value);
@@ -4750,7 +4813,10 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
           if(answer==='included'||answer==='additional'){
             try{localStorage.setItem(stepPreferenceKey,answer);}catch{}
           }
-          backEntry();
+          // Return to the dated diary with its recorded list visible,
+          // rather than leaving the previous search query hiding new entries.
+          if(fromToday||recordOnly){dismissEntry();openActivityLibrary(true);}
+          else backEntry();
           return true;
         }catch(e){error.textContent=e.message;return false;}
       }
@@ -4803,7 +4869,14 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
           throw new Error('An activity with that name already exists.');
         const item={...d,id:asNew||!existing?crypto.randomUUID():existing.id,savedAt:new Date().toISOString()};
         db.saveActivityLibraryChanges(old,[...old.filter(a=>a.id!==item.id),item]);
-        backEntry();return true;
+        if(!existing||asNew){
+          // Match Food Item creation. Open a separate recording form populated
+          // with the saved defaults; nothing enters the diary until Record.
+          dismissEntry();
+          openActivityLibrary(fromToday);
+          openActivityEditor(item,'',null,{recordOnly:true,diaryMode:fromToday});
+        }else backEntry();
+        return true;
       }catch(e){error.textContent=e.message;return false;}
     }
     function offerSaveOptions(){
@@ -4815,8 +4888,9 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
     for(const field of [type,mins,dist,stepsInput,effort,$('activity-name')]){
       field.addEventListener('input',update);field.addEventListener('change',update);
     }
-    $('activity-record-top').onclick=createEntry;
+    if(!recordOnly)$('activity-record-top').onclick=createEntry;
     $('activity-library-save').onclick=()=>{
+      if(recordOnly){createEntry();return;}
       if(existing&&snapshot()!==originalSnapshot)offerSaveOptions();
       else if(existing)backEntry();
       else saveLibrary();
@@ -4879,7 +4953,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
             amount:nutrientText(Number(e.quantity)||0)+' '+diaryUnitLabel(e),createdAt:e.createdAt||'',food:e})),
           ...(db.state.waters||[]).filter(e=>e.date===waterDate&&Number(e.ml)>0).map(e=>({
             name:'Water',detail:'Earlier water recording',amount:fmt(e.ml)+' mL',createdAt:e.createdAt||'',legacy:e}))
-        ].sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
+        ].sort((a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||''))||String(a.food?.id||a.legacy?.id||'').localeCompare(String(b.food?.id||b.legacy?.id||'')));
         const noom=(db.state.noomDays||[]).find(e=>e.date===waterDate)?.noom;
         const historicalMl=Number.isFinite(noom?.waterMl)?noom.waterMl:null;
         if(Number.isFinite(historicalMl)){

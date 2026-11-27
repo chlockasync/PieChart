@@ -1,4 +1,4 @@
-# Jules Berne’s Pie Chart — v0.1.098
+# Jules Berne’s Pie Chart — v0.1.101
 
 Phone-first PWA for weight, nutrition, water, steps, and activity tracking. Hosted on GitHub Pages with Google sign-in, shared Food and Activity Libraries, and owner-private history.
 
@@ -47,20 +47,36 @@ Firestore documents never needed reimporting. Favourites remain member-private.
 
 Today's Food places recorded entries before search/scan, followed by private
 favourites. Food Item review uses a combined brand-prefixed Food name, two inline
-toggles, Barcode / Values per 100 selectors, and responsive colour-coded nutrient
-cards (five compact cards in one row at every screen width, matching the approved mock-up). The fibre estimate
-explanation sits below the cards. Favourite checkboxes now share one consistent
+toggles, Barcode / Values per 100 selectors, and one cohesive five-card, colour-coded nutrient panel at every screen width. That
+same panel also presents the calculated whole-recipe nutrient totals in both Dish
+and Meal editors, with their weight and water totals underneath. Existing and
+new Food Items use the same editable panel. The fibre estimate explanation sits
+below the cards. Favourite checkboxes now share one consistent
 style across Food, Dish, Meal, and Activity editors. The editable Source field is
 removed; existing reference provenance is preserved internally. Legacy brand
 metadata is read for display and folded into the visible name on save; no
 Firestore migration is required.
+
+## Nutrient-card and home-reading presentation
+
+Food Items, Dishes, and Meals use the same five-card nutrient renderer, with equal
+spacing, centred values, and thicker coloured top borders at all widths. The
+editable Food Item inputs retain double-tap typing, hold-to-scrub, and energy
+conversion. Display Cal values as whole numbers without changing the underlying
+numeric precision. The Fibre Estimate action sits vertically centred beneath
+its value inside the Fibre card, with no wasted row in the other cards.
+
+The home-screen Calories, Fibre, and Protein readings display whole numbers;
+stored measurements and calculations retain their original precision.
 
 ## Daily Food and Activity layout
 
 Today's Food and Today's Activities now use the same Recorded → Search → Favourites
 arrangement with shared spacing and consistent search-state hiding. The recorded
 list has additional breathing room before the search field. The standalone Food
-and Activity Libraries retain their regular search-first layout.
+and Activity Libraries retain their regular search-first layout. In all three
+Today's diaries (Food, Water, and Activities), recorded entries are shown oldest
+to newest, including on past dates. This does not change storage or recent shortcuts.
 
 ## Water recording controls
 
@@ -82,3 +98,7 @@ All numeric fields now require a double tap or double click to open the keyboard
 Noom's missing individual nutrients never hide known values from later PieChart servings. Known partial values are displayed with a ≥ marker, while completely unrecorded nutrients remain missing. Open Food Facts no longer manufactures energy from macronutrients: the Food Item review requires the user to supply missing energy. New food and Water shortcuts retain a private unrounded `snapshotBasis` so repeated edits do not accumulate roundoff; older entries acquire that basis on their first edit. Duration-only and distance-only activities can estimate expenditure but do not fabricate recorded steps. Existing imported notes are preserved without invented duration, distance, steps, or kcal. Metadata-only Firestore events stay inert, and ordinary history changes update only affected in-memory rows and chart bands.
 
 The 3,000-step budget baseline and other energy-model assumptions remain **unreviewed design decisions**; this patch does not change them. No private records or database rules need migrating.
+
+## Activity creation and numeric forms
+
+New Activities follow new Food Items: save the shared library definition first, then review an editable, prefilled Record form; only pressing Record creates a private diary entry. Cancel leaves the Activity saved without a new diary record. Editing existing library definitions does not automatically record them. Numeric fields relock on blur and after scrubbing; Escape first dismisses field focus rather than unintentionally closing the entire form.
