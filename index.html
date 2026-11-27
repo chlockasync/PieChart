@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#fffaf2">
-  <title>Jules Berne's Pie Chart — v0.1.105</title>
+  <title>Jules Berne's Pie Chart — v0.1.106</title>
   <link rel="manifest" href="manifest.webmanifest">
   <style>
-/* Jules Berne's Pie Chart — single visual system, v0.1.105.
+/* Jules Berne's Pie Chart — single visual system, v0.1.106.
    The home screen is one eight-series chart with an integrated right legend.
    No historical overrides or per-version CSS patches. */
 :root {
@@ -681,7 +681,8 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 
 <script src="activity-math.js?v=0.1.096"></script><script src="calorie-budget.js?v=0.1.096"></script>
 <script src="piechart-shared.js?v=0.1.087"></script>
-<script>/* PieChart v0.1.105 — private recorded activity editing. */
+<script src="piechart-entry-flows.js?v=0.1.106"></script>
+<script>/* PieChart v0.1.106 — explicit Activity routes and shared form lifecycle. */
 (() => {
   'use strict';
   // All chart data comes from private member records; blank days remain blank.
@@ -4200,23 +4201,28 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
   }
   let selectedFood=null;
   let entryCleanup=null;
-  const entryScreenHistory=[];
+  const entryScreens=window.PieChartEntryFlows.createEntryStack({
+    content:entryContent,heading:entryHeading,backdrop:entryBackdrop
+  });
   let libraryBackHandler=null;
+  function stopEntryGestures(){
+    endNumberSwipe(numberSwipe?.id,false);
+    stopNumberMomentum();
+  }
+  function stopEntrySearch(){
+    clearTimeout(foodSearchTimer);
+    foodFetchGeneration++;
+    stopBarcodeScan();
+  }
   function backEntry(){
-    endNumberSwipe(numberSwipe?.id,false);stopNumberMomentum();
+    stopEntryGestures();
     // Navigate within the Food Library before leaving it for Settings/the chart.
     if(libraryBackHandler?.())return;
-    if(!entryScreenHistory.length){dismissEntry();return;}
+    if(!entryScreens.depth){dismissEntry();return;}
     entryCleanup?.();entryCleanup=null;
-    clearTimeout(foodSearchTimer);foodFetchGeneration++;stopBarcodeScan();
+    stopEntrySearch();
     if(entryContent.contains(document.activeElement))document.activeElement.blur();
-    const prior=entryScreenHistory.pop();
-    entryContent.replaceChildren(prior.nodes);
-    entryHeading.textContent=prior.title;
-    entryBackdrop.classList.toggle('weight-entry',prior.weight);
-    entryBackdrop.classList.toggle('food-library-entry',prior.food);
-    entryBackdrop.classList.toggle('food-diary-entry',!!prior.diary);
-    entryBackdrop.classList.toggle('daily-entry-view',!!prior.daily);
+    const prior=entryScreens.pop();
     libraryBackHandler=prior.libraryBack;
     entryCleanup=prior.cleanup;
     setDailyNavigation(prior.dailyNav||null);
@@ -4586,17 +4592,10 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
     if(document.hidden){endNumberSwipe(numberSwipe?.id,false);stopNumberMomentum();}
   });
   function showEntry(kind,html){
-    endNumberSwipe(numberSwipe?.id,false);stopNumberMomentum();
+    stopEntryGestures();
     // Opening a sub-screen preserves the prior screen, field contents, and listeners.
     if(!entryBackdrop.hidden){
-      const nodes=document.createDocumentFragment();
-      while(entryContent.firstChild)nodes.append(entryContent.firstChild);
-      entryScreenHistory.push({title:entryHeading.textContent,nodes,
-        scroll:entryContent.scrollTop,weight:entryBackdrop.classList.contains('weight-entry'),
-        food:entryBackdrop.classList.contains('food-library-entry'),
-        diary:entryBackdrop.classList.contains('food-diary-entry'),
-        daily:entryBackdrop.classList.contains('daily-entry-view'),
-        dailyNav:dailyNavScreen,libraryBack:libraryBackHandler,cleanup:entryCleanup});
+      entryScreens.push({dailyNav:dailyNavScreen,libraryBack:libraryBackHandler,cleanup:entryCleanup});
     }
     entryCleanup=null;libraryBackHandler=null;stopBarcodeScan();
     entryHeading.textContent=selectedDay&&kind.startsWith('Record ')?kind+' · '+niceDate(activeDate()):kind;
@@ -4609,11 +4608,10 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
     entryBackdrop.hidden=false;entryContent.scrollTop=0;fitEntryToVisibleViewport();
   }
   function dismissEntry(){
-    endNumberSwipe(numberSwipe?.id,false);stopNumberMomentum();
+    stopEntryGestures();
     entryCleanup?.();entryCleanup=null;
-    for(const old of entryScreenHistory)old.cleanup?.();
-    entryScreenHistory.length=0;libraryBackHandler=null;
-    clearTimeout(foodSearchTimer);foodFetchGeneration++;stopBarcodeScan();
+    entryScreens.clear();libraryBackHandler=null;
+    stopEntrySearch();
     if(entryContent.contains(document.activeElement))document.activeElement.blur();
     entryBackdrop.hidden=true;selectedFood=null;setDailyNavigation(null);
   }
@@ -4630,6 +4628,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
   // Individual recorded instances and the question about Health Connect overlap
   // remain private and are NEVER saved as shared library preferences.
   const activityMath=window.PieChartActivityMath;
+  const activityFlows=window.PieChartEntryFlows;
   const activityTypes=activityMath.TYPES;
   const stepActivities=new Set(Object.keys(activityTypes).filter(k=>activityTypes[k].steps));
   function openActivityLibrary(diaryMode=true){
@@ -4679,8 +4678,8 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       const found=rankLocalLibrary(activities,{query:q,
         matchScore:(a,query)=>(a.name+' '+a.type).toLowerCase().includes(query)?1:0});
       for(const a of found)target.append(makeResult((a.favorite?'★ ':'')+a.name,shortDescription(a),
-        ()=>openActivityEditor(a,'',null,diaryMode?{recordOnly:true,diaryMode:true}:{diaryMode:false})));
-      if(q)target.append(makeResult('+ Add new activity','',()=>openActivityEditor(null,search.value.trim()),'activity-library-create'));
+        ()=>openActivityEditor(activityFlows.activitySelection(a,diaryMode))));
+      if(q)target.append(makeResult('+ Add new activity','',()=>openActivityEditor(activityFlows.activityCreation(search.value.trim(),diaryMode)),'activity-library-create'));
       if(!q&&!found.length)target.append(makeResult('No favourites yet.','Search to find or add an activity.',()=>search.focus()));
       if(diaryMode){
         recorded.replaceChildren();
@@ -4694,7 +4693,8 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
               Number.isFinite(a.minutes)?a.minutes+' min':null,
               Number.isFinite(a.stepsCount)?a.stepsCount+' steps':null].filter(Boolean).join(' · '),
             quantity:'',
-            onEdit:()=>openActivityEditor((db.state.activityLibrary||[]).find(x=>x.id===a.libraryId)||null,'',a),
+            onEdit:()=>openActivityEditor(activityFlows.activityRecording(a,
+              (db.state.activityLibrary||[]).find(x=>x.id===a.libraryId)||null)),
             deleteLabel:'Delete recorded activity '+(a.name||a.type),
             deleteMessage:'Delete this recorded activity?',
             onDelete:()=>db.deleteActivity(a.id)
@@ -4725,16 +4725,16 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         String(b.id||'').localeCompare(String(a.id||'')));
     return entries[0]||null;
   }
-  function openActivityEditor(libraryItem=null,initialName='',recordedEntry=null,options={}){
+  function openActivityEditor(route){
     const db=window.PieChartDB;
-    // A new shared Activity follows new Food Items: save the definition, then
-    // open a separate editable recording step; never record on library Save.
-    // A diary row edits its private recorded instance, never its shared library
-    // definition. Use the same recording-only form for new and existing entries.
-    const editingRecord=!!recordedEntry;
-    const recordOnly=!!options.recordOnly||editingRecord;
-    const fromToday=options.diaryMode??(dailyNavScreen==='activity');
-    const existing=libraryItem||null;
+    // Each caller supplies one explicit intent. A library save and a private
+    // diary recording can no longer be confused by positional arguments or
+    // the state of whatever screen happened to be open previously.
+    const view=activityFlows.describeActivity(route);
+    const {isRecording:recordOnly,isRecordedEdit:editingRecord,fromToday}=view;
+    const existing=route.item||null;
+    const recordedEntry=route.record||null;
+    const initialName=route.name||'';
     const template=recordedEntry||existing||{};
     const editingId=recordedEntry?.id||null;
     const typeName=template.type||'Walking';
@@ -4744,7 +4744,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
     // Library definitions have no date: the date belongs only to recording.
     const recording=recordOnly;
     const showRecordAction=!recordOnly&&!!existing;
-    showEntry(editingRecord?'Edit recorded activity':recordOnly?'Record activity':'Activity',`<form class="activity-form food-review" id="activity-edit-form">
+    showEntry(view.title,`<form class="activity-form food-review" id="activity-edit-form">
       ${showRecordAction?`<button type="button" class="food-record-action" id="activity-record-top">${editingId?'Update recorded activity':'Record activity'+(name?' · '+safe(name):'')}</button>`:''}
       <div class="food-field-grid">
         <div class="food-field wide"><label for="activity-name">Activity name</label><input id="activity-name" maxlength="160" required value="${safe(name)}" placeholder="e.g. Morning walk"></div>
@@ -4763,7 +4763,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       ${existing&&!recordOnly?'<button type="button" class="food-secondary-action" id="activity-library-delete">Delete from shared library</button>':''}
       <div class="food-review-actions">
         <button type="button" class="entry-cancel" id="activity-editor-back">${recordOnly?'Cancel':'Back'}</button>
-        <button type="button" class="entry-affirm" id="activity-library-save">${editingRecord?'Save changes':recordOnly?'Record':existing?'Save changes':'Add to library'}</button>
+        <button type="button" class="entry-affirm" id="activity-library-save">${view.saveLabel}</button>
       </div>
     </form>`);
     const $=id=>document.getElementById(id);
@@ -4828,7 +4828,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
         // review its values, then confirm the dated private recording.
         try{
           const d=validateLibraryDraft(draft());
-          openActivityEditor({...existing,...d},'',null,{recordOnly:true,diaryMode:fromToday});
+          openActivityEditor(activityFlows.activityAfterLibrarySave({...existing,...d},route.origin));
         }catch(e){error.textContent=e.message;}
         return;
       }
@@ -4906,7 +4906,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
           // with the saved defaults; nothing enters the diary until Record.
           dismissEntry();
           openActivityLibrary(fromToday);
-          openActivityEditor(item,'',null,{recordOnly:true,diaryMode:fromToday});
+          openActivityEditor(activityFlows.activityAfterLibrarySave(item,route.origin));
         }else backEntry();
         return true;
       }catch(e){error.textContent=e.message;return false;}

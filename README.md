@@ -1,10 +1,11 @@
-# Jules Berne’s Pie Chart — v0.1.105
+# Jules Berne’s Pie Chart — v0.1.106
 
 Phone-first PWA for weight, nutrition, water, steps, and activity tracking. Hosted on GitHub Pages with Google sign-in, shared Food and Activity Libraries, and owner-private history.
 
 ## Current files
 
 - `index.html` — chart, overlays, forms, and interactions.
+- `piechart-entry-flows.js` — explicit Activity edit/record routes and common dialog history, without Firebase operations.
 - `piechart-db.js`, `firebase-config.js`, and `firestore.rules` — Firebase integration and security rules.
 - `activity-math.js` and `calorie-budget.js` — activity and energy calculations.
 - `nz-concise-2021.js`, `au-afcd-r3.js`, `usda-foundation-2026.js` — bundled food references.
@@ -102,3 +103,25 @@ The 3,000-step budget baseline and other energy-model assumptions remain **unrev
 ## Activity creation and numeric forms
 
 New Activities follow new Food Items: save the shared library definition first, then review an editable, prefilled Record form; only pressing Record creates a private diary entry. Cancel leaves the Activity saved without a new diary record. Editing existing library definitions does not automatically record them. Opening an existing diary activity edits that private recording directly; saving updates its original record, not the shared library definition. Numeric fields relock on blur and after scrubbing; Escape first dismisses field focus rather than unintentionally closing the entire form.
+
+## Form architecture and regression checks
+
+Activity form entry points now call `piechart-entry-flows.js` with a defined intent:
+`create-library`, `edit-library`, `record-new`, or `edit-record`. Search and
+Favourites use the same route. The shared dialog stack preserves existing form
+nodes and restores Back/Cancel destinations for Food, Activities, Water, Weight,
+and Settings. Recording and library persistence remain separate database actions.
+
+Regression checks are included in `tests/` and do not require live Firebase.
+With Node.js and Python Playwright/Chromium available, run:
+
+```text
+node --test tests/test_entry_flows.cjs
+python tests/test_activity_routes.py
+python tests/test_activity_create.py
+python tests/test_daily_forms.py
+```
+
+These simulate form behaviour and database calls, not live Firestore security,
+network failures, or phone-specific input gestures. The current Firebase rules,
+record formats, existing library data, and calorie calculations are unchanged.
