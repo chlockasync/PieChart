@@ -1,4 +1,4 @@
-# Jules Berne’s Pie Chart — v0.1.108
+# Jules Berne’s Pie Chart — v0.1.109
 
 Phone-first PWA for weight, nutrition, water, steps, and activity tracking. Hosted on GitHub Pages with Google sign-in, shared Food and Activity Libraries, and owner-private history.
 
@@ -8,7 +8,9 @@ Phone-first PWA for weight, nutrition, water, steps, and activity tracking. Host
 - `piechart-entry-flows.js` — explicit Activity edit/record routes and common dialog history, without Firebase operations.
 - `piechart-fdm-flows.js` — reusable Food Item, Dish, and Meal editor subview history and save-decision state, without nutrition or database operations.
 - `piechart-chart-data.js` — independent private historical timeline, source aggregation, date-aligned chart ranges, and metric-scale preparation, without DOM, SVG drawing, or Firebase writes.
-- `piechart-db.js`, `firebase-config.js`, and `firestore.rules` — Firebase integration and security rules.
+- `piechart-db.js` — Firebase adapter for authentication, subscriptions, and writes.
+- `piechart-db-sync.mjs` — pure shared-library change planning, incremental document changes, Noom/step source separation, and pending-write flags.
+- `firebase-config.js` and `firestore.rules` — Firebase web configuration and active access rules.
 - `activity-math.js` and `calorie-budget.js` — activity and energy calculations.
 - `nz-concise-2021.js`, `au-afcd-r3.js`, `usda-foundation-2026.js` — bundled food references.
 - `manifest.webmanifest`, `icon-192.png`, `icon-512.png` — PWA metadata and icons.
@@ -157,3 +159,43 @@ python tests/test_fdm_forms.py
 
 Live Firestore, multi-tab/offline sync, and phone-specific rendering remain
 outside this simulated test suite.
+
+## Firestore synchronisation refactor (v0.1.109)
+
+The Firestore adapter uses one write-error handler, scoped to the account that
+queued the write. An error arriving after an account switch cannot be shown to
+the other account. All shared-library records validate before any write is queued.
+Changed shared Food/Activity definitions and their owner-private favourite
+updates are queued in **one Firestore write batch**: both succeed or both fail.
+Favourite-only saves touch just the existing private favourites settings document.
+The legacy shared Activity `favorite: false` compatibility field is preserved;
+actual favourites remain in each member's `users/{uid}/settings/favorites`.
+
+`piechart-db-sync.mjs` contains testable, Firebase-independent transformations for
+shared-library deltas, changed private documents, and imported Noom/Health Connect
+projection. Metadata-only notifications do not rebuild history. Pending private
+favourite writes, and locally queued writes awaiting server acknowledgement, now
+prevent sign-out alongside other pending changes. Membership loss unsubscribes
+**all** owner-private streams (including daily steps), clears private data, and
+invalidates callbacks already in flight. No Firestore rules or document migration
+is required.
+
+With Node.js and Python Playwright/Chromium installed, run:
+
+```text
+node --test tests/*.cjs tests/*.mjs
+python tests/test_activity_routes.py
+python tests/test_activity_create.py
+python tests/test_daily_forms.py
+python tests/test_fdm_forms.py
+python tests/test_chart_regression.py
+```
+
+The new tests simulate the **actual Firestore adapter** with controlled snapshots,
+batches, offline-pending promises, rejected writes, and account switching. They do
+not validate live Firestore rules, two physical devices, real IndexedDB retention,
+or interrupted network reconnection. The chart golden data was refreshed from the
+unchanged v0.1.108 code to remove a pre-existing 25-kcal discrepancy in its older
+v0.1.107 fixture; v0.1.109 matches this v0.1.108 baseline exactly. Firebase
+synchronisation is not an off-device historical backup; backup and restore are
+still a separate unresolved requirement.

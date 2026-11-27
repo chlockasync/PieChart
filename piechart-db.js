@@ -1,18 +1,41 @@
-/* PieChart v0.1.103 — shared libraries, owner-private records, Noom summaries, water, and step sync.
+/* PieChart v0.1.109 — shared libraries, owner-private records, Noom summaries, water, and step sync.
    Firestore uses owner-private personal collections and member-only approved food and activity libraries.
    No private key belongs in a GitHub Pages app. An administrator manually provisions
    the initial two membership documents through Firebase Console. */
 import {firebaseConfig} from './firebase-config.js';
+import {planLibraryChanges,applyDocumentChanges,partitionDailyTotals,privateWritesPending} from './piechart-db-sync.mjs';
 
 const listeners=new Set();
 const state={mode:'local',configured:false,uid:'',displayName:'',email:'',error:'',
-  foods:[],activityLibrary:[],favorites:{foods:{},activities:{}},favoritesLoaded:false,favoritesFromCache:true,activityLibraryLoaded:false,activityLibraryFromCache:true,activityLibraryPending:false,foodsFromCache:false,pending:false,online:navigator.onLine,
+  foods:[],activityLibrary:[],favorites:{foods:{},activities:{}},favoritesLoaded:false,favoritesFromCache:true,favoritesPending:false,activityLibraryLoaded:false,activityLibraryFromCache:true,activityLibraryPending:false,foodsFromCache:false,pending:false,online:navigator.onLine,
   weights:[],waters:[],foodEntries:[],activityDays:[],stepDays:[],noomDays:[],targets:{},details:{},targetsLoaded:false,targetsFromCache:true,
   weightsLoaded:false,watersLoaded:false,foodEntriesLoaded:false,activityDaysLoaded:false,stepDaysLoaded:false,privateFromCache:true,privatePending:false,
   weightsPending:false,watersPending:false,foodEntriesPending:false,activityDaysPending:false,stepDaysPending:false,targetsPending:false,initialRemoteFoods:false,graphRevision:0,graphChange:null,libraryRevision:0};
 let app,auth,db,sdkAuth,sdkStore;
 let stopMember=null,stopFoods=null,stopActivityLibrary=null,stopFavorites=null,stopWeights=null,stopWaters=null,stopFoodEntries=null,stopActivities=null,stopSteps=null,stopTargets=null;
 let authEpoch=0;
+let dataStreamEpoch=0;
+const inFlightWrites=new Set();
+function trackWrite(task,onWriteError=null){
+  const token={epoch:authEpoch,uid:state.uid};
+  inFlightWrites.add(token);
+  Promise.resolve(task).then(()=>{inFlightWrites.delete(token);},error=>{
+    inFlightWrites.delete(token);
+    // A late rejection for a previous user must not appear on the new user's
+    // account. Firestore owns queue durability; we only report failures.
+    if(token.epoch!==authEpoch||token.uid!==state.uid)return;
+    state.error=friendly(error);broadcast();
+    if(typeof onWriteError==='function'){
+      try{onWriteError(state.error)}catch(callbackError){console.error(callbackError)}
+    }
+  });
+  return task;
+}
+function pendingWritesForCurrentAccount(){
+  for(const token of inFlightWrites)
+    if(token.epoch===authEpoch&&token.uid===state.uid)return true;
+  return false;
+}
 // Shared definitions never supply account-private favourites. Firestore's
 // persistent IndexedDB cache is the local source of historical records.
 let sharedFoods=[],sharedActivities=[];
@@ -25,20 +48,23 @@ function overlayPrivateFavorites(){
   state.foods=sharedFoods.map(item=>({...item,favorite:state.favoritesLoaded&&state.favorites.foods[item.id]===true}));
   state.activityLibrary=sharedActivities.map(item=>({...item,favorite:state.favoritesLoaded&&state.favorites.activities[item.id]===true}));
 }
-function watchFavorites(uid,epoch){
+function watchFavorites(uid,epoch,streamEpoch=dataStreamEpoch){
   stopFavorites=sdkStore.onSnapshot(sdkStore.doc(db,'users',uid,'settings','favorites'),{includeMetadataChanges:true},snapshot=>{
-    if(epoch!==authEpoch)return;
+    if(epoch!==authEpoch||streamEpoch!==dataStreamEpoch)return;
     const fromCache=snapshot.metadata.fromCache;
     const loaded=snapshot.exists()||!fromCache;
     const values=snapshot.exists()?snapshot.data()||{}:{};
     const next={foods:favouriteFlags(values.foods),activities:favouriteFlags(values.activities)};
     const changed=loaded&&(JSON.stringify(next)!==JSON.stringify(state.favorites)||!state.favoritesLoaded);
-    const statusChanged=state.favoritesFromCache!==fromCache;
+    const statusChanged=state.favoritesFromCache!==fromCache||
+      state.favoritesPending!==snapshot.metadata.hasPendingWrites;
     state.favoritesFromCache=fromCache;
+    state.favoritesPending=snapshot.metadata.hasPendingWrites;
+    state.privatePending=privateWritesPending(state);
     if(loaded){state.favorites=next;state.favoritesLoaded=true;}
     if(changed){overlayPrivateFavorites();broadcast({library:true});}
     else if(statusChanged)broadcast();
-  },error=>{if(epoch===authEpoch){state.error=friendly(error);broadcast();}});
+  },error=>{if(epoch===authEpoch&&streamEpoch===dataStreamEpoch){state.error=friendly(error);broadcast();}});
 }
 function saveFavorite(kind,id,on,{silent=false,onWriteError=null}={}){
   requireMembership();
@@ -49,19 +75,8 @@ function saveFavorite(kind,id,on,{silent=false,onWriteError=null}={}){
   const ref=sdkStore.doc(db,'users',state.uid,'settings','favorites');
   // Merge only this ID, rather than replacing the list and racing another tab.
   const change=on===true?true:sdkStore.deleteField();
-  sdkStore.setDoc(ref,{[kind]:{[id]:change}},{merge:true})
-    .catch(error=>{state.error=friendly(error);broadcast();if(typeof onWriteError==='function')onWriteError(state.error);});
+  trackWrite(sdkStore.setDoc(ref,{[kind]:{[id]:change}},{merge:true}),onWriteError);
   return true;
-}
-function saveFavouriteDifferences(previous,next,kind,onWriteError=null){
-  const prior=new Map((previous||[]).map(x=>[x.id,x]));
-  for(const item of next||[]){
-    const old=prior.get(item.id);
-    if(!!old?.favorite!==!!item.favorite)saveFavorite(kind,item.id,!!item.favorite,{silent:true,onWriteError});
-    prior.delete(item.id);
-  }
-  // Remove personal flags when the shared library item is deleted.
-  for(const old of prior.values())if(old.favorite)saveFavorite(kind,old.id,false,{silent:true,onWriteError});
 }
 
 function broadcast({graphDates=null,graphKind='',graphAll=false,library=false}={}){
@@ -74,13 +89,21 @@ function broadcast({graphDates=null,graphKind='',graphAll=false,library=false}={
   for(const callback of listeners){try{callback(state)}catch(error){console.error(error)}}
 }
 function setMode(mode,error=''){state.mode=mode;state.error=error;broadcast();}
-function stopSubscriptions(){
-  for(const stop of [stopMember,stopFoods,stopActivityLibrary,stopFavorites,stopWeights,stopWaters,stopFoodEntries,stopActivities,stopSteps,stopTargets])try{stop?.()}catch{}
-  stopMember=stopFoods=stopActivityLibrary=stopFavorites=stopWeights=stopWaters=stopFoodEntries=stopActivities=stopSteps=stopTargets=null;
+function stopAccountSubscriptions(){
+  dataStreamEpoch++; // Invalidates any callbacks already queued before unsubscribe.
+  for(const stop of [stopFoods,stopActivityLibrary,stopFavorites,stopWeights,stopWaters,
+    stopFoodEntries,stopActivities,stopSteps,stopTargets])try{stop?.()}catch{}
+  stopFoods=stopActivityLibrary=stopFavorites=stopWeights=stopWaters=stopFoodEntries=stopActivities=stopSteps=stopTargets=null;
 }
+function stopSubscriptions(){
+  try{stopMember?.()}catch{}
+  stopMember=null;
+  stopAccountSubscriptions();
+}
+
 function clearAccount(){
   sharedFoods=[];sharedActivities=[];privateDocumentMaps.clear();
-  state.uid='';state.displayName='';state.email='';state.foods=[];state.activityLibrary=[];state.favorites={foods:{},activities:{}};state.favoritesLoaded=false;state.favoritesFromCache=true;state.activityLibraryLoaded=false;state.activityLibraryFromCache=true;state.activityLibraryPending=false;state.weights=[];
+  state.uid='';state.displayName='';state.email='';state.foods=[];state.activityLibrary=[];state.favorites={foods:{},activities:{}};state.favoritesLoaded=false;state.favoritesFromCache=true;state.favoritesPending=false;state.activityLibraryLoaded=false;state.activityLibraryFromCache=true;state.activityLibraryPending=false;state.foodsFromCache=false;state.weights=[];
   state.waters=[];state.foodEntries=[];state.activityDays=[];state.stepDays=[];state.noomDays=[];state.targets={};state.details={};state.targetsLoaded=false;state.targetsFromCache=true;
   state.weightsLoaded=false;state.watersLoaded=false;state.foodEntriesLoaded=false;state.activityDaysLoaded=false;state.stepDaysLoaded=false;state.privatePending=false;
   state.weightsPending=false;state.watersPending=false;state.foodEntriesPending=false;state.activityDaysPending=false;state.stepDaysPending=false;state.targetsPending=false;
@@ -123,36 +146,33 @@ function safeFood(food){
 // and keep each member's favourites exclusively in their own settings.
 function saveSharedLibraryChanges(previous,next,{collection,kind,cleanRecord,errorLimit,onWriteError=null}){
   requireMembership();
-  const before=new Map((previous||[]).map(item=>[item.id,item]));
-  const after=new Map((next||[]).map(item=>[item.id,item]));
-  const changes=[];
-  for(const [id,item] of after){
-    const clean=cleanRecord(item);
-    const prior=before.has(id)?cleanRecord(before.get(id)):null;
-    if(!prior||!sameExceptSavedAt(prior,clean))changes.push(['put',id,clean]);
-  }
-  for(const id of before.keys())if(!after.has(id))changes.push(['delete',id]);
-  if(changes.length>400)throw new Error(errorLimit);
-  saveFavouriteDifferences(previous,next,kind,onWriteError);
-  if(!changes.length)return false;
+  const {changes,favoriteChanges}=planLibraryChanges(previous,next,cleanRecord,errorLimit);
+  if(favoriteChanges.length&&!state.favoritesLoaded)
+    throw new Error('Your personal favourites have not finished loading.');
+  if(!changes.length&&!favoriteChanges.length)return false;
   const batch=sdkStore.writeBatch(db);
   for(const [action,id,item] of changes){
     const ref=sdkStore.doc(db,collection,id);
     if(action==='put')batch.set(ref,item);else batch.delete(ref);
   }
-  // Offline writes are queued by Firestore immediately. Show later rejection
-  // without blocking the editor waiting for the server to acknowledge the batch.
-  batch.commit().catch(error=>{
-    state.error=friendly(error);broadcast();
-    if(typeof onWriteError==='function')onWriteError(state.error);
-  });
+  if(favoriteChanges.length){
+    // One merged update to the owner's existing favourites document. The
+    // fixed shared Activity `favorite:false` compatibility field stays intact.
+    const patch=Object.fromEntries(favoriteChanges.map(([id,on])=>[
+      id,on?true:sdkStore.deleteField()
+    ]));
+    batch.set(sdkStore.doc(db,'users',state.uid,'settings','favorites'),
+      {[kind]:patch},{merge:true});
+  }
+  trackWrite(batch.commit(),onWriteError);
+  for(const [id,on] of favoriteChanges){
+    if(on)state.favorites[kind][id]=true;
+    else delete state.favorites[kind][id];
+  }
+  if(favoriteChanges.length){overlayPrivateFavorites();broadcast({library:true});}
   return true;
 }
-function sameExceptSavedAt(before,after){
-  const b={...before},a={...after};
-  delete b.savedAt;delete a.savedAt;
-  return JSON.stringify(b)===JSON.stringify(a);
-}
+
 function saveFoodChanges(previous,next){
   return saveSharedLibraryChanges(previous,next,{
     collection:'approvedFoods',kind:'foods',cleanRecord:safeFood,
@@ -182,42 +202,28 @@ function safeLibraryActivity(input){
   return copy;
 }
 function saveActivityLibraryChanges(previous,next,{onError=null}={}){
-  const before=new Map((previous||[]).map(item=>[item.id,!!item.favorite]));
-  const favoriteChanged=(next||[]).some(item=>before.get(item.id)!==!!item.favorite)||
-    (previous||[]).some(item=>item.favorite&&!(next||[]).some(nextItem=>nextItem.id===item.id));
   const saved=saveSharedLibraryChanges(previous,next,{
     collection:'approvedActivities',kind:'activities',cleanRecord:safeLibraryActivity,
     errorLimit:'Too many activity library changes at once.',onWriteError:onError
   });
-  // Firestore accepts writes into the local queue before server acknowledgement.
-  // Match the Food Library's locally visible workflow: display a queued Activity
-  // immediately, rather than hiding it until a later snapshot notification.
-  // The authoritative snapshot will reconcile pending writes and remote edits.
-  if(saved){sharedActivities=next.map(item=>({...item}));overlayPrivateFavorites();broadcast({library:true});}
-  else if(favoriteChanged){overlayPrivateFavorites();broadcast({library:true});}
-  return saved||favoriteChanged;
+  // Firestore queues local writes immediately. Keep the existing immediate
+  // preview; authoritative listener snapshots still reconcile remote edits.
+  if(saved){
+    sharedActivities=next.map(item=>({...item}));
+    overlayPrivateFavorites();broadcast({library:true});
+  }
+  return saved;
 }
-function watchPersonal(uid,epoch){
+function watchPersonal(uid,epoch,streamEpoch=dataStreamEpoch){
   const collections=[['weightEntries','weights'],['waterEntries','waters'],['foodEntries','foodEntries'],['exerciseEntries','activityDays'],['dailyTotals','stepDays']];
   for(const [name,key] of collections){
     const records=new Map();privateDocumentMaps.set(name,records);
     const stop=sdkStore.onSnapshot(sdkStore.collection(db,'users',uid,name),{includeMetadataChanges:true},snapshot=>{
-      if(epoch!==authEpoch)return;
+      if(epoch!==authEpoch||streamEpoch!==dataStreamEpoch)return;
       // docChanges contains only changed records. Metadata-only notifications
       // never copy the whole collection or invalidate the chart.
       const changes=snapshot.docChanges({includeMetadataChanges:false});
-      const affected=new Set();
-      for(const change of changes){
-        const id=change.doc.id;
-        const previous=records.get(id);
-        if(previous?.date)affected.add(previous.date);
-        if(change.type==='removed')records.delete(id);
-        else{
-          const record={...change.doc.data(),id};
-          records.set(id,record);
-          if(record.date)affected.add(record.date);
-        }
-      }
+      const affected=applyDocumentChanges(records,changes);
       const ready=snapshot.docs.length>0||!snapshot.metadata.fromCache;
       const firstLoad=ready&&!state[key+'Loaded'];
       if(ready)state[key+'Loaded']=true;
@@ -226,27 +232,23 @@ function watchPersonal(uid,epoch){
       const pendingKey=key+'Pending';
       const pendingChanged=state[pendingKey]!==snapshot.metadata.hasPendingWrites;
       state[pendingKey]=snapshot.metadata.hasPendingWrites;
-      state.privatePending=state.weightsPending||state.watersPending||state.foodEntriesPending||state.activityDaysPending||state.stepDaysPending||state.targetsPending;
+      state.privatePending=privateWritesPending(state);
       if(changes.length){
         const documents=[...records.values()];
         if(name==='dailyTotals'){
-          // Health Connect steps and imported Noom summaries are distinct
-          // fields on the same owner-private date document.
-          state.stepDays=documents.filter(row=>/^\d{4}-\d{2}-\d{2}$/.test(row.date||'')&&
-            Number.isInteger(row.steps)&&row.steps>=0&&row.steps<=100000&&
-            row.source==='health_connect'&&typeof row.complete==='boolean');
-          state.noomDays=documents.filter(row=>/^\d{4}-\d{2}-\d{2}$/.test(row.date||'')&&
-            row.noom&&typeof row.noom==='object'&&!Array.isArray(row.noom));
+          const totals=partitionDailyTotals(documents);
+          state.stepDays=totals.stepDays;
+          state.noomDays=totals.noomDays;
         }else state[key]=documents;
       }
       if(changes.length||firstLoad)broadcast({graphDates:[...affected],graphKind:name});
       else if(fromCacheChanged||pendingChanged)broadcast();
-    },error=>{if(epoch===authEpoch){state.error=friendly(error);broadcast();}});
+    },error=>{if(epoch===authEpoch&&streamEpoch===dataStreamEpoch){state.error=friendly(error);broadcast();}});
     if(name==='weightEntries')stopWeights=stop;else if(name==='waterEntries')stopWaters=stop;else if(name==='foodEntries')stopFoodEntries=stop;else if(name==='exerciseEntries')stopActivities=stop;else stopSteps=stop;
   }
   stopTargets=sdkStore.onSnapshot(sdkStore.doc(db,'users',uid,'settings','targets'),
     {includeMetadataChanges:true},snapshot=>{
-      if(epoch!==authEpoch)return;
+      if(epoch!==authEpoch||streamEpoch!==dataStreamEpoch)return;
       const values=snapshot.data()||{};
       const nextTargets=Object.fromEntries(['weight','water','steps','protein','fibre'].map(k=>
         [k,Number.isFinite(values[k])&&values[k]>0?values[k]:null]));
@@ -266,14 +268,15 @@ function watchPersonal(uid,epoch){
       if(ready){state.targets=nextTargets;state.details=nextDetails;state.targetsLoaded=true;}
       state.targetsFromCache=snapshot.metadata.fromCache;
       state.targetsPending=snapshot.metadata.hasPendingWrites;
-      state.privatePending=state.weightsPending||state.watersPending||state.foodEntriesPending||state.activityDaysPending||state.stepDaysPending||state.targetsPending;
+      state.privatePending=privateWritesPending(state);
       if(changed)broadcast({graphAll:true,graphKind:'targets'});
       else if(metadataChanged)broadcast();
-    },error=>{if(epoch===authEpoch){state.error=friendly(error);broadcast();}});
+    },error=>{if(epoch===authEpoch&&streamEpoch===dataStreamEpoch){state.error=friendly(error);broadcast();}});
 }
 function watchFoods(uid,epoch){
+  const streamEpoch=dataStreamEpoch;
   stopFoods=sdkStore.onSnapshot(sdkStore.collection(db,'approvedFoods'),{includeMetadataChanges:true},snapshot=>{
-    if(epoch!==authEpoch)return;
+    if(epoch!==authEpoch||streamEpoch!==dataStreamEpoch)return;
     const changed=snapshot.docChanges({includeMetadataChanges:false}).length>0||!state.initialRemoteFoods;
     const statusChanged=state.foodsFromCache!==snapshot.metadata.fromCache||state.pending!==snapshot.metadata.hasPendingWrites;
     if(changed){sharedFoods=snapshot.docs.map(x=>({...x.data(),id:x.id}));overlayPrivateFavorites();}
@@ -282,9 +285,9 @@ function watchFoods(uid,epoch){
     state.initialRemoteFoods=true;
     if(state.mode!=='connected')state.mode='connected';
     if(changed)broadcast({library:true});else if(statusChanged)broadcast();
-  },error=>{if(epoch===authEpoch)setMode('error',friendly(error));});
+  },error=>{if(epoch===authEpoch&&streamEpoch===dataStreamEpoch)setMode('error',friendly(error));});
   stopActivityLibrary=sdkStore.onSnapshot(sdkStore.collection(db,'approvedActivities'),{includeMetadataChanges:true},snapshot=>{
-    if(epoch!==authEpoch)return;
+    if(epoch!==authEpoch||streamEpoch!==dataStreamEpoch)return;
     const changed=snapshot.docChanges({includeMetadataChanges:false}).length>0||!state.activityLibraryLoaded;
     const statusChanged=state.activityLibraryFromCache!==snapshot.metadata.fromCache||
       state.activityLibraryPending!==snapshot.metadata.hasPendingWrites;
@@ -293,9 +296,9 @@ function watchFoods(uid,epoch){
     state.activityLibraryFromCache=snapshot.metadata.fromCache;
     state.activityLibraryPending=snapshot.metadata.hasPendingWrites;
     if(changed)broadcast({library:true});else if(statusChanged)broadcast();
-  },error=>{if(epoch===authEpoch){state.error=friendly(error);broadcast();}});
-  watchPersonal(uid,epoch);
-  watchFavorites(uid,epoch);
+  },error=>{if(epoch===authEpoch&&streamEpoch===dataStreamEpoch){state.error=friendly(error);broadcast();}});
+  watchPersonal(uid,epoch,streamEpoch);
+  watchFavorites(uid,epoch,streamEpoch);
 }
 async function initialize(){
   setMode('connecting');
@@ -317,16 +320,10 @@ async function initialize(){
       stopMember=storeLib.onSnapshot(storeLib.doc(db,'members',user.uid),{includeMetadataChanges:true},membership=>{
         if(epoch!==authEpoch)return;
         if(!membership.exists()||membership.data().active!==true){
-          if(stopFoods){stopFoods();stopFoods=null;}
-          if(stopActivityLibrary){stopActivityLibrary();stopActivityLibrary=null;}
-          if(stopFavorites){stopFavorites();stopFavorites=null;}
-          if(stopWeights){stopWeights();stopWeights=null;}
-          if(stopWaters){stopWaters();stopWaters=null;}
-          if(stopTargets){stopTargets();stopTargets=null;}
-          if(stopFoodEntries){stopFoodEntries();stopFoodEntries=null;}
-          if(stopActivities){stopActivities();stopActivities=null;}
-          state.foods=[];state.activityLibrary=[];state.favorites={foods:{},activities:{}};state.favoritesLoaded=false;state.activityLibraryLoaded=false;state.weights=[];state.waters=[];state.foodEntries=[];state.activityDays=[];state.stepDays=[];state.noomDays=[];state.targets={};state.details={};state.targetsLoaded=false;
-          state.weightsLoaded=false;state.watersLoaded=false;state.foodEntriesLoaded=false;state.activityDaysLoaded=false;
+          stopAccountSubscriptions();
+          const identity={uid:state.uid,email:state.email,displayName:state.displayName};
+          clearAccount();
+          Object.assign(state,identity);
           setMode(membership.metadata.fromCache?'checking-membership':'not-authorized');return;
         }
         if(!stopFoods)watchFoods(user.uid,epoch);
@@ -341,7 +338,8 @@ async function signIn(){
   catch(error){state.error=friendly(error);broadcast();throw new Error(state.error);}
 }
 async function signOut(){
-  if(state.pending||state.activityLibraryPending||state.privatePending)throw new Error('Changes are waiting to sync. Reconnect before signing out.');
+  if(state.pending||state.activityLibraryPending||state.privatePending||pendingWritesForCurrentAccount())
+    throw new Error('Changes are waiting to sync. Reconnect before signing out.');
   if(auth)await sdkAuth.signOut(auth);
 }
 function validateFoodEntry(payload){
@@ -367,13 +365,7 @@ function createPrivateEntry(collection,record,{onWriteError=null}={}){
   if(collection==='weightEntries'&&(!Number.isFinite(payload.kg)||payload.kg<20||payload.kg>400))throw new Error('Invalid weight.');
   if(collection==='waterEntries'&&(!Number.isInteger(payload.ml)||payload.ml<=0||payload.ml>10000))throw new Error('Invalid water amount.');
   if(collection==='foodEntries')validateFoodEntry(payload);
-  const task=sdkStore.setDoc(sdkStore.doc(db,'users',state.uid,collection,id),payload);
-  task.catch(error=>{
-    state.error=friendly(error);broadcast();
-    if(typeof onWriteError==='function'){
-      try{onWriteError(state.error)}catch(callbackError){console.error(callbackError)}
-    }
-  });
+  trackWrite(sdkStore.setDoc(sdkStore.doc(db,'users',state.uid,collection,id),payload),onWriteError);
   return id;
 }
 function recordWeight(date,kg){return createPrivateEntry('weightEntries',{date,kg});}
@@ -383,8 +375,7 @@ function deletePrivateEntry(collection,key,id,label){
   requireMembership();
   if(typeof id!=='string'||!state[key].some(e=>e.id===id))
     throw new Error(label+' record not found.');
-  sdkStore.deleteDoc(sdkStore.doc(db,'users',state.uid,collection,id))
-    .catch(error=>{state.error=friendly(error);broadcast();});
+  trackWrite(sdkStore.deleteDoc(sdkStore.doc(db,'users',state.uid,collection,id)));
   return true;
 }
 function deleteWeight(id){return deletePrivateEntry('weightEntries','weights',id,'Weight');}
@@ -412,7 +403,7 @@ function updateFoodEntry(id,changes){
   const task=sdkStore.updateDoc(sdkStore.doc(db,'users',state.uid,'foodEntries',id),{
     ...changes,updatedAt:new Date().toISOString()
   });
-  task.catch(error=>{state.error=friendly(error);broadcast();});
+  trackWrite(task);
   return true;
 }
 function recordWater(date,ml,waterFood,options){
@@ -478,8 +469,7 @@ function saveActivity(input,id=null){
   if(id&&!existing)throw new Error('Activity not found in this account.');
   const payload={...record,id:identifier,
     createdAt:existing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
-  sdkStore.setDoc(sdkStore.doc(db,'users',state.uid,'exerciseEntries',identifier),payload)
-    .catch(error=>{state.error=friendly(error);broadcast();});
+  trackWrite(sdkStore.setDoc(sdkStore.doc(db,'users',state.uid,'exerciseEntries',identifier),payload));
   return identifier;
 }
 function deleteActivity(id){
@@ -534,7 +524,7 @@ function saveDetailsAndTargets(values){
   // Single atomic write avoids saving only half a form.
   const task=sdkStore.setDoc(sdkStore.doc(db,'users',state.uid,'settings','targets'),
     {...targets,details},{merge:true});
-  task.catch(error=>{state.error=friendly(error);broadcast();});
+  trackWrite(task);
   return true;
 }
 
