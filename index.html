@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#fffaf2">
-  <title>Jules Berne's Pie Chart — v0.1.103</title>
+  <title>Jules Berne's Pie Chart — v0.1.104</title>
   <link rel="manifest" href="manifest.webmanifest">
   <style>
-/* Jules Berne's Pie Chart — single visual system, v0.1.103.
+/* Jules Berne's Pie Chart — single visual system, v0.1.104.
    The home screen is one eight-series chart with an integrated right legend.
    No historical overrides or per-version CSS patches. */
 :root {
@@ -681,7 +681,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
 
 <script src="activity-math.js?v=0.1.096"></script><script src="calorie-budget.js?v=0.1.096"></script>
 <script src="piechart-shared.js?v=0.1.087"></script>
-<script>/* PieChart v0.1.103 — activity library persistence and editor consistency. */
+<script>/* PieChart v0.1.104 — private recorded activity editing. */
 (() => {
   'use strict';
   // All chart data comes from private member records; blank days remain blank.
@@ -4728,7 +4728,10 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
     const db=window.PieChartDB;
     // A new shared Activity follows new Food Items: save the definition, then
     // open a separate editable recording step; never record on library Save.
-    const recordOnly=!!options.recordOnly;
+    // A diary row edits its private recorded instance, never its shared library
+    // definition. Use the same recording-only form for new and existing entries.
+    const editingRecord=!!recordedEntry;
+    const recordOnly=!!options.recordOnly||editingRecord;
     const fromToday=options.diaryMode??(dailyNavScreen==='activity');
     const existing=libraryItem||null;
     const template=recordedEntry||existing||{};
@@ -4738,9 +4741,9 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
     const duration=template.minutes??'',distance=template.distanceKm??'',
       steps=recordedEntry?.stepOrigin==='estimated'?'':(recordedEntry?.stepsCount??template.steps??'');
     // Library definitions have no date: the date belongs only to recording.
-    const recording=recordOnly||!!recordedEntry;
-    const showRecordAction=!recordOnly&&(!!existing||!!recordedEntry);
-    showEntry(recordOnly?'Record activity':recordedEntry?'Edit recorded activity':'Activity',`<form class="activity-form food-review" id="activity-edit-form">
+    const recording=recordOnly;
+    const showRecordAction=!recordOnly&&!!existing;
+    showEntry(editingRecord?'Edit recorded activity':recordOnly?'Record activity':'Activity',`<form class="activity-form food-review" id="activity-edit-form">
       ${showRecordAction?`<button type="button" class="food-record-action" id="activity-record-top">${editingId?'Update recorded activity':'Record activity'+(name?' · '+safe(name):'')}</button>`:''}
       <div class="food-field-grid">
         <div class="food-field wide"><label for="activity-name">Activity name</label><input id="activity-name" maxlength="160" required value="${safe(name)}" placeholder="e.g. Morning walk"></div>
@@ -4759,7 +4762,7 @@ button:focus-visible,input:focus-visible {outline:2px solid #5697e9;outline-offs
       ${existing&&!recordOnly?'<button type="button" class="food-secondary-action" id="activity-library-delete">Delete from shared library</button>':''}
       <div class="food-review-actions">
         <button type="button" class="entry-cancel" id="activity-editor-back">${recordOnly?'Cancel':'Back'}</button>
-        <button type="button" class="entry-affirm" id="activity-library-save">${recordOnly?'Record':existing?'Save changes':'Add to library'}</button>
+        <button type="button" class="entry-affirm" id="activity-library-save">${editingRecord?'Save changes':recordOnly?'Record':existing?'Save changes':'Add to library'}</button>
       </div>
     </form>`);
     const $=id=>document.getElementById(id);

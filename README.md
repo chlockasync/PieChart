@@ -1,4 +1,4 @@
-# Jules Berne’s Pie Chart — v0.1.103
+# Jules Berne’s Pie Chart — v0.1.104
 
 Phone-first PWA for weight, nutrition, water, steps, and activity tracking. Hosted on GitHub Pages with Google sign-in, shared Food and Activity Libraries, and owner-private history.
 
@@ -101,4 +101,4 @@ The 3,000-step budget baseline and other energy-model assumptions remain **unrev
 
 ## Activity creation and numeric forms
 
-New Activities follow new Food Items: save the shared library definition first, then review an editable, prefilled Record form; only pressing Record creates a private diary entry. Cancel leaves the Activity saved without a new diary record. Editing existing library definitions does not automatically record them. Numeric fields relock on blur and after scrubbing; Escape first dismisses field focus rather than unintentionally closing the entire form.
+New Activities follow new Food Items: save the shared library definition first, then review an editable, prefilled Record form; only pressing Record creates a private diary entry. Cancel leaves the Activity saved without a new diary record. Editing existing library definitions does not automatically record them. Opening an existing diary activity edits that private recording directly; saving updates its original record, not the shared library definition. Numeric fields relock on blur and after scrubbing; Escape first dismisses field focus rather than unintentionally closing the entire form.
