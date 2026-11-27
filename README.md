@@ -1,4 +1,4 @@
-# Jules Berne’s Pie Chart — v0.1.107
+# Jules Berne’s Pie Chart — v0.1.108
 
 Phone-first PWA for weight, nutrition, water, steps, and activity tracking. Hosted on GitHub Pages with Google sign-in, shared Food and Activity Libraries, and owner-private history.
 
@@ -7,6 +7,7 @@ Phone-first PWA for weight, nutrition, water, steps, and activity tracking. Host
 - `index.html` — chart, overlays, forms, and interactions.
 - `piechart-entry-flows.js` — explicit Activity edit/record routes and common dialog history, without Firebase operations.
 - `piechart-fdm-flows.js` — reusable Food Item, Dish, and Meal editor subview history and save-decision state, without nutrition or database operations.
+- `piechart-chart-data.js` — independent private historical timeline, source aggregation, date-aligned chart ranges, and metric-scale preparation, without DOM, SVG drawing, or Firebase writes.
 - `piechart-db.js`, `firebase-config.js`, and `firestore.rules` — Firebase integration and security rules.
 - `activity-math.js` and `calorie-budget.js` — activity and energy calculations.
 - `nz-concise-2021.js`, `au-afcd-r3.js`, `usda-foundation-2026.js` — bundled food references.
@@ -127,3 +128,32 @@ python tests/test_fdm_forms.py
 These simulate form behaviour and database calls, not live Firestore security,
 network failures, or phone-specific input gestures. The current Firebase rules,
 record formats, existing library data, and calorie calculations are unchanged.
+
+## Chart model refactor (v0.1.108)
+
+`piechart-chart-data.js` now owns the historical source indexes, Noom import-period
+budget selection, independent nutrient and water accumulation, Health Connect
+step precedence, per-day calorie-budget calls, incremental row replacement,
+and date-aligned calendar/scale preparation. `index.html` retains Firebase event
+scheduling, home readouts, SVG painting, and user gestures. Account switches
+and sign-out reset the model's account-specific source cache.
+
+The model preserves the existing calculations and SVG presentation; no stored
+record format, Firestore rule, target, or scale convention has changed. The
+chart test compares exact SVG output and all eight readouts to captured
+v0.1.107 results across nine scripted updates, including imported Noom gaps,
+weight changes, exercise entries, today's unplotted values, and sign-out.
+
+Regression checks (Node.js and Python Playwright/Chromium):
+
+```text
+node --test tests/test_entry_flows.cjs tests/test_fdm_flows.cjs tests/test_chart_data.cjs
+python tests/test_chart_regression.py
+python tests/test_activity_routes.py
+python tests/test_activity_create.py
+python tests/test_daily_forms.py
+python tests/test_fdm_forms.py
+```
+
+Live Firestore, multi-tab/offline sync, and phone-specific rendering remain
+outside this simulated test suite.
