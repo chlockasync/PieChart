@@ -7,7 +7,7 @@ import re
 root=Path(__file__).resolve().parents[1]
 html=(root/'index.html').read_text()
 for name in ['nz-concise-2021.js','au-afcd-r3.js','usda-foundation-2026.js',
-             'activity-math.js','calorie-budget.js','piechart-shared.js','piechart-entry-flows.js']:
+             'activity-math.js','calorie-budget.js','piechart-shared.js','piechart-entry-flows.js','piechart-fdm-flows.js']:
     source=(root/name).read_text().replace('</script','<\\/script')
     html,count=re.subn(r'<script src="'+re.escape(name)+r'\?[^\"]+"></script>',
                         lambda m:'<script>'+source+'</script>',html)
@@ -30,7 +30,7 @@ window.__calls={library:[],record:[]};window.PieChartDB={state:st,
  createdAt:'2026-11-27T09:00:00'};st.activityDays.push(record);st.graphRevision++;notify();return record.id;},
  saveFavorite(){throw Error('Favourite should be written by shared library save');},deleteActivity(){}}
 })();</script>'''
-html,count=re.subn(r'<script>/\* PieChart v0\.1\.106',lambda m:stub+'<script>/* PieChart v0.1.106',html)
+html,count=re.subn(r'<script>/\* PieChart v0\.1\.107',lambda m:stub+'<script>/* PieChart v0.1.107',html)
 assert count==1
 with sync_playwright() as p:
     browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox','--disable-dev-shm-usage'])

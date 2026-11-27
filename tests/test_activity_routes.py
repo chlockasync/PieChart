@@ -4,7 +4,7 @@ import re
 root=Path(__file__).resolve().parents[1]
 html=(root/'index.html').read_text()
 assets=root
-for name in ['nz-concise-2021.js','au-afcd-r3.js','usda-foundation-2026.js','activity-math.js','calorie-budget.js','piechart-shared.js','piechart-entry-flows.js']:
+for name in ['nz-concise-2021.js','au-afcd-r3.js','usda-foundation-2026.js','activity-math.js','calorie-budget.js','piechart-shared.js','piechart-entry-flows.js','piechart-fdm-flows.js']:
     js=(assets/name).read_text().replace('</script','<\\/script')
     html,n=re.subn(r'<script src="'+re.escape(name)+r'\?[^\"]+"></script>',lambda m:'<script>'+js+'</script>',html)
     assert n==1,(name,n)
@@ -28,7 +28,7 @@ saveFavorite(){throw Error('Unexpected favourite change')},deleteActivity(){}
 };
 })();
 </script>'''
-html,n=re.subn(r'<script>/\* PieChart v0\.1\.106',lambda m:stub+'<script>/* PieChart v0.1.106',html)
+html,n=re.subn(r'<script>/\* PieChart v0\.1\.107',lambda m:stub+'<script>/* PieChart v0.1.107',html)
 assert n==1,n
 with sync_playwright() as p:
     browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox','--disable-dev-shm-usage'])
